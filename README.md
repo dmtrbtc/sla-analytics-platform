@@ -142,7 +142,7 @@ sequenceDiagram
 
 ```bash
 # Клонирование репозитория
-git clone https://github.com/your-org/sla-analytics-platform.git
+git clone https://github.com/dmtrbtc/sla-analytics-platform.git
 cd sla-analytics-platform
 
 # Настройка окружения
