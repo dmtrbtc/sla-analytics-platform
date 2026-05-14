@@ -1,9 +1,11 @@
 from pydantic_settings import BaseSettings
 
+from app.core.version import VERSION
+
 
 class Settings(BaseSettings):
     PROJECT_NAME: str = "SLA Analytics Platform"
-    VERSION: str = "0.1.0"
+    VERSION: str = VERSION
     CORS_ORIGINS: list[str] = ["http://localhost:80", "http://localhost:5173"]
 
     DATABASE_URL: str = "postgresql+asyncpg://sla_user:sla_password@postgres:5432/sla_platform"
