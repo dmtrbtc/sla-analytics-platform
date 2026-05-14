@@ -37,9 +37,11 @@ services:
       - PYTHONPATH=/app
       - LANG=C.UTF-8
       - LC_ALL=C.UTF-8
+      - PASSLIB_BCRYPT_COMPAT=1
     volumes:
       - ./data:/data
       - ./backend/app:/app/app
+      - ./backend/tests:/app/tests
     ports:
       - "8000:8000"
     depends_on:

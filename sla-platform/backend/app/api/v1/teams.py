@@ -3,7 +3,8 @@ from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, Query
 
 from app.core.database import get_sync_db
-from app.domain.models import Team
+from app.core.dependencies import require_admin
+from app.domain.models import Team, User
 from app.services.team_service import TeamService
 
 router = APIRouter()
@@ -34,6 +35,7 @@ async def list_teams(
 async def create_team(
     payload: dict,
     db=Depends(get_sync_db),
+    _: User = Depends(require_admin),
 ):
     name = payload.get("name")
     queue_prefix = payload.get("queue_prefix")
@@ -77,6 +79,7 @@ async def update_team(
     team_id: int,
     payload: dict,
     db=Depends(get_sync_db),
+    _: User = Depends(require_admin),
 ):
     team = TeamService.update_team(db, team_id, **payload)
     if not team:
@@ -94,6 +97,7 @@ async def update_team(
 async def delete_team(
     team_id: int,
     db=Depends(get_sync_db),
+    _: User = Depends(require_admin),
 ):
     ok = TeamService.delete_team(db, team_id)
     if not ok:

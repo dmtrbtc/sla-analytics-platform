@@ -1,11 +1,13 @@
 import os
 from typing import Optional
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import FileResponse
 
 from app.core.config import settings
 from app.core.database import sync_session_factory
+from app.core.dependencies import require_admin
+from app.domain.models import User
 from app.services.audit_service import AuditService
 from app.tasks.report_tasks import EXPORT_DIR, _REPORT_STATUSES, generate_report, get_report_status
 
@@ -27,6 +29,7 @@ async def generate(
     fmt: str = Query("xlsx", description="xlsx|csv"),
     import_id: Optional[str] = Query(None),
     team_prefix: Optional[str] = Query(None),
+    _: User = Depends(require_admin),
 ):
     params = {}
     if import_id:

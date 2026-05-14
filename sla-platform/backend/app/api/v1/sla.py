@@ -6,7 +6,8 @@ from sqlalchemy import select, func, desc
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db, sync_session_factory
-from app.domain.models import SLADefinition, SLAMetric, TicketSnapshot
+from app.core.dependencies import require_admin
+from app.domain.models import SLADefinition, SLAMetric, TicketSnapshot, User
 from app.services.audit_service import AuditService
 
 router = APIRouter()
@@ -30,6 +31,7 @@ async def list_sla_definitions(
 async def create_sla_definition(
     payload: dict,
     db: AsyncSession = Depends(get_db),
+    _: User = Depends(require_admin),
 ):
     required = ["name", "response_target_seconds", "resolution_target_seconds"]
     for field in required:
@@ -71,6 +73,7 @@ async def update_sla_definition(
     definition_id: int,
     payload: dict,
     db: AsyncSession = Depends(get_db),
+    _: User = Depends(require_admin),
 ):
     sd = await db.get(SLADefinition, definition_id)
     if not sd:
@@ -95,6 +98,7 @@ async def update_sla_definition(
 async def delete_sla_definition(
     definition_id: int,
     db: AsyncSession = Depends(get_db),
+    _: User = Depends(require_admin),
 ):
     sd = await db.get(SLADefinition, definition_id)
     if not sd:

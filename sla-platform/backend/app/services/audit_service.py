@@ -7,6 +7,7 @@ from uuid import UUID
 from sqlalchemy import select, func, desc
 from sqlalchemy.orm import Session
 
+from app.core.database import sync_session_factory
 from app.domain.models import AuditLog
 
 
@@ -34,6 +35,30 @@ class AuditService:
         db.add(entry)
         db.commit()
         return entry
+
+    @staticmethod
+    def log_sync(
+        action: str,
+        resource_type: Optional[str] = None,
+        resource_id: Optional[str] = None,
+        actor_id: Optional[UUID] = None,
+        details: Optional[dict] = None,
+        ip_address: Optional[str] = None,
+    ) -> None:
+        try:
+            db = sync_session_factory()
+            AuditService.log(
+                db,
+                action=action,
+                resource_type=resource_type,
+                resource_id=resource_id,
+                actor_id=actor_id,
+                details=details,
+                ip_address=ip_address,
+            )
+            db.close()
+        except Exception:
+            pass
 
     @staticmethod
     def list_logs(

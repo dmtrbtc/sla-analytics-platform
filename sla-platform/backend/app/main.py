@@ -21,8 +21,9 @@ logger = logging.getLogger(__name__)
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     logger.info("Starting up SLA Analytics Platform")
-    from app.seeds import seed_sla_definitions
+    from app.seeds import seed_admin_user, seed_sla_definitions
     seed_sla_definitions()
+    seed_admin_user()
     yield
     logger.info("Shutting down SLA Analytics Platform")
 

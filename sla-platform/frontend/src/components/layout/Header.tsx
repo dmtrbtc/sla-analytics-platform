@@ -1,13 +1,62 @@
-import { Layout, Button, Typography } from "antd";
-import { MenuFoldOutlined, MenuUnfoldOutlined, LogoutOutlined } from "@ant-design/icons";
+import { Layout, Button, Typography, Dropdown, Space, Tag } from "antd";
+import {
+  MenuFoldOutlined,
+  MenuUnfoldOutlined,
+  LogoutOutlined,
+  UserOutlined,
+} from "@ant-design/icons";
+import { useNavigate } from "react-router-dom";
 import { useUIStore } from "../../stores/uiStore";
-import { useAuth } from "../../hooks/useAuth";
+import { useAuthStore } from "../../stores/authStore";
+import { authApi } from "../../api/auth";
 
 const { Header: AntHeader } = Layout;
 
+const ROLE_COLORS: Record<string, string> = {
+  admin: "red",
+  analyst: "blue",
+  viewer: "green",
+};
+
 export default function Header() {
   const { sidebarCollapsed, toggleSidebar } = useUIStore();
-  const { user, logout } = useAuth();
+  const { user, logout } = useAuthStore();
+  const navigate = useNavigate();
+
+  const handleLogout = async () => {
+    try {
+      await authApi.logout();
+    } catch {
+      // ignore
+    }
+    logout();
+    navigate("/login", { replace: true });
+  };
+
+  const items = [
+    {
+      key: "profile",
+      label: (
+        <Space>
+          <UserOutlined />
+          {user?.display_name || "User"}
+          {user?.role && (
+            <Tag color={ROLE_COLORS[user.role]} style={{ margin: 0 }}>
+              {user.role}
+            </Tag>
+          )}
+        </Space>
+      ),
+      disabled: true,
+    },
+    { type: "divider" as const },
+    {
+      key: "logout",
+      icon: <LogoutOutlined />,
+      label: "Sign Out",
+      onClick: handleLogout,
+    },
+  ];
 
   return (
     <AntHeader
@@ -25,10 +74,12 @@ export default function Header() {
         icon={sidebarCollapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
         onClick={toggleSidebar}
       />
-      <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
-        <Typography.Text>{user?.display_name || "User"}</Typography.Text>
-        <Button type="text" icon={<LogoutOutlined />} onClick={logout} />
-      </div>
+      <Dropdown menu={{ items }} placement="bottomRight">
+        <Button type="text" style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <UserOutlined />
+          <Typography.Text>{user?.display_name || "User"}</Typography.Text>
+        </Button>
+      </Dropdown>
     </AntHeader>
   );
 }

@@ -7,7 +7,8 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db, sync_session_factory
-from app.domain.models import ImportSession
+from app.core.dependencies import require_admin
+from app.domain.models import ImportSession, User
 from app.domain.schemas import (
     ImportSessionResponse,
     ImportUploadResponse,
@@ -52,6 +53,7 @@ async def create_session(
     backlog: Optional[UploadFile] = File(None),
     history: Optional[UploadFile] = File(None),
     db: AsyncSession = Depends(get_db),
+    _: User = Depends(require_admin),
 ):
     try:
         session = await ImportService.create_session(db)
@@ -111,6 +113,7 @@ async def get_session(
 async def start_processing(
     session_id: UUID,
     db: AsyncSession = Depends(get_db),
+    _: User = Depends(require_admin),
 ):
     try:
         session = await ImportService.start_processing(db, session_id)
@@ -128,6 +131,7 @@ async def start_processing(
 async def reprocess_session(
     session_id: UUID,
     db: AsyncSession = Depends(get_db),
+    _: User = Depends(require_admin),
 ):
     session = await ImportService.get_session(db, session_id)
     if not session:
