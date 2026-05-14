@@ -1,0 +1,1 @@
+"""Ownership period tracking service"""
