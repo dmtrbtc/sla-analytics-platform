@@ -15,6 +15,7 @@ from app.domain.models import (
     TicketEvent,
     TicketSnapshot,
 )
+from app.services.analytics.advanced_analytics import AdvancedAnalytics
 from app.services.dashboard_service import DashboardService
 
 router = APIRouter()
@@ -157,3 +158,86 @@ async def approaching_breach(
             for m in rows
         ]
     }
+
+
+# ── Phase 5D: Advanced Analytics Endpoints ──
+
+
+@router.get("/analytics/sla-forecast")
+async def analytics_sla_forecast(
+    days: int = Query(90, ge=7, le=365),
+    db: AsyncSession = Depends(get_db),
+):
+    return await AdvancedAnalytics.sla_trend_forecast(db, days=days)
+
+
+@router.get("/analytics/queue-overload")
+async def analytics_queue_overload(
+    days: int = Query(30, ge=1, le=365),
+    db: AsyncSession = Depends(get_db),
+):
+    return {"queues": await AdvancedAnalytics.queue_overload_prediction(db, days=days)}
+
+
+@router.get("/analytics/reassignments")
+async def analytics_reassignments(
+    days: int = Query(90, ge=1, le=365),
+    db: AsyncSession = Depends(get_db),
+):
+    return await AdvancedAnalytics.reassignment_analysis(db, days=days)
+
+
+@router.get("/analytics/agent-workload")
+async def analytics_agent_workload(
+    days: int = Query(30, ge=1, le=365),
+    db: AsyncSession = Depends(get_db),
+):
+    return {"agents": await AdvancedAnalytics.agent_workload(db, days=days)}
+
+
+@router.get("/analytics/problematic-queues")
+async def analytics_problematic_queues(
+    days: int = Query(90, ge=1, le=365),
+    db: AsyncSession = Depends(get_db),
+):
+    return {"queues": await AdvancedAnalytics.top_problematic_queues(db, days=days)}
+
+
+@router.get("/analytics/mttr-mtta")
+async def analytics_mttr_mtta(
+    days: int = Query(90, ge=1, le=365),
+    queue: Optional[str] = Query(None),
+    db: AsyncSession = Depends(get_db),
+):
+    return await AdvancedAnalytics.mttr_mtta(db, days=days, by_queue=queue)
+
+
+@router.get("/analytics/aging-tickets")
+async def analytics_aging_tickets(
+    db: AsyncSession = Depends(get_db),
+):
+    return await AdvancedAnalytics.aging_tickets(db)
+
+
+@router.get("/analytics/ftr-rate")
+async def analytics_ftr_rate(
+    days: int = Query(90, ge=1, le=365),
+    db: AsyncSession = Depends(get_db),
+):
+    return await AdvancedAnalytics.first_touch_resolution(db, days=days)
+
+
+@router.get("/analytics/reopen-rate")
+async def analytics_reopen_rate(
+    days: int = Query(90, ge=1, le=365),
+    db: AsyncSession = Depends(get_db),
+):
+    return await AdvancedAnalytics.reopen_rate(db, days=days)
+
+
+@router.get("/analytics/breach-root-cause")
+async def analytics_breach_root_cause(
+    days: int = Query(90, ge=1, le=365),
+    db: AsyncSession = Depends(get_db),
+):
+    return await AdvancedAnalytics.breach_root_cause(db, days=days)
