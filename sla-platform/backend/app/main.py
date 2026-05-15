@@ -1,16 +1,18 @@
 """SLA Analytics Platform - Main Application Entry"""
 
+import json
 import logging
 import sys
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, status
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.v1.router import api_router
 from app.core.config import settings
 from app.core.observability import configure_observability, health_check
 from app.core.security_middleware import configure_security
+from app.core.websocket_manager import handle_ws_events
 
 logging.basicConfig(level=logging.INFO, stream=sys.stdout)
 logger = logging.getLogger(__name__)
@@ -43,3 +45,18 @@ app.include_router(api_router, prefix="/api/v1")
 @app.get("/health")
 async def health():
     return await health_check()
+
+
+@app.websocket("/ws")
+async def websocket_endpoint(ws: WebSocket):
+    token = ws.query_params.get("token", "")
+    if not token:
+        await ws.close(code=status.WS_1008_POLICY_VIOLATION, reason="Missing token")
+        return
+    try:
+        from jose import jwt as jose_jwt
+        payload = jose_jwt.decode(token, settings.SECRET_KEY, algorithms=["HS256"])
+    except Exception:
+        await ws.close(code=status.WS_1008_POLICY_VIOLATION, reason="Invalid token")
+        return
+    await handle_ws_events(ws, payload)

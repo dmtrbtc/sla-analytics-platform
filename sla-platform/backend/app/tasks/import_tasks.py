@@ -7,6 +7,7 @@ from celery import chain
 
 from app.core.celery_app import celery_app, exponential_backoff
 from app.core.database import sync_session_factory
+from app.core.websocket_manager import publish_ws_event
 from app.domain.enums import ImportStatus
 from app.domain.models import ImportSession
 
@@ -52,6 +53,10 @@ def validate_step(self, import_id: str) -> dict:
     except Exception:
         _record_error(db, import_id, "validate")
         _retry_or_fail(self, db, import_id, "validate")
+    else:
+        _publish("import_progress", import_id=import_id, step="validate", status="completed", progress=10)
+    finally:
+        db.close()
 
 
 @celery_app.task(bind=True, max_retries=MAX_RETRIES, soft_time_limit=600, time_limit=720)
@@ -69,6 +74,10 @@ def backlog_step(self, prev_result: dict) -> dict:
     except Exception:
         _record_error(db, import_id, "backlog")
         _retry_or_fail(self, db, import_id, "backlog")
+    else:
+        _publish("import_progress", import_id=import_id, step="backlog", status="completed", progress=25)
+    finally:
+        db.close()
 
 
 @celery_app.task(bind=True, max_retries=MAX_RETRIES, soft_time_limit=600, time_limit=720)
@@ -88,6 +97,10 @@ def parse_step(self, prev_result: dict) -> dict:
     except Exception:
         _record_error(db, import_id, "parse")
         _retry_or_fail(self, db, import_id, "parse")
+    else:
+        _publish("import_progress", import_id=import_id, step="parse", status="completed", progress=40)
+    finally:
+        db.close()
 
 
 @celery_app.task(bind=True, max_retries=MAX_RETRIES, soft_time_limit=600, time_limit=720)
@@ -105,6 +118,10 @@ def normalize_step(self, prev_result: dict) -> dict:
     except Exception:
         _record_error(db, import_id, "normalize")
         _retry_or_fail(self, db, import_id, "normalize")
+    else:
+        _publish("import_progress", import_id=import_id, step="normalize", status="completed", progress=55)
+    finally:
+        db.close()
 
 
 @celery_app.task(bind=True, max_retries=MAX_RETRIES, soft_time_limit=600, time_limit=720)
@@ -122,6 +139,10 @@ def rebuild_step(self, prev_result: dict) -> dict:
     except Exception:
         _record_error(db, import_id, "rebuild")
         _retry_or_fail(self, db, import_id, "rebuild")
+    else:
+        _publish("import_progress", import_id=import_id, step="rebuild", status="completed", progress=70)
+    finally:
+        db.close()
 
 
 @celery_app.task(bind=True, max_retries=MAX_RETRIES, soft_time_limit=1200, time_limit=1500)
@@ -139,6 +160,10 @@ def compute_sla_step(self, prev_result: dict) -> dict:
     except Exception:
         _record_error(db, import_id, "compute_sla")
         _retry_or_fail(self, db, import_id, "compute_sla")
+    else:
+        _publish("import_progress", import_id=import_id, step="compute_sla", status="completed", progress=85)
+    finally:
+        db.close()
 
 
 @celery_app.task(bind=True, max_retries=MAX_RETRIES, soft_time_limit=30, time_limit=60)
@@ -157,6 +182,15 @@ def complete_step(self, prev_result: dict) -> dict:
     except Exception:
         _record_error(db, import_id, "complete")
         _retry_or_fail(self, db, import_id, "complete")
+    else:
+        _publish("import_progress", import_id=import_id, step="complete", status="completed", progress=100)
+    finally:
+        db.close()
+
+
+def _publish(event_type: str, **kwargs) -> None:
+    """Publish a WebSocket event via Redis pub/sub."""
+    publish_ws_event({"type": event_type, "ts": datetime.now(timezone.utc).timestamp(), **kwargs})
 
 
 def _set_status(db, import_id: str, status: str) -> None:
@@ -198,7 +232,7 @@ def _retry_or_fail(self, db, import_id: str, step: str) -> None:
         pass
     try:
         self.retry(countdown=exponential_backoff(self))
-    except Exception:
+    except self.MaxRetriesExceededError:
         _fail(import_id, step)
         raise
 
@@ -214,6 +248,7 @@ def _fail(import_id: str, step: str) -> None:
     finally:
         fresh.close()
     _route_to_dead_letter(import_id, step)
+    _publish("import_progress", import_id=import_id, step=step, status="failed")
     logger.error("Import %s failed permanently at step %s", import_id, step)
 
 

@@ -9,6 +9,7 @@ import { useNavigate } from "react-router-dom";
 import { useUIStore } from "../../stores/uiStore";
 import { useAuthStore } from "../../stores/authStore";
 import { authApi } from "../../api/auth";
+import NotificationCenter from "../notifications/NotificationCenter";
 
 const { Header: AntHeader } = Layout;
 
@@ -74,12 +75,15 @@ export default function Header() {
         icon={sidebarCollapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
         onClick={toggleSidebar}
       />
-      <Dropdown menu={{ items }} placement="bottomRight">
-        <Button type="text" style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          <UserOutlined />
-          <Typography.Text>{user?.display_name || "User"}</Typography.Text>
-        </Button>
-      </Dropdown>
+      <Space>
+        <NotificationCenter />
+        <Dropdown menu={{ items }} placement="bottomRight">
+          <Button type="text" style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <UserOutlined />
+            <Typography.Text>{user?.display_name || "User"}</Typography.Text>
+          </Button>
+        </Dropdown>
+      </Space>
     </AntHeader>
   );
 }
