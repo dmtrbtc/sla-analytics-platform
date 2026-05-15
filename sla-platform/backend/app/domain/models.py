@@ -38,7 +38,7 @@ class ImportSession(Base):
     period_end = Column(DateTime)
     stats = Column(JSONB, default=dict)
     error_details = Column(JSONB, default=list)
-    imported_by = Column(UUID(as_uuid=True), ForeignKey("users.id"))
+    imported_by = Column(UUID(as_uuid=True), ForeignKey("users.id"), index=True)
     created_at = Column(DateTime(timezone=True), default=datetime.utcnow)
     updated_at = Column(DateTime(timezone=True), default=datetime.utcnow, onupdate=datetime.utcnow)
     completed_at = Column(DateTime(timezone=True))
@@ -111,7 +111,7 @@ class TicketSnapshot(Base):
     is_closed = Column(Boolean, default=False)
     is_merged = Column(Boolean, default=False)
     confidence = Column(String(20), default="partial")
-    last_import_id = Column(UUID(as_uuid=True), ForeignKey("import_sessions.id"))
+    last_import_id = Column(UUID(as_uuid=True), ForeignKey("import_sessions.id"), index=True)
     updated_at_ts = Column(DateTime(timezone=True), default=datetime.utcnow)
 
 
@@ -155,7 +155,7 @@ class SLADefinition(Base):
     business_hours_only = Column(Boolean, default=False)
     business_hours = Column(JSONB, default=dict)
     is_active = Column(Boolean, default=True)
-    created_by = Column(UUID(as_uuid=True), ForeignKey("users.id"))
+    created_by = Column(UUID(as_uuid=True), ForeignKey("users.id"), index=True)
     created_at = Column(DateTime(timezone=True), default=datetime.utcnow)
 
 
@@ -170,7 +170,7 @@ class SLAMetric(Base):
     queue_name = Column(String(200))
     owner = Column(String(100))
     team_prefix = Column(String(50))
-    sla_definition_id = Column(Integer, ForeignKey("sla_definitions.id"))
+    sla_definition_id = Column(Integer, ForeignKey("sla_definitions.id"), index=True)
     import_id = Column(UUID(as_uuid=True), ForeignKey("import_sessions.id"))
     confidence = Column(String(20))
     computed_at = Column(DateTime(timezone=True), default=datetime.utcnow)
@@ -192,7 +192,7 @@ class AuditLog(Base):
 
     id = Column(BigInteger, primary_key=True)
     timestamp = Column(DateTime(timezone=True), default=datetime.utcnow)
-    actor_id = Column(UUID(as_uuid=True), ForeignKey("users.id"))
+    actor_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), index=True)
     action = Column(String(50), nullable=False)
     resource_type = Column(String(50))
     resource_id = Column(String(100))
