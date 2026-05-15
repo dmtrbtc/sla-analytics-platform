@@ -19,7 +19,7 @@ WEEKDAY_SCHEDULE = {
 def _resolve_config(config: Optional[dict]) -> Optional[dict]:
     """Return the effective schedule dict, or None for 24/7."""
     if config is None:
-        return None
+        return WEEKDAY_SCHEDULE
     if config.get("24_7"):
         return None
     if not config:

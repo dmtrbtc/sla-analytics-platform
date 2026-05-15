@@ -9,12 +9,10 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.v1.router import api_router
 from app.core.config import settings
+from app.core.observability import configure_observability, health_check
+from app.core.security_middleware import configure_security
 
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
-    stream=sys.stdout,
-)
+logging.basicConfig(level=logging.INFO, stream=sys.stdout)
 logger = logging.getLogger(__name__)
 
 
@@ -36,18 +34,12 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=settings.CORS_ORIGINS,
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+configure_security(app)
+configure_observability(app)
+
+app.include_router(api_router, prefix="/api/v1")
 
 
 @app.get("/health")
 async def health():
-    return {"status": "healthy", "version": settings.VERSION}
-
-
-app.include_router(api_router, prefix="/api/v1")
+    return await health_check()

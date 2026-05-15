@@ -14,6 +14,8 @@ from typing import Any, Optional
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
+from app.services.sla.business_hours import calculate_business_seconds
+
 PENDING_STATES = frozenset({
     "pending auto",
     "pending auto+",
@@ -90,8 +92,6 @@ def calculate_active_time(
         paused_time_seconds: total paused time
         segments: list of (start, end, type)
     """
-    from app.services.sla.business_hours import calculate_business_seconds
-
     pause_segments = compute_pause_segments(db, ticket_id, import_id)
     segments: list[dict] = []
     active_total = 0
