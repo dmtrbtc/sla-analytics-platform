@@ -82,6 +82,24 @@ def cleanup_stale_imports(self) -> dict:
         db.close()
 
 
+@celery_app.task(bind=True, max_retries=1, soft_time_limit=120, time_limit=180)
+def refresh_materialized_views(self) -> dict:
+    """Refresh all materialized views for dashboard/analytics performance."""
+    from app.services.analytics.materialized_view_service import refresh_all_views
+
+    db = sync_session_factory()
+    try:
+        results = refresh_all_views(db, concurrently=True)
+        return results
+    except Exception:
+        try:
+            self.retry(countdown=exponential_backoff(self))
+        except Exception:
+            raise
+    finally:
+        db.close()
+
+
 @celery_app.task(bind=True, max_retries=1, soft_time_limit=300, time_limit=360)
 def dead_letter_replay(self) -> dict:
     """Re-queue dead letter tasks for retry (up to 10 per run)."""
