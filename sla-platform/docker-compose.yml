@@ -73,7 +73,7 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
-    command: celery -A app.core.celery_app worker -l info -Q import,report,default
+    command: celery -A app.core.celery_app worker -l info -Q imports,sla,reports,maintenance,default
     restart: unless-stopped
     networks:
       - sla_network
