@@ -1,5 +1,6 @@
 """Audit log service for tracking user actions."""
 
+import logging
 from datetime import datetime, timezone
 from typing import Optional
 from uuid import UUID
@@ -9,6 +10,9 @@ from sqlalchemy.orm import Session
 
 from app.core.database import sync_session_factory
 from app.domain.models import AuditLog
+
+
+logger = logging.getLogger(__name__)
 
 
 class AuditService:
@@ -58,7 +62,7 @@ class AuditService:
             )
             db.close()
         except Exception:
-            pass
+            logger.warning("Audit log_sync failed for %s", action, exc_info=True)
 
     @staticmethod
     def list_logs(

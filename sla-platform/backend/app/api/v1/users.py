@@ -81,7 +81,7 @@ async def get_current_user_info(
     )
 
 
-@router.post("/logout")
+@router.post("/logout", response_model=dict)
 async def logout(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
@@ -190,7 +190,7 @@ async def update_user(
     return UserResponse.model_validate(user)
 
 
-@router.delete("/users/{user_id}")
+@router.delete("/users/{user_id}", response_model=dict)
 async def delete_user(
     user_id: UUID,
     request: Request,

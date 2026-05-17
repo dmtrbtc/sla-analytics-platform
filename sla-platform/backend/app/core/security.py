@@ -7,6 +7,14 @@ from passlib.context import CryptContext
 
 from app.core.config import settings
 
+import logging
+_log = logging.getLogger(__name__)
+if len(settings.SECRET_KEY) < 32:
+    _log.warning(
+        "SECRET_KEY is too short (%d chars). Use at least 32 characters for HS256.",
+        len(settings.SECRET_KEY),
+    )
+
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 ACCESS_TOKEN_TYPE = "access"

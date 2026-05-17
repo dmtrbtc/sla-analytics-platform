@@ -1,3 +1,4 @@
+import logging
 import os
 from typing import Optional
 
@@ -11,6 +12,8 @@ from app.domain.models import User
 from app.services.audit_service import AuditService
 from app.tasks.report_tasks import EXPORT_DIR, _REPORT_STATUSES, generate_report, get_report_status
 
+logger = logging.getLogger(__name__)
+
 router = APIRouter()
 
 
@@ -20,10 +23,10 @@ def _sync_audit(action: str, resource_type: str, resource_id: str, details: Opti
         AuditService.log(sync_db, action=action, resource_type=resource_type, resource_id=resource_id, details=details)
         sync_db.close()
     except Exception:
-        pass
+        logger.warning("Audit log failed for %s %s %s", action, resource_type, resource_id, exc_info=True)
 
 
-@router.post("/generate")
+@router.post("/generate", response_model=dict)
 async def generate(
     report_type: str = Query(..., description="sla_breaches|team_performance|ticket_lifecycle|imports_summary"),
     fmt: str = Query("xlsx", description="xlsx|csv"),
@@ -48,7 +51,7 @@ async def generate(
     }
 
 
-@router.get("/status/{task_id}")
+@router.get("/status/{task_id}", response_model=dict)
 async def report_status(task_id: str):
     status = get_report_status(task_id)
     if not status:
@@ -64,7 +67,7 @@ async def report_status(task_id: str):
     return {"task_id": task_id, **status}
 
 
-@router.get("")
+@router.get("", response_model=dict)
 async def list_reports():
     reports = []
     os.makedirs(EXPORT_DIR, exist_ok=True)
@@ -79,7 +82,7 @@ async def list_reports():
     return {"reports": reports}
 
 
-@router.get("/{report_id}")
+@router.get("/{report_id}", response_model=dict)
 async def get_report(report_id: str):
     status = get_report_status(report_id)
     if not status:
@@ -89,8 +92,10 @@ async def get_report(report_id: str):
 
 @router.get("/{filename}/download")
 async def download_report(filename: str):
-    filepath = os.path.join(EXPORT_DIR, filename)
-    if not os.path.exists(filepath):
+    safe_path = os.path.normpath(os.path.join(EXPORT_DIR, filename))
+    if not safe_path.startswith(os.path.normpath(EXPORT_DIR) + os.sep):
+        raise HTTPException(400, detail="Invalid filename")
+    if not os.path.exists(safe_path):
         raise HTTPException(404, detail="Report file not found")
 
     media_type = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
@@ -98,7 +103,7 @@ async def download_report(filename: str):
         media_type = "text/csv"
 
     return FileResponse(
-        path=filepath,
+        path=safe_path,
         media_type=media_type,
         filename=filename,
         headers={"Content-Disposition": f'attachment; filename="{filename}"'},

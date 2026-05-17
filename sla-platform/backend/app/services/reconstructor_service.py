@@ -30,7 +30,10 @@ class ReconstructorService:
         for tid in ticket_ids:
             events = db.execute(
                 text(
-                    "SELECT * FROM ticket_events "
+                    "SELECT ticket_number, title, event_time, event_type, "
+                    "queue_name, state_name, owner_name, "
+                    "dest_queue, new_owner, new_state "
+                    "FROM ticket_events "
                     "WHERE import_id = :import_id AND ticket_id = :tid "
                     "ORDER BY event_seq"
                 ),

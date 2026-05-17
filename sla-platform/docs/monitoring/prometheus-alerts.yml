@@ -1,0 +1,37 @@
+groups:
+  - name: sla-platform
+    rules:
+      - alert: HighErrorRate
+        expr: rate(app_errors_total[5m]) > 0.1
+        for: 5m
+        labels: { severity: warning }
+        annotations:
+          summary: "High error rate on {{ $labels.endpoint }}"
+
+      - alert: ImportStalled
+        expr: active_imports > 0 and (import_pipeline_duration_seconds{stage="complete"} == 0)
+        for: 30m
+        labels: { severity: warning }
+        annotations:
+          summary: "Import appears stalled"
+
+      - alert: QueueBacklog
+        expr: queue_backlog > 1000
+        for: 5m
+        labels: { severity: warning }
+        annotations:
+          summary: "Queue {{ $labels.queue_name }} backlog exceeds 1000"
+
+      - alert: SlowDBQueries
+        expr: histogram_quantile(0.95, rate(db_query_duration_seconds_bucket[5m])) > 1
+        for: 5m
+        labels: { severity: warning }
+        annotations:
+          summary: "P95 DB query latency exceeds 1s"
+
+      - alert: CeleryTaskFailures
+        expr: rate(celery_tasks_total{status="failed"}[15m]) > 0.05
+        for: 5m
+        labels: { severity: critical }
+        annotations:
+          summary: "High rate of Celery task failures"

@@ -1,15 +1,18 @@
 """Security middleware: rate limiting, request size, CORS hardening, exception handling."""
 
+import logging
 import time
 from typing import Callable
 
-from fastapi import FastAPI, Request, Response
+from fastapi import FastAPI, HTTPException, Request, Response
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from starlette.middleware.base import BaseHTTPMiddleware
 
 from app.core.config import settings
+
+logger = logging.getLogger(__name__)
 
 
 # ---------------------------------------------------------------------------
@@ -61,18 +64,50 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
 # Centralized exception handler
 # ---------------------------------------------------------------------------
 
+async def http_exception_handler(request: Request, exc: HTTPException) -> JSONResponse:
+    return JSONResponse(
+        status_code=exc.status_code,
+        content={"detail": exc.detail},
+    )
+
+
 async def global_exception_handler(request: Request, exc: Exception) -> JSONResponse:
+    logger.exception("Unhandled exception serving %s %s", request.method, request.url.path)
     return JSONResponse(
         status_code=500,
         content={"detail": "Internal server error"},
     )
 
 
-async def validation_exception_handler(request: Request, exc: Exception) -> JSONResponse:
+async def validation_exception_handler(request: Request, exc: RequestValidationError) -> JSONResponse:
+    errors = []
+    for err in exc.errors():
+        errors.append({
+            "field": " -> ".join(str(loc) for loc in err.get("loc", [])),
+            "message": err.get("msg", ""),
+            "type": err.get("type", ""),
+        })
     return JSONResponse(
         status_code=422,
-        content={"detail": str(exc)},
+        content={"detail": "Validation failed", "errors": errors},
     )
+
+
+# ---------------------------------------------------------------------------
+# Security headers middleware
+# ---------------------------------------------------------------------------
+
+class SecurityHeadersMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request: Request, call_next: Callable) -> Response:
+        response = await call_next(request)
+        response.headers["X-Content-Type-Options"] = "nosniff"
+        response.headers["X-Frame-Options"] = "DENY"
+        response.headers["X-XSS-Protection"] = "1; mode=block"
+        response.headers["Referrer-Policy"] = "same-origin"
+        if request.url.scheme == "https":
+            response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
+        response.headers["Content-Security-Policy"] = "default-src 'self'"
+        return response
 
 
 # ---------------------------------------------------------------------------
@@ -100,6 +135,10 @@ def configure_security(app: FastAPI) -> None:
     # Rate limiting
     app.add_middleware(RateLimitMiddleware)
 
-    # Exception handlers
-    app.add_exception_handler(Exception, global_exception_handler)
+    # Security headers
+    app.add_middleware(SecurityHeadersMiddleware)
+
+    # Exception handlers (order matters — specific before generic)
+    app.add_exception_handler(HTTPException, http_exception_handler)
     app.add_exception_handler(RequestValidationError, validation_exception_handler)
+    app.add_exception_handler(Exception, global_exception_handler)

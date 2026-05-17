@@ -8,7 +8,7 @@ from app.services.audit_service import AuditService
 router = APIRouter()
 
 
-@router.get("/log")
+@router.get("/log", response_model=dict)
 async def list_audit_log(
     limit: int = Query(100, le=500),
     offset: int = Query(0, ge=0),

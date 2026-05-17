@@ -1,4 +1,5 @@
 import hashlib
+import logging
 from typing import Optional
 from uuid import UUID
 
@@ -13,11 +14,13 @@ from app.domain.schemas import (
     ImportSessionResponse,
     ImportUploadResponse,
     PipelineStatusResponse,
-    MessageResponse,
 )
 from app.services.audit_service import AuditService
 from app.services.import_service import ImportService
 from app.tasks.import_tasks import run_import_pipeline
+from app.utils.file_validator import validate_upload
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -60,6 +63,9 @@ async def create_session(
 
         if backlog:
             content = await backlog.read()
+            errors = validate_upload(backlog.filename or "", backlog.content_type or "", content)
+            if errors:
+                raise HTTPException(status_code=400, detail="; ".join(errors))
             ext = _detect_file_type(backlog.filename or "")
             await ImportService.upload_file(
                 db, session.id, content, backlog.filename or "backlog.csv", ext or "backlog"
@@ -67,6 +73,9 @@ async def create_session(
 
         if history:
             content = await history.read()
+            errors = validate_upload(history.filename or "", history.content_type or "", content)
+            if errors:
+                raise HTTPException(status_code=400, detail="; ".join(errors))
             ext = _detect_file_type(history.filename or "")
             await ImportService.upload_file(
                 db, session.id, content, history.filename or "history.csv", ext or "history"
@@ -78,7 +87,8 @@ async def create_session(
             message="Session created. Call /sessions/{id}/start to begin processing.",
         )
     except Exception as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        logger.warning("Upload failed: %s", e, exc_info=True)
+        raise HTTPException(status_code=400, detail="Upload failed")
 
 
 @router.get("/sessions/{session_id}", response_model=ImportSessionResponse)
@@ -118,7 +128,8 @@ async def start_processing(
     try:
         session = await ImportService.start_processing(db, session_id)
     except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        logger.warning("Invalid session state: %s", e)
+        raise HTTPException(status_code=400, detail="Invalid session state")
     return PipelineStatusResponse(
         import_id=session.id,
         status=session.status,
@@ -162,7 +173,7 @@ def _sync_audit(action: str, resource_type: str, resource_id: str, details: Opti
         AuditService.log(sync_db, action=action, resource_type=resource_type, resource_id=resource_id, details=details)
         sync_db.close()
     except Exception:
-        pass
+        logger.warning("Audit log failed for %s %s %s", action, resource_type, resource_id, exc_info=True)
 
 
 def _detect_file_type(filename: str) -> Optional[str]:

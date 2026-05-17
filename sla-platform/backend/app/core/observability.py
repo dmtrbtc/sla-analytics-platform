@@ -6,10 +6,79 @@ from typing import Callable
 
 import structlog
 from fastapi import FastAPI, Request, Response
+from prometheus_client import Counter, Gauge, Histogram
 from prometheus_fastapi_instrumentator import Instrumentator
 from starlette.middleware.base import BaseHTTPMiddleware
 
 from app.core.config import settings
+
+# ---------------------------------------------------------------------------
+# Custom Prometheus metrics
+# ---------------------------------------------------------------------------
+
+celery_task_duration = Histogram(
+    "celery_task_duration_seconds",
+    "Duration of Celery tasks by name and status",
+    ["task_name", "status"],
+    buckets=(0.1, 0.5, 1.0, 2.0, 5.0, 10.0, 30.0, 60.0, 120.0, 300.0, 600.0, float("inf")),
+)
+
+celery_tasks_total = Counter(
+    "celery_tasks_total",
+    "Total number of Celery tasks by name and status",
+    ["task_name", "status"],
+)
+
+db_query_duration = Histogram(
+    "db_query_duration_seconds",
+    "Duration of database queries",
+    ["query_type"],
+    buckets=(0.001, 0.005, 0.01, 0.05, 0.1, 0.5, 1.0, 2.0, 5.0),
+)
+
+sla_metrics_processed = Counter(
+    "sla_metrics_processed_total",
+    "Total number of SLA metrics processed",
+    ["import_id", "status"],
+)
+
+import_pipeline_duration = Histogram(
+    "import_pipeline_duration_seconds",
+    "Duration of import pipeline stages",
+    ["stage", "import_id"],
+    buckets=(1, 5, 10, 30, 60, 120, 300, 600, 1800, 3600),
+)
+
+imports_total = Counter(
+    "imports_total",
+    "Total number of imports by status",
+    ["status"],
+)
+
+active_imports = Gauge(
+    "active_imports",
+    "Number of currently active imports",
+)
+
+queue_backlog = Gauge(
+    "queue_backlog",
+    "Current backlog count by queue",
+    ["queue_name"],
+)
+
+error_counter = Counter(
+    "app_errors_total",
+    "Total number of application errors by type",
+    ["error_type", "endpoint"],
+)
+
+
+def increment_error_counter(error_type: str, endpoint: str) -> None:
+    error_counter.labels(error_type=error_type, endpoint=endpoint).inc()
+
+
+def observe_db_query(duration: float, query_type: str) -> None:
+    db_query_duration.labels(query_type=query_type).observe(duration)
 
 
 # ---------------------------------------------------------------------------

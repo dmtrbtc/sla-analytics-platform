@@ -41,9 +41,9 @@ def archive_import(import_id: str) -> dict:
 
         archive = {
             "import_session": {c.name: str(getattr(imp, c.name)) for c in imp.__table__.columns},
-            "raw_events": [dict(r.__dict__) for r in db.query(RawEvent).filter(RawEvent.import_id == import_id).all()],
-            "ticket_events": [dict(r.__dict__) for r in db.query(TicketEvent).filter(TicketEvent.import_id == import_id).all()],
-            "sla_metrics": [dict(r.__dict__) for r in db.query(SLAMetric).filter(SLAMetric.import_id == import_id).all()],
+            "raw_events": [dict(r.__dict__) for r in db.query(RawEvent).filter(RawEvent.import_id == import_id).yield_per(5000)],
+            "ticket_events": [dict(r.__dict__) for r in db.query(TicketEvent).filter(TicketEvent.import_id == import_id).yield_per(5000)],
+            "sla_metrics": [dict(r.__dict__) for r in db.query(SLAMetric).filter(SLAMetric.import_id == import_id).yield_per(5000)],
         }
 
         # Clean non-serializable fields

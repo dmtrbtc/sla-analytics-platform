@@ -21,7 +21,7 @@ from app.services.dashboard_service import DashboardService
 router = APIRouter()
 
 
-@router.get("/overview")
+@router.get("/overview", response_model=dict)
 async def dashboard_overview(
     days: int = Query(30, ge=1, le=365),
     db: AsyncSession = Depends(get_db),
@@ -29,7 +29,7 @@ async def dashboard_overview(
     return await DashboardService.get_overview(db, days=days)
 
 
-@router.get("/time-series")
+@router.get("/time-series", response_model=dict)
 async def time_series(
     metric: str = Query("tickets_created"),
     granularity: str = Query("daily"),
@@ -40,7 +40,7 @@ async def time_series(
     return {"metric": metric, "granularity": granularity, "data": data}
 
 
-@router.get("/teams")
+@router.get("/teams", response_model=dict)
 async def teams_analytics(
     days: int = Query(90, ge=1, le=365),
     db: AsyncSession = Depends(get_db),
@@ -48,7 +48,7 @@ async def teams_analytics(
     return {"teams": await DashboardService.get_teams_analytics(db, days=days)}
 
 
-@router.get("/ticket-flow")
+@router.get("/ticket-flow", response_model=dict)
 async def ticket_flow(
     days: int = Query(90, ge=1, le=365),
     db: AsyncSession = Depends(get_db),
@@ -56,7 +56,7 @@ async def ticket_flow(
     return await DashboardService.get_ticket_flow(db, days=days)
 
 
-@router.get("/sla-trend")
+@router.get("/sla-trend", response_model=dict)
 async def sla_trend(
     days: int = Query(30, ge=1, le=365),
     db: AsyncSession = Depends(get_db),
@@ -82,7 +82,7 @@ async def sla_trend(
     }
 
 
-@router.get("/by-queue")
+@router.get("/by-queue", response_model=dict)
 async def by_queue(db: AsyncSession = Depends(get_db)):
     rows = (
         await db.execute(
@@ -101,7 +101,7 @@ async def by_queue(db: AsyncSession = Depends(get_db)):
     }
 
 
-@router.get("/reassignments")
+@router.get("/reassignments", response_model=dict)
 async def reassignments(
     days: int = Query(90, ge=1, le=365),
     db: AsyncSession = Depends(get_db),
@@ -135,7 +135,7 @@ async def reassignments(
     return {"nodes": [{"name": n} for n in sorted(nodes)], "edges": edges}
 
 
-@router.get("/approaching-breach")
+@router.get("/approaching-breach", response_model=dict)
 async def approaching_breach(
     limit: int = Query(20, le=100),
     db: AsyncSession = Depends(get_db),
@@ -163,7 +163,7 @@ async def approaching_breach(
 # ── Phase 5D: Advanced Analytics Endpoints ──
 
 
-@router.get("/analytics/sla-forecast")
+@router.get("/analytics/sla-forecast", response_model=dict)
 async def analytics_sla_forecast(
     days: int = Query(90, ge=7, le=365),
     db: AsyncSession = Depends(get_db),
@@ -171,7 +171,7 @@ async def analytics_sla_forecast(
     return await AdvancedAnalytics.sla_trend_forecast(db, days=days)
 
 
-@router.get("/analytics/queue-overload")
+@router.get("/analytics/queue-overload", response_model=dict)
 async def analytics_queue_overload(
     days: int = Query(30, ge=1, le=365),
     db: AsyncSession = Depends(get_db),
@@ -179,7 +179,7 @@ async def analytics_queue_overload(
     return {"queues": await AdvancedAnalytics.queue_overload_prediction(db, days=days)}
 
 
-@router.get("/analytics/reassignments")
+@router.get("/analytics/reassignments", response_model=dict)
 async def analytics_reassignments(
     days: int = Query(90, ge=1, le=365),
     db: AsyncSession = Depends(get_db),
@@ -187,7 +187,7 @@ async def analytics_reassignments(
     return await AdvancedAnalytics.reassignment_analysis(db, days=days)
 
 
-@router.get("/analytics/agent-workload")
+@router.get("/analytics/agent-workload", response_model=dict)
 async def analytics_agent_workload(
     days: int = Query(30, ge=1, le=365),
     db: AsyncSession = Depends(get_db),
@@ -195,7 +195,7 @@ async def analytics_agent_workload(
     return {"agents": await AdvancedAnalytics.agent_workload(db, days=days)}
 
 
-@router.get("/analytics/problematic-queues")
+@router.get("/analytics/problematic-queues", response_model=dict)
 async def analytics_problematic_queues(
     days: int = Query(90, ge=1, le=365),
     db: AsyncSession = Depends(get_db),
@@ -203,7 +203,7 @@ async def analytics_problematic_queues(
     return {"queues": await AdvancedAnalytics.top_problematic_queues(db, days=days)}
 
 
-@router.get("/analytics/mttr-mtta")
+@router.get("/analytics/mttr-mtta", response_model=dict)
 async def analytics_mttr_mtta(
     days: int = Query(90, ge=1, le=365),
     queue: Optional[str] = Query(None),
@@ -212,14 +212,14 @@ async def analytics_mttr_mtta(
     return await AdvancedAnalytics.mttr_mtta(db, days=days, by_queue=queue)
 
 
-@router.get("/analytics/aging-tickets")
+@router.get("/analytics/aging-tickets", response_model=dict)
 async def analytics_aging_tickets(
     db: AsyncSession = Depends(get_db),
 ):
     return await AdvancedAnalytics.aging_tickets(db)
 
 
-@router.get("/analytics/ftr-rate")
+@router.get("/analytics/ftr-rate", response_model=dict)
 async def analytics_ftr_rate(
     days: int = Query(90, ge=1, le=365),
     db: AsyncSession = Depends(get_db),
@@ -227,7 +227,7 @@ async def analytics_ftr_rate(
     return await AdvancedAnalytics.first_touch_resolution(db, days=days)
 
 
-@router.get("/analytics/reopen-rate")
+@router.get("/analytics/reopen-rate", response_model=dict)
 async def analytics_reopen_rate(
     days: int = Query(90, ge=1, le=365),
     db: AsyncSession = Depends(get_db),
@@ -235,7 +235,7 @@ async def analytics_reopen_rate(
     return await AdvancedAnalytics.reopen_rate(db, days=days)
 
 
-@router.get("/analytics/breach-root-cause")
+@router.get("/analytics/breach-root-cause", response_model=dict)
 async def analytics_breach_root_cause(
     days: int = Query(90, ge=1, le=365),
     db: AsyncSession = Depends(get_db),

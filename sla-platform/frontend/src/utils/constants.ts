@@ -1,8 +1,10 @@
-export const API_BASE = "/api/v1";
-
-export const ROLES = {
-  ADMIN: "admin",
-  ANALYST: "analyst",
-  TEAM_LEAD: "team_lead",
-  VIEWER: "viewer",
-} as const;
+export const IMPORT_STATUS_COLORS: Record<string, string> = {
+  draft: "default",
+  validating: "processing",
+  parsing: "processing",
+  normalizing: "processing",
+  rebuilding: "processing",
+  computing_sla: "processing",
+  completed: "success",
+  failed: "error",
+};

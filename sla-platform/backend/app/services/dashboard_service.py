@@ -3,7 +3,7 @@
 from datetime import datetime, timedelta
 from uuid import UUID
 
-from sqlalchemy import select, func, text
+from sqlalchemy import and_, case, select, func, text
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import Session
 
@@ -230,137 +230,155 @@ class DashboardService:
     async def get_teams_analytics(db: AsyncSession, days: int = 90) -> list:
         since = datetime.utcnow() - timedelta(days=days)
         teams = (await db.execute(select(Team).where(Team.is_active == True))).scalars().all()
-        result = []
 
+        # Batched ownership stats per team_prefix
+        owner_rows = (
+            await db.execute(
+                select(
+                    OwnershipPeriod.team_prefix,
+                    func.count(func.distinct(OwnershipPeriod.ticket_id)).label("tickets_handled"),
+                    func.avg(OwnershipPeriod.duration_seconds).label("avg_owner_time"),
+                )
+                .where(
+                    OwnershipPeriod.team_prefix.isnot(None),
+                    OwnershipPeriod.start_time >= since,
+                )
+                .group_by(OwnershipPeriod.team_prefix)
+            )
+        ).all()
+        owner_map = {r[0]: {"tickets_handled": r[1] or 0, "avg_owner_time": r[2] or 0} for r in owner_rows}
+
+        # Batched queue stats per team_prefix
+        queue_rows = (
+            await db.execute(
+                select(
+                    QueuePeriod.team_prefix,
+                    func.avg(QueuePeriod.duration_seconds).label("avg_queue_time"),
+                )
+                .where(
+                    QueuePeriod.team_prefix.isnot(None),
+                    QueuePeriod.duration_seconds.isnot(None),
+                    QueuePeriod.entered_at >= since,
+                )
+                .group_by(QueuePeriod.team_prefix)
+            )
+        ).all()
+        queue_map = {r[0]: r[1] or 0 for r in queue_rows}
+
+        # Batched SLA metrics per team_prefix
+        sla_rows = (
+            await db.execute(
+                select(
+                    SLAMetric.team_prefix,
+                    func.count(SLAMetric.id).label("sla_total"),
+                    func.sum(
+                        case((SLAMetric.sla_breached == True, 1), else_=0)
+                    ).label("sla_breached"),
+                    func.sum(
+                        case(
+                            (SLAMetric.metric_name.in_(["response_time"]), 1),
+                            else_=0,
+                        )
+                    ).label("resp_total"),
+                    func.sum(
+                        case(
+                            (
+                                and_(
+                                    SLAMetric.metric_name.in_(["response_time"]),
+                                    SLAMetric.sla_breached == True,
+                                ),
+                                1,
+                            ),
+                            else_=0,
+                        )
+                    ).label("resp_breached"),
+                    func.sum(
+                        case(
+                            (SLAMetric.metric_name.in_(["resolution_time"]), 1),
+                            else_=0,
+                        )
+                    ).label("res_total"),
+                    func.sum(
+                        case(
+                            (
+                                and_(
+                                    SLAMetric.metric_name.in_(["resolution_time"]),
+                                    SLAMetric.sla_breached == True,
+                                ),
+                                1,
+                            ),
+                            else_=0,
+                        )
+                    ).label("res_breached"),
+                )
+                .where(
+                    SLAMetric.team_prefix.isnot(None),
+                    SLAMetric.computed_at >= since,
+                )
+                .group_by(SLAMetric.team_prefix)
+            )
+        ).all()
+        sla_map = {}
+        for r in sla_rows:
+            sla_map[r[0]] = {
+                "sla_total": r[1] or 0,
+                "sla_breached": r[2] or 0,
+                "resp_total": r[3] or 0,
+                "resp_breached": r[4] or 0,
+                "res_total": r[5] or 0,
+                "res_breached": r[6] or 0,
+            }
+
+        # Batched top queues per team_prefix (all rows, top 5 selected in Python)
+        topq_rows = (
+            await db.execute(
+                select(
+                    QueuePeriod.team_prefix,
+                    QueuePeriod.queue_name,
+                    func.count(func.distinct(QueuePeriod.ticket_id)).label("tickets"),
+                )
+                .where(
+                    QueuePeriod.team_prefix.isnot(None),
+                    QueuePeriod.entered_at >= since,
+                )
+                .group_by(QueuePeriod.team_prefix, QueuePeriod.queue_name)
+                .order_by(QueuePeriod.team_prefix, func.count(func.distinct(QueuePeriod.ticket_id)).desc())
+            )
+        ).all()
+        topq_map = {}
+        for r in topq_rows:
+            topq_map.setdefault(r[0], []).append({"queue": r[1], "tickets": r[2]})
+
+        # Global reassignment count (not team-specific)
+        reassignments = (
+            await db.execute(
+                select(func.count(TicketEvent.id)).where(
+                    TicketEvent.event_type == "OwnerUpdate",
+                    TicketEvent.new_owner.isnot(None),
+                    TicketEvent.old_owner.isnot(None),
+                    TicketEvent.new_owner != TicketEvent.old_owner,
+                    TicketEvent.event_time >= since,
+                )
+            )
+        ).scalar() or 0
+
+        result = []
         for team in teams:
             prefix = team.queue_prefix
+            o = owner_map.get(prefix, {})
+            q = queue_map.get(prefix, 0)
+            s = sla_map.get(prefix, {})
+            tq = topq_map.get(prefix, [])
 
-            # Tickets handled (distinct tickets with ownership periods matching this team prefix)
-            tickets_handled = (
-                await db.execute(
-                    select(func.count(func.distinct(OwnershipPeriod.ticket_id)))
-                    .where(
-                        OwnershipPeriod.team_prefix == prefix,
-                        OwnershipPeriod.start_time >= since,
-                    )
-                )
-            ).scalar() or 0
-
-            # Avg ownership time
-            avg_owner_time = (
-                await db.execute(
-                    select(func.avg(OwnershipPeriod.duration_seconds))
-                    .where(
-                        OwnershipPeriod.team_prefix == prefix,
-                        OwnershipPeriod.duration_seconds.isnot(None),
-                        OwnershipPeriod.start_time >= since,
-                    )
-                )
-            ).scalar() or 0
-
-            # Avg queue time
-            avg_queue_time = (
-                await db.execute(
-                    select(func.avg(QueuePeriod.duration_seconds))
-                    .where(
-                        QueuePeriod.team_prefix == prefix,
-                        QueuePeriod.duration_seconds.isnot(None),
-                        QueuePeriod.entered_at >= since,
-                    )
-                )
-            ).scalar() or 0
-
-            # SLA breach count for this team
-            sla_total = (
-                await db.execute(
-                    select(func.count(SLAMetric.id))
-                    .where(SLAMetric.team_prefix == prefix, SLAMetric.computed_at >= since)
-                )
-            ).scalar() or 0
-            sla_breached = (
-                await db.execute(
-                    select(func.count(SLAMetric.id))
-                    .where(
-                        SLAMetric.team_prefix == prefix,
-                        SLAMetric.sla_breached == True,
-                        SLAMetric.computed_at >= since,
-                    )
-                )
-            ).scalar() or 0
-            team_breach_pct = round(sla_breached / sla_total * 100, 2) if sla_total else 0.0
-
-            # Response SLA performance
-            resp_total = (
-                await db.execute(
-                    select(func.count(SLAMetric.id)).where(
-                        SLAMetric.team_prefix == prefix,
-                        SLAMetric.metric_name.in_(["response_time"]),
-                        SLAMetric.computed_at >= since,
-                    )
-                )
-            ).scalar() or 0
-            resp_breached = (
-                await db.execute(
-                    select(func.count(SLAMetric.id)).where(
-                        SLAMetric.team_prefix == prefix,
-                        SLAMetric.metric_name.in_(["response_time"]),
-                        SLAMetric.sla_breached == True,
-                        SLAMetric.computed_at >= since,
-                    )
-                )
-            ).scalar() or 0
-
-            # Resolution SLA performance
-            res_total = (
-                await db.execute(
-                    select(func.count(SLAMetric.id)).where(
-                        SLAMetric.team_prefix == prefix,
-                        SLAMetric.metric_name.in_(["resolution_time"]),
-                        SLAMetric.computed_at >= since,
-                    )
-                )
-            ).scalar() or 0
-            res_breached = (
-                await db.execute(
-                    select(func.count(SLAMetric.id)).where(
-                        SLAMetric.team_prefix == prefix,
-                        SLAMetric.metric_name.in_(["resolution_time"]),
-                        SLAMetric.sla_breached == True,
-                        SLAMetric.computed_at >= since,
-                    )
-                )
-            ).scalar() or 0
-
-            # Top queues for this team
-            top_queues_rows = (
-                await db.execute(
-                    select(
-                        QueuePeriod.queue_name,
-                        func.count(func.distinct(QueuePeriod.ticket_id)),
-                    )
-                    .where(
-                        QueuePeriod.team_prefix == prefix,
-                        QueuePeriod.entered_at >= since,
-                    )
-                    .group_by(QueuePeriod.queue_name)
-                    .order_by(func.count(func.distinct(QueuePeriod.ticket_id)).desc())
-                    .limit(5)
-                )
-            ).all()
-            top_queues = [{"queue": r[0], "tickets": r[1]} for r in top_queues_rows]
-
-            # Reassignment count
-            reassignments = (
-                await db.execute(
-                    select(func.count(TicketEvent.id)).where(
-                        TicketEvent.event_type == "OwnerUpdate",
-                        TicketEvent.new_owner.isnot(None),
-                        TicketEvent.old_owner.isnot(None),
-                        TicketEvent.new_owner != TicketEvent.old_owner,
-                        TicketEvent.event_time >= since,
-                    )
-                )
-            ).scalar() or 0
+            tickets_handled = o.get("tickets_handled", 0)
+            avg_owner_time = o.get("avg_owner_time", 0)
+            avg_queue_time = q
+            sla_total = s.get("sla_total", 0)
+            sla_breached = s.get("sla_breached", 0)
+            resp_total = s.get("resp_total", 0)
+            resp_breached = s.get("resp_breached", 0)
+            res_total = s.get("res_total", 0)
+            res_breached = s.get("res_breached", 0)
 
             result.append({
                 "team_id": team.id,
@@ -369,7 +387,7 @@ class DashboardService:
                 "tickets_handled": tickets_handled,
                 "avg_ownership_time_seconds": round(float(avg_owner_time), 2),
                 "avg_queue_time_seconds": round(float(avg_queue_time), 2),
-                "sla_breach_pct": team_breach_pct,
+                "sla_breach_pct": round(sla_breached / sla_total * 100, 2) if sla_total else 0.0,
                 "sla_total": sla_total,
                 "sla_breached": sla_breached,
                 "response_sla_total": resp_total,
@@ -379,7 +397,7 @@ class DashboardService:
                 "resolution_sla_breached": res_breached,
                 "resolution_sla_pct": round(res_breached / res_total * 100, 2) if res_total else 0.0,
                 "reassignments": reassignments,
-                "top_queues": top_queues,
+                "top_queues": tq[:5],
             })
 
         return result

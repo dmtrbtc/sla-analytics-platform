@@ -12,11 +12,12 @@ from app.domain.models import (
     TicketEvent,
     TicketSnapshot,
 )
+from app.domain.schemas import TicketEventResponse, TicketSnapshotResponse
 
 router = APIRouter()
 
 
-@router.get("")
+@router.get("", response_model=dict)
 async def list_tickets(
     page: int = Query(1, ge=1),
     page_size: int = Query(50, ge=1, le=200),
@@ -82,7 +83,7 @@ async def list_tickets(
     }
 
 
-@router.get("/{ticket_id}")
+@router.get("/{ticket_id}", response_model=TicketSnapshotResponse)
 async def get_ticket(
     ticket_id: int,
     db: AsyncSession = Depends(get_db),
@@ -92,26 +93,22 @@ async def get_ticket(
         raise HTTPException(status_code=404, detail="Ticket not found")
 
     return {
+        "id": t.ticket_id,
         "ticket_id": t.ticket_id,
         "ticket_number": t.ticket_number,
         "title": t.title,
-        "customer_id": t.customer_id,
-        "customer_user_id": t.customer_user_id,
-        "current_queue": t.current_queue,
-        "current_state": t.current_state,
-        "current_owner": t.current_owner,
-        "created_at": t.created_at.isoformat() if t.created_at else None,
-        "updated_at": t.updated_at.isoformat() if t.updated_at else None,
-        "first_response_at": t.first_response_at.isoformat() if t.first_response_at else None,
-        "resolution_at": t.resolution_at.isoformat() if t.resolution_at else None,
-        "is_closed": t.is_closed,
-        "is_merged": t.is_merged,
-        "confidence": t.confidence,
-        "last_import_id": str(t.last_import_id) if t.last_import_id else None,
+        "queue_name": t.current_queue,
+        "state_name": t.current_state,
+        "owner_name": t.current_owner,
+        "priority": None,
+        "created_at": t.created_at,
+        "updated_at_ts": t.updated_at_ts or t.updated_at,
+        "resolved_at": t.resolution_at,
+        "last_import_id": t.last_import_id,
     }
 
 
-@router.get("/{ticket_id}/timeline")
+@router.get("/{ticket_id}/timeline", response_model=list[TicketEventResponse])
 async def get_ticket_timeline(
     ticket_id: int,
     db: AsyncSession = Depends(get_db),
@@ -124,31 +121,23 @@ async def get_ticket_timeline(
         )
     ).scalars().all()
 
-    return {
-        "events": [
-            {
-                "id": e.id,
-                "event_seq": e.event_seq,
-                "event_time": e.event_time.isoformat() if e.event_time else None,
-                "event_type": e.event_type,
-                "queue_name": e.queue_name,
-                "state_name": e.state_name,
-                "owner_name": e.owner_name,
-                "src_queue": e.src_queue,
-                "dest_queue": e.dest_queue,
-                "old_state": e.old_state,
-                "new_state": e.new_state,
-                "new_owner": e.new_owner,
-                "old_owner": e.old_owner,
-                "pending_until": e.pending_until.isoformat() if e.pending_until else None,
-                "is_system_action": e.is_system_action,
-            }
-            for e in events
-        ]
-    }
+    return [
+        {
+            "id": e.id,
+            "ticket_id": e.ticket_id,
+            "ticket_number": e.ticket_number,
+            "event_seq": e.event_seq,
+            "event_time": e.event_time,
+            "event_type": e.event_type,
+            "queue_name": e.queue_name,
+            "state_name": e.state_name,
+            "owner_name": e.owner_name,
+        }
+        for e in events
+    ]
 
 
-@router.get("/{ticket_id}/ownership")
+@router.get("/{ticket_id}/ownership", response_model=dict)
 async def get_ticket_ownership(
     ticket_id: int,
     db: AsyncSession = Depends(get_db),
@@ -177,7 +166,7 @@ async def get_ticket_ownership(
     }
 
 
-@router.get("/{ticket_id}/queue-periods")
+@router.get("/{ticket_id}/queue-periods", response_model=dict)
 async def get_ticket_queue_periods(
     ticket_id: int,
     db: AsyncSession = Depends(get_db),
@@ -205,7 +194,7 @@ async def get_ticket_queue_periods(
     }
 
 
-@router.get("/{ticket_id}/sla")
+@router.get("/{ticket_id}/sla", response_model=dict)
 async def get_ticket_sla(
     ticket_id: int,
     db: AsyncSession = Depends(get_db),

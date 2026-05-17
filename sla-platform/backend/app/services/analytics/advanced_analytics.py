@@ -328,43 +328,47 @@ class AdvancedAnalytics:
         """8. First-touch resolution rate — tickets resolved without reassignment."""
         since = datetime.utcnow() - timedelta(days=days)
 
-        # Resolved tickets in period
-        resolved = (
+        handoff_subq = (
+            select(
+                TicketEvent.ticket_id,
+                func.count(TicketEvent.id).label("handoff_count"),
+            )
+            .where(
+                TicketEvent.event_type == "OwnerUpdate",
+                TicketEvent.new_owner.isnot(None),
+                TicketEvent.old_owner.isnot(None),
+                TicketEvent.new_owner != TicketEvent.old_owner,
+            )
+            .group_by(TicketEvent.ticket_id)
+        ).subquery()
+
+        row = (
             await db.execute(
-                select(TicketSnapshot.ticket_id)
+                select(
+                    func.count(TicketSnapshot.ticket_id).label("total_resolved"),
+                    func.sum(
+                        case(
+                            (handoff_subq.c.handoff_count.is_(None), 1),
+                            else_=0,
+                        )
+                    ).label("ftr_count"),
+                )
+                .outerjoin(
+                    handoff_subq,
+                    TicketSnapshot.ticket_id == handoff_subq.c.ticket_id,
+                )
                 .where(
                     TicketSnapshot.resolution_at.isnot(None),
                     TicketSnapshot.resolution_at >= since,
                 )
             )
-        ).scalars().all()
+        ).one()
 
-        resolved_ids = list(resolved)
-        total_resolved = len(resolved_ids)
-
-        if not total_resolved:
-            return {"ftr_rate": 0.0, "ftr_tickets": 0, "total_resolved": 0}
-
-        # Count resolved tickets with no reassignments
-        ftr_count = 0
-        for rid in resolved_ids:
-            handoffs = (
-                await db.execute(
-                    select(func.count(TicketEvent.id))
-                    .where(
-                        TicketEvent.ticket_id == rid,
-                        TicketEvent.event_type == "OwnerUpdate",
-                        TicketEvent.new_owner.isnot(None),
-                        TicketEvent.old_owner.isnot(None),
-                        TicketEvent.new_owner != TicketEvent.old_owner,
-                    )
-                )
-            ).scalar() or 0
-            if handoffs == 0:
-                ftr_count += 1
+        total_resolved = row[0] or 0
+        ftr_count = row[1] or 0
 
         return {
-            "ftr_rate": round(ftr_count / total_resolved * 100, 2),
+            "ftr_rate": round(ftr_count / total_resolved * 100, 2) if total_resolved else 0.0,
             "ftr_tickets": ftr_count,
             "total_resolved": total_resolved,
         }
@@ -374,37 +378,44 @@ class AdvancedAnalytics:
         """9. Reopen rate — tickets reopened after resolution."""
         since = datetime.utcnow() - timedelta(days=days)
 
-        # Count tickets with OwnerUpdate events AFTER their resolution_at
-        resolved = (
+        from sqlalchemy import and_
+
+        post_subq = (
+            select(
+                TicketSnapshot.ticket_id,
+                func.count(TicketEvent.id).label("post_count"),
+            )
+            .outerjoin(
+                TicketEvent,
+                and_(
+                    TicketEvent.ticket_id == TicketSnapshot.ticket_id,
+                    TicketEvent.event_time > TicketSnapshot.resolution_at,
+                    TicketEvent.event_type.in_(["OwnerUpdate", "StateUpdate"]),
+                ),
+            )
+            .where(
+                TicketSnapshot.resolution_at.isnot(None),
+                TicketSnapshot.resolution_at >= since,
+            )
+            .group_by(TicketSnapshot.ticket_id)
+        ).subquery()
+
+        row = (
             await db.execute(
                 select(
-                    TicketSnapshot.ticket_id,
-                    TicketSnapshot.resolution_at,
-                )
-                .where(
-                    TicketSnapshot.resolution_at.isnot(None),
-                    TicketSnapshot.resolution_at >= since,
-                )
+                    func.count().label("total_resolved"),
+                    func.sum(
+                        case(
+                            (post_subq.c.post_count > 0, 1),
+                            else_=0,
+                        )
+                    ).label("reopened"),
+                ).select_from(post_subq)
             )
-        ).all()
+        ).one()
 
-        total_resolved = len(resolved)
-        reopened = 0
-        for tid, res_at in resolved:
-            if not res_at:
-                continue
-            post_events = (
-                await db.execute(
-                    select(func.count(TicketEvent.id))
-                    .where(
-                        TicketEvent.ticket_id == tid,
-                        TicketEvent.event_time > res_at,
-                        TicketEvent.event_type.in_(["OwnerUpdate", "StateUpdate"]),
-                    )
-                )
-            ).scalar() or 0
-            if post_events > 0:
-                reopened += 1
+        total_resolved = row[0] or 0
+        reopened = row[1] or 0
 
         return {
             "reopen_rate": round(reopened / total_resolved * 100, 2) if total_resolved else 0.0,

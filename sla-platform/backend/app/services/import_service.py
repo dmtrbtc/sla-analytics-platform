@@ -15,6 +15,13 @@ from app.domain.models import ImportSession
 from app.tasks.import_tasks import run_import_pipeline
 
 
+def sanitize_filename(filename: str) -> str:
+    """Strip path separators and dangerous characters from filename."""
+    filename = os.path.basename(filename)
+    filename = filename.replace("/", "_").replace("\\", "_")
+    return filename
+
+
 def _compute_sha256(file_path: str) -> str:
     h = hashlib.sha256()
     with open(file_path, "rb") as f:
@@ -68,24 +75,25 @@ class ImportService:
             raise ValueError(f"ImportSession {session_id} not found")
 
         import_dir = _ensure_import_dir(session_id)
-        dest = import_dir / filename
+        safe_name = sanitize_filename(filename)
+        dest = import_dir / safe_name
         dest.write_bytes(file_content)
 
         sha256 = _compute_sha256(str(dest))
         row_count = _count_csv_rows(str(dest))
 
         if file_type == "backlog":
-            imp.backlog_file = filename
+            imp.backlog_file = safe_name
             imp.backlog_sha256 = sha256
             imp.backlog_rows = row_count
-            period = _extract_period_from_filename(filename)
+            period = _extract_period_from_filename(safe_name)
             if period:
                 imp.period_start = period
         elif file_type == "history":
-            imp.history_file = filename
+            imp.history_file = safe_name
             imp.history_sha256 = sha256
             imp.history_rows = row_count
-            period = _extract_period_from_filename(filename)
+            period = _extract_period_from_filename(safe_name)
             if period:
                 imp.period_end = period
 
@@ -126,9 +134,16 @@ class ImportService:
         return await db.get(ImportSession, session_id)
 
     @staticmethod
-    async def list_sessions(db: AsyncSession) -> list[ImportSession]:
+    async def list_sessions(
+        db: AsyncSession,
+        limit: int = 100,
+        offset: int = 0,
+    ) -> list[ImportSession]:
         result = await db.execute(
-            select(ImportSession).order_by(ImportSession.created_at.desc())
+            select(ImportSession)
+            .order_by(ImportSession.created_at.desc())
+            .offset(offset)
+            .limit(limit)
         )
         return list(result.scalars().all())
 

@@ -1,0 +1,211 @@
+{
+  "__inputs": [],
+  "__requires": [],
+  "dashboard": {
+    "title": "SLA Platform",
+    "tags": ["sla", "platform"],
+    "timezone": "browser",
+    "panels": [
+      {
+        "id": 1,
+        "title": "Active Imports",
+        "type": "stat",
+        "gridPos": { "h": 6, "w": 6, "x": 0, "y": 0 },
+        "targets": [
+          {
+            "expr": "active_imports",
+            "legendFormat": "active",
+            "refId": "A"
+          }
+        ],
+        "options": {
+          "colorMode": "background",
+          "graphMode": "area",
+          "justifyMode": "center",
+          "orientation": "auto",
+          "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+          "textMode": "auto"
+        },
+        "fieldConfig": {
+          "defaults": {
+            "thresholds": {
+              "steps": [
+                { "color": "green", "value": null },
+                { "color": "orange", "value": 1 },
+                { "color": "red", "value": 5 }
+              ]
+            },
+            "unit": "none"
+          }
+        }
+      },
+      {
+        "id": 2,
+        "title": "Import Pipeline Duration (P95)",
+        "type": "bargauge",
+        "gridPos": { "h": 6, "w": 6, "x": 6, "y": 0 },
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.95, sum(rate(import_pipeline_duration_seconds_bucket[5m])) by (le, stage))",
+            "legendFormat": "{{ stage }}",
+            "refId": "A"
+          }
+        ],
+        "options": {
+          "orientation": "horizontal",
+          "displayMode": "gradient",
+          "showUnfilled": true
+        },
+        "fieldConfig": {
+          "defaults": { "unit": "s", "min": 0 },
+          "overrides": []
+        }
+      },
+      {
+        "id": 3,
+        "title": "Celery Task Duration (P95)",
+        "type": "bargauge",
+        "gridPos": { "h": 6, "w": 6, "x": 12, "y": 0 },
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.95, sum(rate(celery_task_duration_seconds_bucket[5m])) by (le, task_name, status))",
+            "legendFormat": "{{ task_name }} - {{ status }}",
+            "refId": "A"
+          }
+        ],
+        "options": {
+          "orientation": "horizontal",
+          "displayMode": "gradient",
+          "showUnfilled": true
+        },
+        "fieldConfig": {
+          "defaults": { "unit": "s", "min": 0 },
+          "overrides": []
+        }
+      },
+      {
+        "id": 4,
+        "title": "SLA Metrics Processed",
+        "type": "stat",
+        "gridPos": { "h": 6, "w": 6, "x": 0, "y": 6 },
+        "targets": [
+          {
+            "expr": "sum(rate(sla_metrics_processed_total[5m]))",
+            "legendFormat": "rate",
+            "refId": "A"
+          },
+          {
+            "expr": "sum(sla_metrics_processed_total)",
+            "legendFormat": "total",
+            "refId": "B"
+          }
+        ],
+        "options": {
+          "colorMode": "value",
+          "graphMode": "area",
+          "justifyMode": "center",
+          "orientation": "auto",
+          "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+          "textMode": "auto"
+        },
+        "fieldConfig": {
+          "defaults": { "unit": "none" }
+        }
+      },
+      {
+        "id": 5,
+        "title": "DB Query Latency (Heatmap)",
+        "type": "heatmap",
+        "gridPos": { "h": 8, "w": 12, "x": 0, "y": 12 },
+        "targets": [
+          {
+            "expr": "sum(rate(db_query_duration_seconds_bucket[1m])) by (le, query_type)",
+            "legendFormat": "{{ query_type }}",
+            "refId": "A",
+            "format": "heatmap"
+          }
+        ],
+        "heatmap": {
+          "yBucketBound": "auto",
+          "yAxis": { "unit": "s" }
+        },
+        "tooltip": { "show": true, "showHistogram": true },
+        "legend": { "show": true }
+      },
+      {
+        "id": 6,
+        "title": "Error Rate",
+        "type": "graph",
+        "gridPos": { "h": 8, "w": 12, "x": 12, "y": 12 },
+        "targets": [
+          {
+            "expr": "sum(rate(app_errors_total[5m])) by (error_type, endpoint)",
+            "legendFormat": "{{ error_type }} - {{ endpoint }}",
+            "refId": "A"
+          }
+        ],
+        "lines": true,
+        "fill": 1,
+        "linewidth": 2,
+        "legend": { "show": true },
+        "yaxes": [
+          { "format": "short", "label": "Errors / s" },
+          { "format": "short" }
+        ],
+        "xaxis": { "show": true }
+      },
+      {
+        "id": 7,
+        "title": "Queue Backlog",
+        "type": "table",
+        "gridPos": { "h": 6, "w": 12, "x": 0, "y": 20 },
+        "targets": [
+          {
+            "expr": "queue_backlog",
+            "legendFormat": "{{ queue_name }}",
+            "refId": "A"
+          }
+        ],
+        "styles": [
+          { "alias": "Queue", "pattern": "queue_name", "type": "string" },
+          { "alias": "Backlog", "pattern": "Value", "type": "number", "unit": "short" }
+        ],
+        "transformations": [],
+        "fieldConfig": {
+          "defaults": {
+            "thresholds": {
+              "steps": [
+                { "color": "green", "value": null },
+                { "color": "orange", "value": 100 },
+                { "color": "red", "value": 1000 }
+              ]
+            }
+          }
+        }
+      },
+      {
+        "id": 8,
+        "title": "Import Pipeline Duration Distribution",
+        "type": "heatmap",
+        "gridPos": { "h": 8, "w": 12, "x": 0, "y": 26 },
+        "targets": [
+          {
+            "expr": "sum(rate(import_pipeline_duration_seconds_bucket[1m])) by (le, stage)",
+            "legendFormat": "{{ stage }}",
+            "refId": "A",
+            "format": "heatmap"
+          }
+        ],
+        "heatmap": {
+          "yBucketBound": "auto",
+          "yAxis": { "unit": "s" }
+        },
+        "tooltip": { "show": true, "showHistogram": true },
+        "legend": { "show": true }
+      }
+    ],
+    "schemaVersion": 38,
+    "version": 1,
+    "refresh": "30s"
+  }
+}

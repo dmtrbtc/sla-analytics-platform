@@ -20,8 +20,11 @@ def refresh_all_views(db: Session, concurrently: bool = True) -> dict[str, str]:
     results = {}
     for view in MATERIALIZED_VIEWS:
         try:
-            kw = "CONCURRENTLY" if concurrently else ""
-            db.execute(text(f"REFRESH MATERIALIZED VIEW {kw} {view}"))
+            sql = "REFRESH MATERIALIZED VIEW {conc} {name}".format(
+                conc="CONCURRENTLY" if concurrently else "",
+                name=view,
+            )
+            db.execute(text(sql))
             db.commit()
             results[view] = "refreshed"
             logger.info("Refreshed materialized view: %s", view)
@@ -37,8 +40,11 @@ def refresh_view(db: Session, view_name: str, concurrently: bool = True) -> str:
     if view_name not in MATERIALIZED_VIEWS:
         return f"unknown view: {view_name}"
     try:
-        kw = "CONCURRENTLY" if concurrently else ""
-        db.execute(text(f"REFRESH MATERIALIZED VIEW {kw} {view_name}"))
+        sql = "REFRESH MATERIALIZED VIEW {conc} {name}".format(
+            conc="CONCURRENTLY" if concurrently else "",
+            name=view_name,
+        )
+        db.execute(text(sql))
         db.commit()
         return "refreshed"
     except Exception as exc:

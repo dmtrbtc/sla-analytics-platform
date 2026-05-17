@@ -43,6 +43,7 @@ class BacklogService:
         for offset in range(0, total, BATCH_SIZE):
             batch = df[offset : offset + BATCH_SIZE]
             rows = batch.to_dicts()
+            param_rows = []
             for row in rows:
                 ticket_id = int(row["ticket_id"])
                 created_raw = row.get("ticket_created_time")
@@ -50,6 +51,22 @@ class BacklogService:
                 state = row.get("current_state_name") or ""
                 is_closed = state.lower() in ("closed successful", "closed unsuccessful", "merged")
 
+                param_rows.append({
+                    "ticket_id": ticket_id,
+                    "ticket_number": row.get("ticket_number"),
+                    "title": row.get("title"),
+                    "created_at": _parse_backlog_ts(created_raw),
+                    "updated_at": _parse_backlog_ts(updated_raw),
+                    "current_queue": row.get("current_queue_name"),
+                    "current_state": state,
+                    "is_closed": is_closed,
+                    "is_merged": state.lower() == "merged",
+                    "confidence": "minimal",
+                    "last_import_id": import_id,
+                    "updated_at_ts": datetime.utcnow(),
+                })
+
+            if param_rows:
                 db.execute(
                     text(
                         """
@@ -78,22 +95,9 @@ class BacklogService:
                             updated_at_ts = EXCLUDED.updated_at_ts
                         """
                     ),
-                    {
-                        "ticket_id": ticket_id,
-                        "ticket_number": row.get("ticket_number"),
-                        "title": row.get("title"),
-                        "created_at": _parse_backlog_ts(created_raw),
-                        "updated_at": _parse_backlog_ts(updated_raw),
-                        "current_queue": row.get("current_queue_name"),
-                        "current_state": state,
-                        "is_closed": is_closed,
-                        "is_merged": state.lower() == "merged",
-                        "confidence": "minimal",
-                        "last_import_id": import_id,
-                        "updated_at_ts": datetime.utcnow(),
-                    },
+                    param_rows,
                 )
-                loaded += 1
+                loaded += len(param_rows)
 
             db.commit()
             logger.info("Loaded backlog batch %s/%s", loaded, total)

@@ -4,11 +4,13 @@ dead letter handling, exponential backoff, and timeout protection."""
 from celery import Celery
 
 from app.core.config import settings
+from app.core.celery_monitoring import MonitoredTask
 
 celery_app = Celery(
     "sla_worker",
     broker=settings.CELERY_BROKER_URL,
     backend=settings.CELERY_RESULT_BACKEND,
+    task_cls=MonitoredTask,
 )
 
 celery_app.conf.update(
