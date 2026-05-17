@@ -213,6 +213,100 @@ class SLAMetricResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 
+# === Business Calendar schemas ===
+class BusinessCalendarResponse(BaseModel):
+    id: UUID
+    name: str
+    timezone: str = "UTC"
+    workdays: dict = {}
+    start_time: str = "09:00"
+    end_time: str = "18:00"
+    holidays_json: list = []
+    is_24x7: bool = False
+    is_active: bool = True
+    description: Optional[str] = None
+    created_by: Optional[UUID] = None
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
+    model_config = ConfigDict(from_attributes=True)
+
+
+class BusinessCalendarCreate(BaseModel):
+    name: str = Field(..., min_length=1, max_length=200)
+    timezone: str = "UTC"
+    workdays: dict = {"monday": True, "tuesday": True, "wednesday": True, "thursday": True, "friday": True, "saturday": False, "sunday": False}
+    start_time: str = "09:00"
+    end_time: str = "18:00"
+    holidays_json: list = []
+    is_24x7: bool = False
+    is_active: bool = True
+    description: Optional[str] = None
+
+
+class BusinessCalendarUpdate(BaseModel):
+    name: Optional[str] = Field(None, min_length=1, max_length=200)
+    timezone: Optional[str] = None
+    workdays: Optional[dict] = None
+    start_time: Optional[str] = None
+    end_time: Optional[str] = None
+    holidays_json: Optional[list] = None
+    is_24x7: Optional[bool] = None
+    is_active: Optional[bool] = None
+    description: Optional[str] = None
+
+
+# === SLA Escalation Rule schemas ===
+class SLAEscalationRuleResponse(BaseModel):
+    id: UUID
+    sla_rule_id: UUID
+    threshold_percent: int
+    severity: str
+    notify_email: Optional[str] = None
+    notify_telegram: Optional[str] = None
+    webhook_url: Optional[str] = None
+    is_active: bool = True
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
+    model_config = ConfigDict(from_attributes=True)
+
+
+class SLAEscalationRuleCreate(BaseModel):
+    sla_rule_id: UUID
+    threshold_percent: int = Field(..., ge=1, le=100)
+    severity: str = Field(..., pattern="^(warning|high|critical)$")
+    notify_email: Optional[str] = None
+    notify_telegram: Optional[str] = None
+    webhook_url: Optional[str] = None
+    is_active: bool = True
+
+
+class SLAEscalationRuleUpdate(BaseModel):
+    threshold_percent: Optional[int] = Field(None, ge=1, le=100)
+    severity: Optional[str] = Field(None, pattern="^(warning|high|critical)$")
+    notify_email: Optional[str] = None
+    notify_telegram: Optional[str] = None
+    webhook_url: Optional[str] = None
+    is_active: Optional[bool] = None
+
+
+# === SLA Simulator schemas ===
+class SLASimulateRequest(BaseModel):
+    queue_name: str
+    response_target_seconds: int = Field(..., gt=0)
+    resolution_target_seconds: int = Field(..., gt=0)
+    calendar_id: Optional[UUID] = None
+
+
+class SLASimulateResponse(BaseModel):
+    queue_name: str
+    response_target_seconds: int
+    resolution_target_seconds: int
+    will_breach_response: bool
+    will_breach_resolution: bool
+    risk_level: str
+    risk_score: int
+
+
 # === SLA Queue Rule schemas ===
 class SLAQueueRuleResponse(BaseModel):
     id: UUID
@@ -221,6 +315,7 @@ class SLAQueueRuleResponse(BaseModel):
     priority: int = 0
     response_target_seconds: int
     resolution_target_seconds: int
+    calendar_id: Optional[UUID] = None
     is_active: bool = True
     description: Optional[str] = None
     created_by: Optional[UUID] = None
@@ -235,6 +330,7 @@ class SLAQueueRuleCreate(BaseModel):
     priority: int = 0
     response_target_seconds: int = Field(..., gt=0)
     resolution_target_seconds: int = Field(..., gt=0)
+    calendar_id: Optional[UUID] = None
     is_active: bool = True
     description: Optional[str] = None
 
@@ -252,6 +348,7 @@ class SLAQueueRuleUpdate(BaseModel):
     priority: Optional[int] = None
     response_target_seconds: Optional[int] = Field(None, gt=0)
     resolution_target_seconds: Optional[int] = Field(None, gt=0)
+    calendar_id: Optional[UUID] = None
     is_active: Optional[bool] = None
     description: Optional[str] = None
 

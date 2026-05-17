@@ -42,6 +42,7 @@ export default function App() {
           <Route path="/reports" element={<SuspenseWrapper><Reports /></SuspenseWrapper>} />
           <Route path="/teams" element={<Teams />} />
           <Route path="/sla" element={<SLAConfig />} />
+          <Route path="/sla/config" element={<SLAConfig />} />
           <Route
             path="/admin/users"
             element={

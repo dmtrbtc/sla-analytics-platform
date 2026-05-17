@@ -26,7 +26,7 @@ export default function Sidebar() {
     { key: "/dashboard/teams", icon: <TeamOutlined />, label: t("nav.teamDashboard") },
     { key: "/tickets", icon: <FileTextOutlined />, label: t("nav.tickets") },
     { key: "/imports", icon: <UploadOutlined />, label: t("nav.imports") },
-    { key: "/sla", icon: <ClockCircleOutlined />, label: t("nav.sla") },
+    { key: "/sla/config", icon: <ClockCircleOutlined />, label: t("nav.slaConfig") },
     { key: "/reports", icon: <FileTextOutlined />, label: t("nav.reports") },
     { key: "/teams", icon: <TeamOutlined />, label: t("nav.teamsConfig") },
     ...(user?.role === "admin"

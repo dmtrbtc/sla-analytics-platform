@@ -9,8 +9,24 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db, sync_session_factory
 from app.core.dependencies import require_admin
-from app.domain.models import SLADefinition, SLAMetric, SLAQueueRule, User
-from app.domain.schemas import SLADefinitionResponse, SLAQueueRuleCreate, SLAQueueRuleUpdate
+from app.domain.models import (
+    BusinessCalendar,
+    SLADefinition,
+    SLAEscalationRule,
+    SLAMetric,
+    SLAQueueRule,
+    User,
+)
+from app.domain.schemas import (
+    BusinessCalendarCreate,
+    BusinessCalendarUpdate,
+    SLADefinitionResponse,
+    SLAEscalationRuleCreate,
+    SLAEscalationRuleUpdate,
+    SLAQueueRuleCreate,
+    SLAQueueRuleUpdate,
+    SLASimulateRequest,
+)
 from app.services.audit_service import AuditService
 
 logger = logging.getLogger(__name__)
@@ -450,6 +466,224 @@ async def list_queue_breaches(
     }
 
 
+# ── Business Calendars CRUD ──
+
+
+@router.get("/calendars", response_model=dict)
+async def list_calendars(
+    is_active: Optional[bool] = None,
+    db: AsyncSession = Depends(get_db),
+):
+    q = select(BusinessCalendar)
+    if is_active is not None:
+        q = q.where(BusinessCalendar.is_active == is_active)
+    q = q.order_by(BusinessCalendar.name)
+    result = await db.execute(q)
+    calendars = result.scalars().all()
+    return {"calendars": [_calendar_to_dict(c) for c in calendars]}
+
+
+@router.post("/calendars", response_model=dict, status_code=201)
+async def create_calendar(
+    payload: BusinessCalendarCreate,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(require_admin),
+):
+    cal = BusinessCalendar(
+        name=payload.name,
+        timezone=payload.timezone,
+        workdays=payload.workdays,
+        start_time=payload.start_time,
+        end_time=payload.end_time,
+        holidays_json=payload.holidays_json,
+        is_24x7=payload.is_24x7,
+        is_active=payload.is_active,
+        description=payload.description,
+        created_by=current_user.id,
+    )
+    db.add(cal)
+    await db.flush()
+    await db.refresh(cal)
+    return {"calendar": _calendar_to_dict(cal)}
+
+
+@router.get("/calendars/{calendar_id}", response_model=dict)
+async def get_calendar(
+    calendar_id: UUID,
+    db: AsyncSession = Depends(get_db),
+):
+    cal = await db.get(BusinessCalendar, calendar_id)
+    if not cal:
+        raise HTTPException(404, detail="Calendar not found")
+    return {"calendar": _calendar_to_dict(cal)}
+
+
+@router.put("/calendars/{calendar_id}", response_model=dict)
+async def update_calendar(
+    calendar_id: UUID,
+    payload: BusinessCalendarUpdate,
+    db: AsyncSession = Depends(get_db),
+    _: User = Depends(require_admin),
+):
+    cal = await db.get(BusinessCalendar, calendar_id)
+    if not cal:
+        raise HTTPException(404, detail="Calendar not found")
+    for field in ("name", "timezone", "workdays", "start_time", "end_time", "holidays_json", "is_24x7", "is_active", "description"):
+        val = getattr(payload, field, None)
+        if val is not None:
+            setattr(cal, field, val)
+    cal.updated_at = datetime.now(timezone.utc)
+    await db.flush()
+    await db.refresh(cal)
+    return {"calendar": _calendar_to_dict(cal)}
+
+
+@router.delete("/calendars/{calendar_id}", response_model=dict)
+async def delete_calendar(
+    calendar_id: UUID,
+    db: AsyncSession = Depends(get_db),
+    _: User = Depends(require_admin),
+):
+    cal = await db.get(BusinessCalendar, calendar_id)
+    if not cal:
+        raise HTTPException(404, detail="Calendar not found")
+    await db.delete(cal)
+    return {"status": "deleted"}
+
+
+# ── SLA Escalation Rules CRUD ──
+
+
+@router.get("/escalations", response_model=dict)
+async def list_escalations(
+    sla_rule_id: Optional[UUID] = Query(None),
+    db: AsyncSession = Depends(get_db),
+):
+    q = select(SLAEscalationRule)
+    if sla_rule_id:
+        q = q.where(SLAEscalationRule.sla_rule_id == sla_rule_id)
+    q = q.order_by(SLAEscalationRule.threshold_percent)
+    result = await db.execute(q)
+    rules = result.scalars().all()
+    return {"escalations": [_escalation_to_dict(r) for r in rules]}
+
+
+@router.post("/escalations", response_model=dict, status_code=201)
+async def create_escalation(
+    payload: SLAEscalationRuleCreate,
+    db: AsyncSession = Depends(get_db),
+    _: User = Depends(require_admin),
+):
+    # Verify SLA rule exists
+    sla_rule = await db.get(SLAQueueRule, payload.sla_rule_id)
+    if not sla_rule:
+        raise HTTPException(404, detail="SLA queue rule not found")
+    rule = SLAEscalationRule(
+        sla_rule_id=payload.sla_rule_id,
+        threshold_percent=payload.threshold_percent,
+        severity=payload.severity,
+        notify_email=payload.notify_email,
+        notify_telegram=payload.notify_telegram,
+        webhook_url=payload.webhook_url,
+        is_active=payload.is_active,
+    )
+    db.add(rule)
+    await db.flush()
+    await db.refresh(rule)
+    return {"escalation": _escalation_to_dict(rule)}
+
+
+@router.get("/escalations/{rule_id}", response_model=dict)
+async def get_escalation(
+    rule_id: UUID,
+    db: AsyncSession = Depends(get_db),
+):
+    rule = await db.get(SLAEscalationRule, rule_id)
+    if not rule:
+        raise HTTPException(404, detail="Escalation rule not found")
+    return {"escalation": _escalation_to_dict(rule)}
+
+
+@router.put("/escalations/{rule_id}", response_model=dict)
+async def update_escalation(
+    rule_id: UUID,
+    payload: SLAEscalationRuleUpdate,
+    db: AsyncSession = Depends(get_db),
+    _: User = Depends(require_admin),
+):
+    rule = await db.get(SLAEscalationRule, rule_id)
+    if not rule:
+        raise HTTPException(404, detail="Escalation rule not found")
+    for field in ("threshold_percent", "severity", "notify_email", "notify_telegram", "webhook_url", "is_active"):
+        val = getattr(payload, field, None)
+        if val is not None:
+            setattr(rule, field, val)
+    rule.updated_at = datetime.now(timezone.utc)
+    await db.flush()
+    await db.refresh(rule)
+    return {"escalation": _escalation_to_dict(rule)}
+
+
+@router.delete("/escalations/{rule_id}", response_model=dict)
+async def delete_escalation(
+    rule_id: UUID,
+    db: AsyncSession = Depends(get_db),
+    _: User = Depends(require_admin),
+):
+    rule = await db.get(SLAEscalationRule, rule_id)
+    if not rule:
+        raise HTTPException(404, detail="Escalation rule not found")
+    await db.delete(rule)
+    return {"status": "deleted"}
+
+
+# ── SLA Simulator ──
+
+
+@router.post("/simulate", response_model=dict)
+async def simulate_sla(
+    payload: SLASimulateRequest,
+    db: AsyncSession = Depends(get_db),
+):
+    from app.services.sla.risk_engine import risk_level_from_ratio, risk_score_from_ratio
+
+    resp_ratio = 0.5  # simulate at 50% by default
+    res_ratio = 0.5
+
+    # If a calendar is specified, compute simulated business-time ratio
+    if payload.calendar_id:
+        cal = await db.get(BusinessCalendar, payload.calendar_id)
+        if cal and not cal.is_24x7:
+            work_hours = 0
+            total_hours = 0
+            for day, work in (cal.workdays or {}).items():
+                if work:
+                    start_h, start_m = (cal.start_time or "09:00").split(":")
+                    end_h, end_m = (cal.end_time or "18:00").split(":")
+                    day_hours = (int(end_h) * 60 + int(end_m) - int(start_h) * 60 - int(start_m)) / 60
+                    work_hours += max(day_hours, 0)
+                total_hours += 24
+            effective_ratio = work_hours / total_hours if total_hours else 1.0
+            resp_ratio = min(1.0, resp_ratio / effective_ratio) if effective_ratio > 0 else 1.0
+            res_ratio = min(1.0, res_ratio / effective_ratio) if effective_ratio > 0 else 1.0
+
+    resp_breached = resp_ratio >= 1.0
+    res_breached = res_ratio >= 1.0
+    overall_ratio = max(resp_ratio, res_ratio)
+
+    return {
+        "queue_name": payload.queue_name,
+        "response_target_seconds": payload.response_target_seconds,
+        "resolution_target_seconds": payload.resolution_target_seconds,
+        "will_breach_response": resp_breached,
+        "will_breach_resolution": res_breached,
+        "risk_level": risk_level_from_ratio(overall_ratio),
+        "risk_score": risk_score_from_ratio(overall_ratio),
+        "simulated_response_ratio": round(resp_ratio, 4),
+        "simulated_resolution_ratio": round(res_ratio, 4),
+    }
+
+
 def _sync_audit(action: str, resource_type: str, resource_id: str, details: Optional[dict] = None) -> None:
     try:
         sync_db = sync_session_factory()
@@ -495,6 +729,39 @@ def _sla_metric_to_dict(m: SLAMetric) -> dict:
     }
 
 
+def _calendar_to_dict(c: BusinessCalendar) -> dict:
+    return {
+        "id": str(c.id),
+        "name": c.name,
+        "timezone": c.timezone or "UTC",
+        "workdays": c.workdays or {},
+        "start_time": c.start_time or "09:00",
+        "end_time": c.end_time or "18:00",
+        "holidays_json": c.holidays_json or [],
+        "is_24x7": c.is_24x7 or False,
+        "is_active": c.is_active,
+        "description": c.description,
+        "created_by": str(c.created_by) if c.created_by else None,
+        "created_at": c.created_at.isoformat() if c.created_at else None,
+        "updated_at": c.updated_at.isoformat() if c.updated_at else None,
+    }
+
+
+def _escalation_to_dict(r: SLAEscalationRule) -> dict:
+    return {
+        "id": str(r.id),
+        "sla_rule_id": str(r.sla_rule_id),
+        "threshold_percent": r.threshold_percent,
+        "severity": r.severity,
+        "notify_email": r.notify_email,
+        "notify_telegram": r.notify_telegram,
+        "webhook_url": r.webhook_url,
+        "is_active": r.is_active,
+        "created_at": r.created_at.isoformat() if r.created_at else None,
+        "updated_at": r.updated_at.isoformat() if r.updated_at else None,
+    }
+
+
 def _queue_rule_to_dict(r: SLAQueueRule) -> dict:
     return {
         "id": str(r.id),
@@ -503,6 +770,7 @@ def _queue_rule_to_dict(r: SLAQueueRule) -> dict:
         "priority": r.priority or 0,
         "response_target_seconds": r.response_target_seconds,
         "resolution_target_seconds": r.resolution_target_seconds,
+        "calendar_id": str(r.calendar_id) if r.calendar_id else None,
         "is_active": r.is_active,
         "description": r.description,
         "created_by": str(r.created_by) if r.created_by else None,

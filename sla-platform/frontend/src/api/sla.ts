@@ -32,4 +32,29 @@ export const slaApi = {
 
   getQueueBreaches: (params?: Record<string, unknown>) =>
     client.get("/sla/queue-breaches", { params }),
+
+  listCalendars: (params?: Record<string, unknown>) =>
+    client.get("/sla/calendars", { params }),
+  createCalendar: (data: Record<string, unknown>) =>
+    client.post("/sla/calendars", data),
+  getCalendar: (id: string) =>
+    client.get(`/sla/calendars/${id}`),
+  updateCalendar: (id: string, data: Record<string, unknown>) =>
+    client.put(`/sla/calendars/${id}`, data),
+  deleteCalendar: (id: string) =>
+    client.delete(`/sla/calendars/${id}`),
+
+  listEscalations: (params?: Record<string, unknown>) =>
+    client.get("/sla/escalations", { params }),
+  createEscalation: (data: Record<string, unknown>) =>
+    client.post("/sla/escalations", data),
+  getEscalation: (id: string) =>
+    client.get(`/sla/escalations/${id}`),
+  updateEscalation: (id: string, data: Record<string, unknown>) =>
+    client.put(`/sla/escalations/${id}`, data),
+  deleteEscalation: (id: string) =>
+    client.delete(`/sla/escalations/${id}`),
+
+  simulate: (data: Record<string, unknown>) =>
+    client.post("/sla/simulate", data),
 };

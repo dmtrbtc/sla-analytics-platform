@@ -213,6 +213,24 @@ class RefreshToken(Base):
     created_at = Column(DateTime(timezone=True), default=datetime.utcnow)
 
 
+class BusinessCalendar(Base):
+    __tablename__ = "business_calendars"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    name = Column(String(200), nullable=False)
+    timezone = Column(String(100), default="UTC")
+    workdays = Column(JSONB, default={"monday": True, "tuesday": True, "wednesday": True, "thursday": True, "friday": True, "saturday": False, "sunday": False})
+    start_time = Column(String(10), default="09:00")
+    end_time = Column(String(10), default="18:00")
+    holidays_json = Column(JSONB, default=list)
+    is_24x7 = Column(Boolean, default=False)
+    is_active = Column(Boolean, default=True)
+    description = Column(Text)
+    created_by = Column(UUID(as_uuid=True), ForeignKey("users.id"), index=True)
+    created_at = Column(DateTime(timezone=True), default=datetime.utcnow)
+    updated_at = Column(DateTime(timezone=True), default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
 class SLAQueueRule(Base):
     __tablename__ = "sla_queue_rules"
 
@@ -222,9 +240,25 @@ class SLAQueueRule(Base):
     priority = Column(Integer, default=0)
     response_target_seconds = Column(Integer, nullable=False)
     resolution_target_seconds = Column(Integer, nullable=False)
+    calendar_id = Column(UUID(as_uuid=True), ForeignKey("business_calendars.id"), index=True)
     is_active = Column(Boolean, default=True)
     description = Column(Text)
     created_by = Column(UUID(as_uuid=True), ForeignKey("users.id"), index=True)
+    created_at = Column(DateTime(timezone=True), default=datetime.utcnow)
+    updated_at = Column(DateTime(timezone=True), default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+class SLAEscalationRule(Base):
+    __tablename__ = "sla_escalation_rules"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    sla_rule_id = Column(UUID(as_uuid=True), ForeignKey("sla_queue_rules.id", ondelete="CASCADE"), nullable=False, index=True)
+    threshold_percent = Column(Integer, nullable=False)
+    severity = Column(String(20), nullable=False)
+    notify_email = Column(String(500))
+    notify_telegram = Column(String(500))
+    webhook_url = Column(String(1000))
+    is_active = Column(Boolean, default=True)
     created_at = Column(DateTime(timezone=True), default=datetime.utcnow)
     updated_at = Column(DateTime(timezone=True), default=datetime.utcnow, onupdate=datetime.utcnow)
 
