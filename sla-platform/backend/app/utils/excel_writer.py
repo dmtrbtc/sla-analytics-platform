@@ -133,6 +133,26 @@ RU_IMPORTS_SUMMARY_HEADERS = [
 ]
 
 
+def format_duration(seconds: float | int | None) -> str:
+    """Convert seconds to human-readable format.
+    < 60 sec -> "X sec"
+    < 3600 sec -> "X min"
+    >= 3600 sec -> "X h Y min"
+    """
+    if seconds is None or seconds <= 0:
+        return "0 sec"
+    secs = float(seconds)
+    if secs < 60:
+        return f"{round(secs)} sec"
+    if secs < 3600:
+        return f"{round(secs / 60)} min"
+    h = int(secs // 3600)
+    m = round((secs % 3600) / 60)
+    if m == 0:
+        return f"{h} h"
+    return f"{h} h {m} min"
+
+
 def fmt_time_columns(seconds: float | int | None) -> list:
     """Convert seconds to [сек, мин, час] with 2-decimal rounding."""
     if seconds is None or seconds == "":

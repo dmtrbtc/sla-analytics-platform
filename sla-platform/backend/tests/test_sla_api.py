@@ -217,3 +217,139 @@ async def test_summary(client):
     assert "total_metrics" in data
     assert "total_breached" in data
     assert "breach_rate" in data
+
+
+# --- /sla/queue-rules ---
+
+async def test_list_queue_rules_requires_auth(client):
+    resp = await client.get("/api/v1/sla/queue-rules")
+    assert resp.status_code == 401
+
+
+async def test_list_queue_rules(client):
+    headers = await _admin_headers(client)
+    resp = await client.get("/api/v1/sla/queue-rules", headers=headers)
+    assert resp.status_code == 200
+    data = resp.json()
+    assert "queue_rules" in data
+
+
+async def test_create_queue_rule_requires_admin(client):
+    headers = await _viewer_headers(client)
+    resp = await client.post(
+        "/api/v1/sla/queue-rules",
+        json={"name": "Test", "queue_pattern": "Support*", "response_target_seconds": 1800, "resolution_target_seconds": 14400},
+        headers=headers,
+    )
+    assert resp.status_code == 403
+
+
+async def test_create_queue_rule(client):
+    headers = await _admin_headers(client)
+    resp = await client.post(
+        "/api/v1/sla/queue-rules",
+        json={
+            "name": "Support Queue",
+            "queue_pattern": "Support*",
+            "priority": 3,
+            "response_target_seconds": 1800,
+            "resolution_target_seconds": 14400,
+            "description": "Support team SLA",
+        },
+        headers=headers,
+    )
+    assert resp.status_code == 201
+    data = resp.json()
+    rule = data["queue_rule"]
+    assert rule["name"] == "Support Queue"
+    assert rule["queue_pattern"] == "Support*"
+    assert rule["response_target_seconds"] == 1800
+    assert rule["resolution_target_seconds"] == 14400
+    assert rule["is_active"] is True
+
+    # Cleanup
+    await client.delete(f"/api/v1/sla/queue-rules/{rule['id']}", headers=headers)
+
+
+async def test_create_queue_rule_validation_resolution_must_exceed_response(client):
+    headers = await _admin_headers(client)
+    resp = await client.post(
+        "/api/v1/sla/queue-rules",
+        json={
+            "name": "Bad Rule",
+            "queue_pattern": "Support*",
+            "response_target_seconds": 14400,
+            "resolution_target_seconds": 3600,
+        },
+        headers=headers,
+    )
+    assert resp.status_code == 422
+
+
+async def test_get_queue_rule_not_found(client):
+    headers = await _admin_headers(client)
+    resp = await client.get("/api/v1/sla/queue-rules/00000000-0000-0000-0000-000000000000", headers=headers)
+    assert resp.status_code == 404
+
+
+async def test_update_queue_rule(client):
+    headers = await _admin_headers(client)
+    create = await client.post(
+        "/api/v1/sla/queue-rules",
+        json={"name": "To Update", "queue_pattern": "Support*", "response_target_seconds": 1800, "resolution_target_seconds": 14400},
+        headers=headers,
+    )
+    assert create.status_code == 201
+    rule_id = create.json()["queue_rule"]["id"]
+
+    resp = await client.put(
+        f"/api/v1/sla/queue-rules/{rule_id}",
+        json={"name": "Updated", "priority": 5},
+        headers=headers,
+    )
+    assert resp.status_code == 200
+    assert resp.json()["queue_rule"]["name"] == "Updated"
+    assert resp.json()["queue_rule"]["priority"] == 5
+
+    await client.delete(f"/api/v1/sla/queue-rules/{rule_id}", headers=headers)
+
+
+async def test_delete_queue_rule(client):
+    headers = await _admin_headers(client)
+    create = await client.post(
+        "/api/v1/sla/queue-rules",
+        json={"name": "To Delete", "queue_pattern": "Billing*", "response_target_seconds": 3600, "resolution_target_seconds": 28800},
+        headers=headers,
+    )
+    assert create.status_code == 201
+    rule_id = create.json()["queue_rule"]["id"]
+
+    resp = await client.delete(f"/api/v1/sla/queue-rules/{rule_id}", headers=headers)
+    assert resp.status_code == 200
+    assert resp.json()["status"] == "deleted"
+
+    get_resp = await client.get(f"/api/v1/sla/queue-rules/{rule_id}", headers=headers)
+    assert get_resp.status_code == 404
+
+
+# --- /sla/queue-breaches ---
+
+async def test_queue_breaches_requires_auth(client):
+    resp = await client.get("/api/v1/sla/queue-breaches")
+    assert resp.status_code == 401
+
+
+async def test_queue_breaches_response_format(client):
+    headers = await _admin_headers(client)
+    resp = await client.get("/api/v1/sla/queue-breaches", headers=headers)
+    assert resp.status_code == 200
+    data = resp.json()
+    assert "queue_breaches" in data
+    if data["queue_breaches"]:
+        item = data["queue_breaches"][0]
+        assert "queue_name" in item
+        assert "tickets_total" in item
+        assert "breached_response" in item
+        assert "breached_resolution" in item
+        assert "avg_response_minutes" in item
+        assert "avg_resolution_hours" in item

@@ -238,6 +238,13 @@ class SLAQueueRuleCreate(BaseModel):
     is_active: bool = True
     description: Optional[str] = None
 
+    @field_validator("resolution_target_seconds")
+    @classmethod
+    def resolution_must_exceed_response(cls, v: int, info) -> int:
+        if "response_target_seconds" in info.data and v <= info.data["response_target_seconds"]:
+            raise ValueError("resolution_target_seconds must be greater than response_target_seconds")
+        return v
+
 
 class SLAQueueRuleUpdate(BaseModel):
     name: Optional[str] = Field(None, min_length=1, max_length=200)

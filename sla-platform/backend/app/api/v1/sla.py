@@ -374,16 +374,7 @@ async def list_queue_breaches(
         await db.execute(
             select(
                 SLAMetric.queue_name,
-                func.count(SLAMetric.id).label("total"),
-                func.sum(
-                    case((SLAMetric.sla_breached == True, 1), else_=0)
-                ).label("breached"),
-                func.sum(
-                    case(
-                        (SLAMetric.metric_name.in_(["response_time", "response"]), 1),
-                        else_=0,
-                    )
-                ).label("response_count"),
+                func.count(func.distinct(SLAMetric.ticket_id)).label("tickets_total"),
                 func.sum(
                     case(
                         (
@@ -395,13 +386,7 @@ async def list_queue_breaches(
                         ),
                         else_=0,
                     )
-                ).label("response_breached"),
-                func.sum(
-                    case(
-                        (SLAMetric.metric_name.in_(["resolution_time", "resolution"]), 1),
-                        else_=0,
-                    )
-                ).label("resolution_count"),
+                ).label("breached_response"),
                 func.sum(
                     case(
                         (
@@ -413,29 +398,52 @@ async def list_queue_breaches(
                         ),
                         else_=0,
                     )
-                ).label("resolution_breached"),
-                func.avg(SLAMetric.metric_seconds).label("avg_seconds"),
+                ).label("breached_resolution"),
+                func.avg(
+                    case(
+                        (
+                            SLAMetric.metric_name.in_(["response_time", "response"]),
+                            SLAMetric.metric_seconds,
+                        ),
+                    )
+                ).label("avg_response_seconds"),
+                func.avg(
+                    case(
+                        (
+                            SLAMetric.metric_name.in_(["resolution_time", "resolution"]),
+                            SLAMetric.metric_seconds,
+                        ),
+                    )
+                ).label("avg_resolution_seconds"),
             )
             .where(*where)
             .group_by(SLAMetric.queue_name)
-            .order_by(func.sum(
-                case((SLAMetric.sla_breached == True, 1), else_=0)
-            ).desc())
+            .order_by(
+                func.sum(
+                    case(
+                        (
+                            and_(
+                                SLAMetric.metric_name.in_(["response_time", "resolution_time", "response", "resolution"]),
+                                SLAMetric.sla_breached == True,
+                            ),
+                            1,
+                        ),
+                        else_=0,
+                    )
+                ).desc()
+            )
         )
     ).all()
 
     return {
         "queue_breaches": [
             {
-                "queue": r[0],
-                "total": r[1] or 0,
-                "breached": r[2] or 0,
-                "breach_rate": round((r[2] or 0) / (r[1] or 1) * 100, 2),
-                "response_count": r[3] or 0,
-                "response_breached": r[4] or 0,
-                "resolution_count": r[5] or 0,
-                "resolution_breached": r[6] or 0,
-                "avg_seconds": round(float(r[7]), 2) if r[7] else 0.0,
+                "queue_name": r[0],
+                "tickets_total": r[1] or 0,
+                "breached_response": r[2] or 0,
+                "breached_resolution": r[3] or 0,
+                "avg_response_minutes": round(float(r[4]) / 60, 2) if r[4] else 0.0,
+                "avg_resolution_hours": round(float(r[5]) / 3600, 2) if r[5] else 0.0,
             }
             for r in rows
         ]

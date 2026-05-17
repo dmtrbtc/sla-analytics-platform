@@ -230,36 +230,40 @@ export default function Dashboard() {
                 <ReactECharts
                   option={{
                     tooltip: { trigger: "axis", axisPointer: { type: "shadow" } },
+                    legend: { data: [t("slaQueue.breachedResponse"), t("slaQueue.breachedResolution")] },
                     xAxis: { type: "value" },
-                    yAxis: { type: "category", data: queueBreaches.map((q: any) => q.queue).reverse() },
+                    yAxis: { type: "category", data: queueBreaches.map((q: any) => q.queue_name).reverse() },
                     series: [
                       {
-                        name: t("slaQueue.breachRate"),
+                        name: t("slaQueue.breachedResponse"),
                         type: "bar",
-                        data: queueBreaches.map((q: any) => q.breach_rate).reverse(),
+                        data: queueBreaches.map((q: any) => q.breached_response).reverse(),
+                        itemStyle: { color: "#faad14" },
+                      },
+                      {
+                        name: t("slaQueue.breachedResolution"),
+                        type: "bar",
+                        data: queueBreaches.map((q: any) => q.breached_resolution).reverse(),
                         itemStyle: { color: "#ff4d4f" },
                       },
                     ],
-                    grid: { left: 150, right: 30, bottom: 20, top: 10 },
+                    grid: { left: 150, right: 30, bottom: 20, top: 40 },
                   }}
                   style={{ height: Math.max(150, queueBreaches.length * 32) }}
                 />
                 <Table
                   dataSource={queueBreaches}
-                  rowKey="queue"
+                  rowKey="queue_name"
                   size="small"
                   pagination={false}
                   scroll={{ x: true }}
                   columns={[
-                    { title: t("slaQueue.queue"), dataIndex: "queue", key: "queue", width: 180 },
-                    { title: t("slaQueue.total"), dataIndex: "total", key: "total", width: 100 },
-                    { title: t("slaQueue.breached"), dataIndex: "breached", key: "breached", width: 100 },
-                    { title: t("slaQueue.breachRate"), dataIndex: "breach_rate", key: "breach_rate", width: 100, render: (v: number) => `${v}%` },
-                    { title: t("slaQueue.responseCount"), dataIndex: "response_count", key: "response_count", width: 120 },
-                    { title: t("slaQueue.responseBreached"), dataIndex: "response_breached", key: "response_breached", width: 140 },
-                    { title: t("slaQueue.resolutionCount"), dataIndex: "resolution_count", key: "resolution_count", width: 120 },
-                    { title: t("slaQueue.resolutionBreached"), dataIndex: "resolution_breached", key: "resolution_breached", width: 140 },
-                    { title: t("slaQueue.avgSeconds"), dataIndex: "avg_seconds", key: "avg_seconds", width: 120, render: (v: number) => formatDuration(v) },
+                    { title: t("slaQueue.queue"), dataIndex: "queue_name", key: "queue_name", width: 180 },
+                    { title: t("slaQueue.ticketsTotal"), dataIndex: "tickets_total", key: "tickets_total", width: 120 },
+                    { title: t("slaQueue.breachedResponse"), dataIndex: "breached_response", key: "breached_response", width: 150 },
+                    { title: t("slaQueue.breachedResolution"), dataIndex: "breached_resolution", key: "breached_resolution", width: 150 },
+                    { title: t("slaQueue.avgResponseMin"), dataIndex: "avg_response_minutes", key: "avg_response_minutes", width: 200, render: (v: number) => `${v} мин` },
+                    { title: t("slaQueue.avgResolutionHours"), dataIndex: "avg_resolution_hours", key: "avg_resolution_hours", width: 200, render: (v: number) => `${v} ч` },
                   ]}
                 />
               </>
