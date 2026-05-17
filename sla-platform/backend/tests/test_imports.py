@@ -19,7 +19,7 @@ VALID_CSV = CSV_HEADER + CSV_ROW
 async def _admin_headers(client: AsyncClient) -> dict:
     resp = await client.post(
         "/api/v1/auth/login",
-        json={"email": "admin@sla-platform.dev", "password": "admin123"},
+        json={"email": "admin", "password": "admin123"},
     )
     assert resp.status_code == 200
     token = resp.json()["access_token"]
@@ -42,7 +42,7 @@ async def test_create_session_requires_admin(client):
     token = ""
     resp = await client.post(
         "/api/v1/auth/login",
-        json={"email": "admin@sla-platform.dev", "password": "admin123"},
+        json={"email": "admin", "password": "admin123"},
     )
     if resp.status_code == 200:
         token = resp.json()["access_token"]

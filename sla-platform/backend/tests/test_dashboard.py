@@ -13,7 +13,7 @@ async def test_overview_requires_auth(client):
 async def test_overview_returns_structure(client):
     resp = await client.post(
         "/api/v1/auth/login",
-        json={"email": "admin@sla-platform.dev", "password": "admin123"},
+        json={"email": "admin", "password": "admin123"},
     )
     assert resp.status_code == 200
     token = resp.json()["access_token"]
@@ -37,7 +37,7 @@ async def test_time_series_requires_auth(client):
 async def test_time_series_returns_list(client):
     resp = await client.post(
         "/api/v1/auth/login",
-        json={"email": "admin@sla-platform.dev", "password": "admin123"},
+        json={"email": "admin", "password": "admin123"},
     )
     assert resp.status_code == 200
     token = resp.json()["access_token"]

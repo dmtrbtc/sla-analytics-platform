@@ -21,6 +21,14 @@ make migrate
 # API Docs: http://localhost:8000/api/docs
 ```
 
+### Default Credentials
+
+| Login    | Password   | Role  |
+|----------|------------|-------|
+| `admin`  | `admin123` | admin |
+
+> **Security notice:** Change the default password immediately in production environments.
+
 ## Production Deployment
 
 ```bash

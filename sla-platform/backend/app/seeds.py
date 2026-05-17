@@ -1,9 +1,10 @@
 """Seed default SLA definitions and admin user into the database."""
 
 import logging
+from datetime import datetime, timezone
 
 from app.core.database import sync_session_factory
-from app.core.security import get_password_hash
+from app.core.security import get_password_hash, verify_password
 from app.domain.models import SLADefinition, User
 
 logger = logging.getLogger(__name__)
@@ -73,23 +74,49 @@ def seed_sla_definitions() -> None:
         db.close()
 
 
+ADMIN_EMAIL = "admin"
+ADMIN_PASSWORD = "admin123"
+
+
 def seed_admin_user() -> None:
     db = sync_session_factory()
     try:
-        existing = db.query(User).filter(User.role == "admin").first()
-        if existing:
-            logger.info("Admin user already exists (%s)", existing.email)
+        user = db.query(User).filter(User.email == ADMIN_EMAIL).first()
+        expected_hash = get_password_hash(ADMIN_PASSWORD)
+
+        if user is None:
+            user = User(
+                email=ADMIN_EMAIL,
+                display_name="Administrator",
+                password_hash=expected_hash,
+                role="admin",
+            )
+            db.add(user)
+            db.commit()
+            logger.info("Created default admin user: %s / %s", ADMIN_EMAIL, ADMIN_PASSWORD)
             return
 
-        admin = User(
-            email="admin@sla-platform.dev",
-            display_name="Administrator",
-            password_hash=get_password_hash("admin123"),
-            role="admin",
-        )
-        db.add(admin)
-        db.commit()
-        logger.info("Created default admin user: admin@sla-platform.dev / admin123")
+        needs_update = False
+        if not verify_password(ADMIN_PASSWORD, user.password_hash):
+            logger.warning("Admin password hash mismatch — updating")
+            user.password_hash = expected_hash
+            needs_update = True
+        if user.role != "admin":
+            logger.warning("Admin role was '%s' — resetting to 'admin'", user.role)
+            user.role = "admin"
+            needs_update = True
+        if not user.is_active:
+            logger.warning("Admin was inactive — reactivating")
+            user.is_active = True
+            needs_update = True
+
+        if needs_update:
+            user.updated_at = datetime.now(timezone.utc)
+            db.add(user)
+            db.commit()
+            logger.info("Admin user updated (%s)", ADMIN_EMAIL)
+        else:
+            logger.info("Admin user OK (%s)", ADMIN_EMAIL)
     except Exception:
         logger.exception("Failed to seed admin user")
         db.rollback()

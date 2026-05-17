@@ -97,7 +97,7 @@ async def test_login_missing_fields(client):
 async def test_login_wrong_password(client):
     resp = await client.post(
         "/api/v1/auth/login",
-        json={"email": "admin@sla-platform.dev", "password": "wrongpass"},
+        json={"email": "admin", "password": "wrongpass"},
     )
     assert resp.status_code == 401
 

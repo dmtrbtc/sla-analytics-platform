@@ -49,7 +49,7 @@ async def test_report_download_requires_auth(client):
 async def test_report_generate_started(client):
     resp = await client.post(
         "/api/v1/auth/login",
-        json={"email": "admin@sla-platform.dev", "password": "admin123"},
+        json={"email": "admin", "password": "admin123"},
     )
     assert resp.status_code == 200
     token = resp.json()["access_token"]

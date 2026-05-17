@@ -13,7 +13,7 @@ async def test_list_tickets_requires_auth(client):
 async def test_list_tickets_returns_structure(client):
     resp = await client.post(
         "/api/v1/auth/login",
-        json={"email": "admin@sla-platform.dev", "password": "admin123"},
+        json={"email": "admin", "password": "admin123"},
     )
     assert resp.status_code == 200
     token = resp.json()["access_token"]
@@ -33,7 +33,7 @@ async def test_ticket_detail_requires_auth(client):
 async def test_ticket_detail_not_found(client):
     resp = await client.post(
         "/api/v1/auth/login",
-        json={"email": "admin@sla-platform.dev", "password": "admin123"},
+        json={"email": "admin", "password": "admin123"},
     )
     token = resp.json()["access_token"]
     headers = {"Authorization": f"Bearer {token}"}

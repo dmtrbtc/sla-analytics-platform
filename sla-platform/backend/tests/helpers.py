@@ -14,7 +14,7 @@ from app.domain.models import AuditLog, ImportSession, RefreshToken, Team, User
 
 def admin_token() -> str:
     """Get token for the seeded admin user."""
-    return _token_for("admin@sla-platform.dev", "admin")
+    return _token_for("admin", "admin")
 
 
 def _token_for(email: str, role: str) -> str:

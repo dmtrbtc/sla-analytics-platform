@@ -70,13 +70,12 @@ export default function Login() {
         >
           <Form.Item
             name="email"
-            label="Email"
+            label="Email / Login"
             rules={[
-              { required: true, message: "Please enter your email" },
-              { type: "email", message: "Please enter a valid email" },
+              { required: true, message: "Please enter your email or login" },
             ]}
           >
-            <Input prefix={<MailOutlined />} placeholder="admin@sla-platform.dev" size="large" />
+            <Input prefix={<MailOutlined />} placeholder="admin" size="large" />
           </Form.Item>
           <Form.Item
             name="password"
@@ -90,7 +89,7 @@ export default function Login() {
           </Button>
         </Form>
         <Typography.Text type="secondary" style={{ display: "block", textAlign: "center", marginTop: 12, fontSize: 12 }}>
-          Default: admin@sla-platform.dev / admin123
+          Default: admin / admin123
         </Typography.Text>
       </Card>
     </div>

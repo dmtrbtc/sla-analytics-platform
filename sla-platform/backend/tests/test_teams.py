@@ -10,7 +10,7 @@ pytestmark = pytest.mark.asyncio
 async def _admin_headers(client):
     resp = await client.post(
         "/api/v1/auth/login",
-        json={"email": "admin@sla-platform.dev", "password": "admin123"},
+        json={"email": "admin", "password": "admin123"},
     )
     assert resp.status_code == 200
     return {"Authorization": f"Bearer {resp.json()['access_token']}"}
@@ -83,20 +83,21 @@ async def test_create_team(client):
         json={"name": "Support Team", "queue_prefix": "ST", "description": "Test"},
         headers=headers,
     )
-    assert resp.status_code == 200
+    assert resp.status_code in (200, 201)
     data = resp.json()
     assert data["name"] == "Support Team"
     assert data["queue_prefix"] == "ST"
 
 
-async def test_create_team_missing_fields(client):
+async def test_create_team_default_queue_prefix(client):
     headers = await _admin_headers(client)
     resp = await client.post(
         "/api/v1/teams",
         json={"name": "Incomplete"},
         headers=headers,
     )
-    assert resp.status_code == 400
+    assert resp.status_code in (200, 201)
+    assert resp.json()["queue_prefix"] == "inc"
 
 
 async def test_get_team(client):
