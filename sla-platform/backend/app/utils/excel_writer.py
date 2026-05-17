@@ -1,5 +1,6 @@
-"""Excel generation utilities using openpyxl."""
+"""Excel generation utilities using openpyxl with Russian localization."""
 
+import csv
 import io
 from typing import Any
 
@@ -8,9 +9,20 @@ from openpyxl.styles import Font, Alignment, PatternFill, Border, Side
 from openpyxl.utils import get_column_letter
 
 
+def _sanitize_csv_value(value: Any) -> str:
+    s = str(value) if value is not None else ""
+    if s and s[0] in ("=", "+", "-", "@", "\t", "\r"):
+        return "'" + s
+    return s
+
+
 HEADER_FONT = Font(bold=True, color="FFFFFF")
-HEADER_FILL = PatternFill(start_color="4472C4", end_color="4472C4", fill_type="solid")
-HEADER_ALIGNMENT = Alignment(horizontal="center", vertical="center", wrap_text=True)
+HEADER_FILL = PatternFill(
+    start_color="4472C4", end_color="4472C4", fill_type="solid"
+)
+HEADER_ALIGNMENT = Alignment(
+    horizontal="center", vertical="center", wrap_text=True
+)
 THIN_BORDER = Border(
     left=Side(style="thin"),
     right=Side(style="thin"),
@@ -18,13 +30,101 @@ THIN_BORDER = Border(
     bottom=Side(style="thin"),
 )
 
+# ── Russian sheet names ──────────────────────────────────────────
+RU_SHEET_SLA_METRICS = "Метрики SLA"
+RU_SHEET_QUEUES = "Очереди"
+RU_SHEET_BREACHES = "Нарушения SLA"
+RU_SHEET_SUMMARY = "Сводка"
 
-def make_xlsx(headers: list[str], rows: list[list[Any]], sheet_name: str = "Sheet1") -> io.BytesIO:
-    wb = Workbook()
-    ws = wb.active
-    ws.title = sheet_name
+# ── Russian column headers per report type ───────────────────────
+RU_SLA_METRICS_HEADERS = [
+    "ID заявки",
+    "Номер заявки",
+    "Метрика",
+    "Значение (сек)",
+    "Нарушение SLA",
+    "Очередь",
+    "Путь по очередям",
+    "Время входа в очередь",
+    "Время выхода из очереди",
+    "Ответственный",
+    "Время владения (сек)",
+    "Достоверность",
+    "Создано",
+    "Закрыто",
+    "Definition ID",
+    "Вычислено",
+]
 
-    # Header row
+RU_QUEUE_PERIOD_HEADERS = [
+    "ID заявки",
+    "Очередь",
+    "Команда",
+    "Время входа",
+    "Время выхода",
+    "Длительность (сек)",
+    "Ответственных",
+]
+
+RU_BREACH_HEADERS = [
+    "ID заявки",
+    "Номер заявки",
+    "Метрика",
+    "Значение (сек)",
+    "Очередь",
+    "Ответственный",
+    "Путь по очередям",
+    "Создано",
+    "Вычислено",
+]
+
+RU_SUMMARY_HEADERS = [
+    "Показатель",
+    "Значение",
+]
+
+RU_TEAM_PERFORMANCE_HEADERS = [
+    "ID заявки",
+    "Ответственный",
+    "Очередь",
+    "Команда",
+    "Начало",
+    "Окончание",
+    "Длительность (сек)",
+    "Активен",
+]
+
+RU_TICKET_LIFECYCLE_HEADERS = [
+    "ID заявки",
+    "Номер заявки",
+    "Название",
+    "Очередь",
+    "Состояние",
+    "Ответственный",
+    "Создано",
+    "Обновлено",
+    "Первый ответ",
+    "Решение",
+    "Закрыт",
+    "Достоверность",
+]
+
+RU_IMPORTS_SUMMARY_HEADERS = [
+    "ID сессии",
+    "Статус",
+    "Файл backlog",
+    "Файл history",
+    "Строк backlog",
+    "Строк history",
+    "Создано",
+    "Завершено",
+    "Ошибок",
+    "Статистика",
+]
+
+
+def _write_sheet(ws, headers: list[str], rows: list[list[Any]]):
+    """Write header + data rows to an open worksheet with styling."""
     for col_idx, header in enumerate(headers, 1):
         cell = ws.cell(row=1, column=col_idx, value=header)
         cell.font = HEADER_FONT
@@ -32,7 +132,6 @@ def make_xlsx(headers: list[str], rows: list[list[Any]], sheet_name: str = "Shee
         cell.alignment = HEADER_ALIGNMENT
         cell.border = THIN_BORDER
 
-    # Data rows
     for row_idx, row_data in enumerate(rows, 2):
         for col_idx, value in enumerate(row_data, 1):
             cell = ws.cell(row=row_idx, column=col_idx, value=value)
@@ -46,8 +145,35 @@ def make_xlsx(headers: list[str], rows: list[list[Any]], sheet_name: str = "Shee
             val = ws.cell(row=row_idx, column=col_idx).value
             if val is not None:
                 max_len = max(max_len, len(str(val)))
-        ws.column_dimensions[get_column_letter(col_idx)].width = min(max_len + 3, 60)
+        col_l = get_column_letter(col_idx)
+        ws.column_dimensions[col_l].width = min(max_len + 3, 60)
 
+
+def make_xlsx(
+    headers: list[str], rows: list[list[Any]], sheet_name: str = "Sheet1"
+) -> io.BytesIO:
+    """Create a single-sheet XLSX workbook (backward compatible)."""
+    wb = Workbook()
+    ws = wb.active
+    ws.title = sheet_name
+    _write_sheet(ws, headers, rows)
+    buf = io.BytesIO()
+    wb.save(buf)
+    buf.seek(0)
+    return buf
+
+
+def make_multi_sheet_xlsx(sheets: list[dict]) -> io.BytesIO:
+    """Create a multi-sheet XLSX workbook.
+
+    Each entry in *sheets*::
+        {"name": str, "headers": list[str], "rows": list[list]}
+    """
+    wb = Workbook()
+    wb.remove(wb.active)  # remove default sheet
+    for s in sheets:
+        ws = wb.create_sheet(title=s["name"])
+        _write_sheet(ws, s["headers"], s["rows"])
     buf = io.BytesIO()
     wb.save(buf)
     buf.seek(0)
@@ -55,11 +181,9 @@ def make_xlsx(headers: list[str], rows: list[list[Any]], sheet_name: str = "Shee
 
 
 def make_csv(headers: list[str], rows: list[list[Any]]) -> str:
-    import csv
-    import io as _io
-    buf = _io.StringIO()
+    buf = io.StringIO()
     writer = csv.writer(buf)
     writer.writerow(headers)
     for row in rows:
-        writer.writerow(row)
+        writer.writerow([_sanitize_csv_value(v) for v in row])
     return buf.getvalue()
