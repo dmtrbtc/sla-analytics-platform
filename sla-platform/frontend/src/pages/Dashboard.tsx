@@ -6,10 +6,12 @@ import {
   ClockCircleOutlined,
   CarOutlined,
 } from "@ant-design/icons";
+import { Table } from "antd";
 import { useTranslation } from "react-i18next";
 import ReactECharts from "echarts-for-react";
 import { useQuery } from "@tanstack/react-query";
 import { dashboardsApi } from "../api/dashboards";
+import { slaApi } from "../api/sla";
 import { formatDuration } from "../utils/format";
 
 export default function Dashboard() {
@@ -45,6 +47,15 @@ export default function Dashboard() {
     queryFn: async () => {
       const resp = await dashboardsApi.slaTrend();
       return resp.data.trend;
+    },
+    refetchInterval: 60_000,
+  });
+
+  const { data: queueBreaches } = useQuery({
+    queryKey: ["queue-breaches"],
+    queryFn: async () => {
+      const resp = await slaApi.getQueueBreaches();
+      return resp.data.queue_breaches || [];
     },
     refetchInterval: 60_000,
   });
@@ -207,6 +218,54 @@ export default function Dashboard() {
         <Col xs={24} lg={12}>
           <Card title={t("dashboard.ticketsByPriority")} size="small">
             <ReactECharts option={priorityOption} style={{ height: 250 }} />
+          </Card>
+        </Col>
+      </Row>
+
+      <Row gutter={[12, 12]} style={{ marginTop: 12 }}>
+        <Col xs={24}>
+          <Card title={t("slaQueue.title")} size="small">
+            {queueBreaches && queueBreaches.length > 0 ? (
+              <>
+                <ReactECharts
+                  option={{
+                    tooltip: { trigger: "axis", axisPointer: { type: "shadow" } },
+                    xAxis: { type: "value" },
+                    yAxis: { type: "category", data: queueBreaches.map((q: any) => q.queue).reverse() },
+                    series: [
+                      {
+                        name: t("slaQueue.breachRate"),
+                        type: "bar",
+                        data: queueBreaches.map((q: any) => q.breach_rate).reverse(),
+                        itemStyle: { color: "#ff4d4f" },
+                      },
+                    ],
+                    grid: { left: 150, right: 30, bottom: 20, top: 10 },
+                  }}
+                  style={{ height: Math.max(150, queueBreaches.length * 32) }}
+                />
+                <Table
+                  dataSource={queueBreaches}
+                  rowKey="queue"
+                  size="small"
+                  pagination={false}
+                  scroll={{ x: true }}
+                  columns={[
+                    { title: t("slaQueue.queue"), dataIndex: "queue", key: "queue", width: 180 },
+                    { title: t("slaQueue.total"), dataIndex: "total", key: "total", width: 100 },
+                    { title: t("slaQueue.breached"), dataIndex: "breached", key: "breached", width: 100 },
+                    { title: t("slaQueue.breachRate"), dataIndex: "breach_rate", key: "breach_rate", width: 100, render: (v: number) => `${v}%` },
+                    { title: t("slaQueue.responseCount"), dataIndex: "response_count", key: "response_count", width: 120 },
+                    { title: t("slaQueue.responseBreached"), dataIndex: "response_breached", key: "response_breached", width: 140 },
+                    { title: t("slaQueue.resolutionCount"), dataIndex: "resolution_count", key: "resolution_count", width: 120 },
+                    { title: t("slaQueue.resolutionBreached"), dataIndex: "resolution_breached", key: "resolution_breached", width: 140 },
+                    { title: t("slaQueue.avgSeconds"), dataIndex: "avg_seconds", key: "avg_seconds", width: 120, render: (v: number) => formatDuration(v) },
+                  ]}
+                />
+              </>
+            ) : (
+              <Typography.Text type="secondary">{t("slaQueue.noData")}</Typography.Text>
+            )}
           </Card>
         </Col>
       </Row>

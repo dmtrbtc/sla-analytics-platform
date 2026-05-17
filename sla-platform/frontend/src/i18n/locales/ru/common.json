@@ -310,6 +310,20 @@
     "title": "Конфигурация SLA",
     "description": "Определения SLA будут управляться здесь."
   },
+  "slaQueue": {
+    "title": "SLA по очередям",
+    "description": "Статистика нарушений SLA в разрезе очередей",
+    "queue": "Очередь",
+    "total": "Всего метрик",
+    "breached": "Нарушено",
+    "breachRate": "% нарушений",
+    "responseCount": "Откликов",
+    "responseBreached": "Нарушено откликов",
+    "resolutionCount": "Решений",
+    "resolutionBreached": "Нарушено решений",
+    "avgSeconds": "Среднее (сек)",
+    "noData": "Нет данных по очередям"
+  },
   "teams": {
     "title": "Конфигурация команд",
     "description": "Управление командами будет доступно здесь."

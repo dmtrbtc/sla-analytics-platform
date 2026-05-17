@@ -210,6 +210,22 @@ class RefreshToken(Base):
     created_at = Column(DateTime(timezone=True), default=datetime.utcnow)
 
 
+class SLAQueueRule(Base):
+    __tablename__ = "sla_queue_rules"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    name = Column(String(200), nullable=False)
+    queue_pattern = Column(String(200), nullable=False)
+    priority = Column(Integer, default=0)
+    response_target_seconds = Column(Integer, nullable=False)
+    resolution_target_seconds = Column(Integer, nullable=False)
+    is_active = Column(Boolean, default=True)
+    description = Column(Text)
+    created_by = Column(UUID(as_uuid=True), ForeignKey("users.id"), index=True)
+    created_at = Column(DateTime(timezone=True), default=datetime.utcnow)
+    updated_at = Column(DateTime(timezone=True), default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
 class UserTeam(Base):
     __tablename__ = "user_teams"
 

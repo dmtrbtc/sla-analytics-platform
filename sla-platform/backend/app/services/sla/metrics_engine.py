@@ -4,6 +4,7 @@ Every metric uses pause-engine and business-hours rules.
 No raw datetime subtractions as final logic.
 """
 
+import fnmatch
 import logging
 from datetime import datetime, timezone
 from typing import Any, Optional
@@ -12,7 +13,7 @@ from uuid import UUID
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
-from app.domain.models import SLADefinition, SLAMetric, TicketSnapshot
+from app.domain.models import SLADefinition, SLAMetric, SLAQueueRule, TicketSnapshot
 from app.services.sla.pause_engine import calculate_active_time, compute_pause_segments
 from app.services.sla.business_hours import calculate_business_seconds
 
@@ -20,6 +21,29 @@ logger = logging.getLogger(__name__)
 
 
 class MetricsEngine:
+
+    @staticmethod
+    def resolve_sla_rule_by_queue(
+        db: Session,
+        queue_name: Optional[str],
+    ) -> Optional[SLAQueueRule]:
+        """Find the best SLAQueueRule matching *queue_name*.
+
+        First match wins, ordered by priority desc then creation date asc.
+        Returns None if no rule matches (caller falls back to SLADefinition).
+        """
+        if not queue_name:
+            return None
+        rules = (
+            db.query(SLAQueueRule)
+            .filter(SLAQueueRule.is_active == True)
+            .order_by(SLAQueueRule.priority.desc().nullslast(), SLAQueueRule.created_at.asc())
+            .all()
+        )
+        for rule in rules:
+            if fnmatch.fnmatch(queue_name, rule.queue_pattern):
+                return rule
+        return None
 
     @staticmethod
     def compute_all(
@@ -69,7 +93,9 @@ class MetricsEngine:
         )
 
         effective = active["active_time_seconds"]
-        breached = sla_def.response_target_seconds > 0 and effective > sla_def.response_target_seconds
+        queue_rule = MetricsEngine.resolve_sla_rule_by_queue(db, ticket.current_queue)
+        target = queue_rule.response_target_seconds if queue_rule else sla_def.response_target_seconds
+        breached = target > 0 and effective > target
 
         return SLAMetric(
             ticket_id=ticket.ticket_id,
@@ -104,7 +130,9 @@ class MetricsEngine:
         )
 
         effective = active["active_time_seconds"]
-        breached = sla_def.resolution_target_seconds > 0 and effective > sla_def.resolution_target_seconds
+        queue_rule = MetricsEngine.resolve_sla_rule_by_queue(db, ticket.current_queue)
+        target = queue_rule.resolution_target_seconds if queue_rule else sla_def.resolution_target_seconds
+        breached = target > 0 and effective > target
 
         return SLAMetric(
             ticket_id=ticket.ticket_id,

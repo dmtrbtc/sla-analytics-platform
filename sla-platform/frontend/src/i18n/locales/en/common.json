@@ -310,6 +310,20 @@
     "title": "SLA Configuration",
     "description": "SLA definitions will be managed here."
   },
+  "slaQueue": {
+    "title": "SLA by Queue",
+    "description": "SLA breach statistics per queue",
+    "queue": "Queue",
+    "total": "Total Metrics",
+    "breached": "Breached",
+    "breachRate": "Breach %",
+    "responseCount": "Response Count",
+    "responseBreached": "Response Breached",
+    "resolutionCount": "Resolution Count",
+    "resolutionBreached": "Resolution Breached",
+    "avgSeconds": "Avg (sec)",
+    "noData": "No queue data available"
+  },
   "teams": {
     "title": "Teams Configuration",
     "description": "Team management will be available here."
