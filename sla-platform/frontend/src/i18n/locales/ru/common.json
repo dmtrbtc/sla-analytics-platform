@@ -5,6 +5,7 @@
   },
   "nav": {
     "dashboard": "Дашборд",
+    "analytics": "Аналитика",
     "teamDashboard": "Дашборд команды",
     "tickets": "Тикеты",
     "imports": "Импорты",
@@ -341,5 +342,30 @@
   },
   "header": {
     "signOut": "Выйти"
+  },
+  "analytics": {
+    "title": "Операционная аналитика",
+    "ticketsAtRisk": "Тикеты с риском SLA",
+    "overloadedQueues": "Очереди с перегрузкой",
+    "avgWaitTime": "Среднее время ожидания",
+    "avgReassignments": "Среднее число переназначений",
+    "mostProblematicQueue": "Самая проблемная очередь",
+    "unownedTickets": "Тикеты без владельца",
+    "heatmapTitle": "Тепловая карта SLA",
+    "bottleneckTitle": "Проблемные очереди",
+    "riskTitle": "Тикеты под риском",
+    "noRisks": "Тикетов под риском нет",
+    "queue": "Очередь",
+    "avgWaitMinutes": "Среднее ожидание",
+    "slaPct": "SLA %",
+    "riskScore": "Риск",
+    "ticket": "Тикет",
+    "slaUsage": "Использование SLA",
+    "remainingTime": "Оставшееся время",
+    "riskLevel": "Уровень риска",
+    "riskLevel_low": "Низкий",
+    "riskLevel_medium": "Средний",
+    "riskLevel_high": "Высокий",
+    "riskLevel_critical": "Критический"
   }
 }

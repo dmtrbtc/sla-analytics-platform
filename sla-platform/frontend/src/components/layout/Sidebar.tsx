@@ -7,6 +7,7 @@ import {
   TeamOutlined,
   ClockCircleOutlined,
   SettingOutlined,
+  FundOutlined,
 } from "@ant-design/icons";
 import { useTranslation } from "react-i18next";
 import { useAuthStore } from "../../stores/authStore";
@@ -21,6 +22,7 @@ export default function Sidebar() {
 
   const menuItems = [
     { key: "/dashboard", icon: <DashboardOutlined />, label: t("nav.dashboard") },
+    { key: "/dashboard/ops", icon: <FundOutlined />, label: t("nav.analytics") },
     { key: "/dashboard/teams", icon: <TeamOutlined />, label: t("nav.teamDashboard") },
     { key: "/tickets", icon: <FileTextOutlined />, label: t("nav.tickets") },
     { key: "/imports", icon: <UploadOutlined />, label: t("nav.imports") },

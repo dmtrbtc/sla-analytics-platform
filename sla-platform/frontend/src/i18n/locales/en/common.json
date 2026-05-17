@@ -5,6 +5,7 @@
   },
   "nav": {
     "dashboard": "Dashboard",
+    "analytics": "Analytics",
     "teamDashboard": "Team Dashboard",
     "tickets": "Tickets",
     "imports": "Imports",
@@ -341,5 +342,30 @@
   },
   "header": {
     "signOut": "Sign Out"
+  },
+  "analytics": {
+    "title": "Operational Intelligence",
+    "ticketsAtRisk": "Tickets at SLA Risk",
+    "overloadedQueues": "Overloaded Queues",
+    "avgWaitTime": "Avg Wait Time",
+    "avgReassignments": "Avg Reassignments",
+    "mostProblematicQueue": "Most Problematic Queue",
+    "unownedTickets": "Unowned Tickets",
+    "heatmapTitle": "SLA Heatmap",
+    "bottleneckTitle": "Bottleneck Queues",
+    "riskTitle": "Tickets at Risk",
+    "noRisks": "No tickets at risk",
+    "queue": "Queue",
+    "avgWaitMinutes": "Avg Wait",
+    "slaPct": "SLA %",
+    "riskScore": "Risk",
+    "ticket": "Ticket",
+    "slaUsage": "SLA Usage",
+    "remainingTime": "Remaining",
+    "riskLevel": "Risk Level",
+    "riskLevel_low": "Low",
+    "riskLevel_medium": "Medium",
+    "riskLevel_high": "High",
+    "riskLevel_critical": "Critical"
   }
 }
