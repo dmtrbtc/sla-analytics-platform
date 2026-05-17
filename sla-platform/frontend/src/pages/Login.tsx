@@ -20,6 +20,11 @@ export default function Login() {
       const resp = await authApi.login(values.email, values.password);
       const { access_token, refresh_token } = resp.data;
 
+      // Must store token BEFORE calling /auth/me so the axios interceptor
+      // picks it up from localStorage and sets the Authorization header.
+      localStorage.setItem("access_token", access_token);
+      localStorage.setItem("refresh_token", refresh_token);
+
       const meResp = await authApi.me();
       const user = meResp.data;
 
