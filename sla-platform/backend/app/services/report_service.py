@@ -18,6 +18,7 @@ from app.domain.models import (
     TicketSnapshot,
 )
 from app.utils.excel_writer import (
+    fmt_time_columns,
     make_multi_sheet_xlsx,
     RU_SLA_METRICS_HEADERS,
     RU_QUEUE_PERIOD_HEADERS,
@@ -148,11 +149,19 @@ class ReportService:
                 m.ticket_id, {}
             ).get(m.queue_name or "", 0)
 
+            metric_sec = (
+                m.metric_seconds if m.metric_seconds is not None else None
+            )
+            time_cols = fmt_time_columns(metric_sec)
+
+            owner_sec = owner_time_sec if owner_time_sec else None
+            owner_cols = fmt_time_columns(owner_sec)
+
             row = [
                 m.ticket_id,
                 ticket_number or "",
                 m.metric_name,
-                m.metric_seconds if m.metric_seconds is not None else "",
+                *time_cols,
                 (
                     ReportService._make_bool_label(m.sla_breached)
                     if m.sla_breached is not None
@@ -163,7 +172,7 @@ class ReportService:
                 _fmt_ts(qp_entered),
                 _fmt_ts(qp_exited),
                 m.owner or "",
-                owner_time_sec if owner_time_sec else "",
+                *owner_cols,
                 m.confidence or "",
                 _fmt_ts(created_at),
                 _fmt_ts(resolution_at),
@@ -177,7 +186,7 @@ class ReportService:
                     m.ticket_id,
                     ticket_number or "",
                     m.metric_name,
-                    m.metric_seconds if m.metric_seconds is not None else "",
+                    *time_cols,
                     m.queue_name or "",
                     m.owner or "",
                     queue_path,
@@ -187,13 +196,14 @@ class ReportService:
 
         for qp_list in qp_map.values():
             for qp in qp_list:
+                duration_cols = fmt_time_columns(qp.duration_seconds)
                 queue_period_rows.append([
                     qp.ticket_id,
                     qp.queue_name,
                     qp.team_prefix or "",
                     _fmt_ts(qp.entered_at),
                     _fmt_ts(qp.exited_at),
-                    qp.duration_seconds or 0,
+                    *duration_cols,
                     qp.owner_count or 0,
                 ])
 
@@ -249,7 +259,7 @@ class ReportService:
                 p.team_prefix or "",
                 _fmt_ts(p.start_time),
                 _fmt_ts(p.end_time),
-                p.duration_seconds or 0,
+                *fmt_time_columns(p.duration_seconds),
                 ReportService._make_bool_label(p.is_active),
             ]
             for p in periods
