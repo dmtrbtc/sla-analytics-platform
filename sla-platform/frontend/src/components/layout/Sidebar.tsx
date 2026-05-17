@@ -8,25 +8,27 @@ import {
   ClockCircleOutlined,
   SettingOutlined,
 } from "@ant-design/icons";
+import { useTranslation } from "react-i18next";
 import { useAuthStore } from "../../stores/authStore";
 
 const { Sider } = Layout;
 
 export default function Sidebar() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const location = useLocation();
   const user = useAuthStore((s) => s.user);
 
   const menuItems = [
-    { key: "/dashboard", icon: <DashboardOutlined />, label: "Dashboard" },
-    { key: "/dashboard/teams", icon: <TeamOutlined />, label: "Team Dashboard" },
-    { key: "/tickets", icon: <FileTextOutlined />, label: "Tickets" },
-    { key: "/imports", icon: <UploadOutlined />, label: "Imports" },
-    { key: "/sla", icon: <ClockCircleOutlined />, label: "SLA" },
-    { key: "/reports", icon: <FileTextOutlined />, label: "Reports" },
-    { key: "/teams", icon: <TeamOutlined />, label: "Teams Config" },
+    { key: "/dashboard", icon: <DashboardOutlined />, label: t("nav.dashboard") },
+    { key: "/dashboard/teams", icon: <TeamOutlined />, label: t("nav.teamDashboard") },
+    { key: "/tickets", icon: <FileTextOutlined />, label: t("nav.tickets") },
+    { key: "/imports", icon: <UploadOutlined />, label: t("nav.imports") },
+    { key: "/sla", icon: <ClockCircleOutlined />, label: t("nav.sla") },
+    { key: "/reports", icon: <FileTextOutlined />, label: t("nav.reports") },
+    { key: "/teams", icon: <TeamOutlined />, label: t("nav.teamsConfig") },
     ...(user?.role === "admin"
-      ? [{ key: "/admin/users", icon: <SettingOutlined />, label: "Admin" }]
+      ? [{ key: "/admin/users", icon: <SettingOutlined />, label: t("nav.admin") }]
       : []),
   ];
 
@@ -40,7 +42,7 @@ export default function Sidebar() {
           fontSize: 16,
         }}
       >
-        SLA Platform
+        {t("app.platform")}
       </div>
       <Menu
         theme="dark"

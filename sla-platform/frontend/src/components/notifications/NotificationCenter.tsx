@@ -5,6 +5,7 @@ import {
   CheckOutlined,
   DeleteOutlined,
 } from "@ant-design/icons";
+import { useTranslation } from "react-i18next";
 import { useNotificationStore, Notification } from "../../stores/notificationStore";
 import dayjs from "dayjs";
 
@@ -18,6 +19,7 @@ const levelColors: Record<string, string> = {
 };
 
 export default function NotificationCenter() {
+  const { t } = useTranslation();
   const [open, setOpen] = useState(false);
   const {
     notifications,
@@ -39,13 +41,13 @@ export default function NotificationCenter() {
       <Drawer
         title={
           <Space style={{ width: "100%", justifyContent: "space-between" }}>
-            <span>Notifications</span>
+            <span>{t("notifications.title")}</span>
             <Space>
               <Button size="small" onClick={markAllRead}>
-                <CheckOutlined /> Mark all read
+                <CheckOutlined /> {t("notifications.markAllRead")}
               </Button>
               <Button size="small" danger onClick={clearAll}>
-                <DeleteOutlined /> Clear
+                <DeleteOutlined /> {t("notifications.clear")}
               </Button>
             </Space>
           </Space>
@@ -56,7 +58,7 @@ export default function NotificationCenter() {
         onClose={() => setOpen(false)}
       >
         {notifications.length === 0 ? (
-          <Text type="secondary">No notifications</Text>
+          <Text type="secondary">{t("notifications.empty")}</Text>
         ) : (
           <List
             dataSource={notifications}

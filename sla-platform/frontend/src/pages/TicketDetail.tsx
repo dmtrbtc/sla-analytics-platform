@@ -1,10 +1,13 @@
 import { useParams, useNavigate } from "react-router-dom";
 import { Typography, Card, Descriptions, Table, Tag, Spin, Timeline, Tabs, Space, Button, Empty } from "antd";
 import { ArrowLeftOutlined, CheckCircleOutlined, CloseCircleOutlined, ClockCircleOutlined } from "@ant-design/icons";
+import { useTranslation } from "react-i18next";
 import { useQuery } from "@tanstack/react-query";
 import { ticketsApi } from "../api/tickets";
+import { formatDuration } from "../utils/format";
 
 export default function TicketDetail() {
+  const { t } = useTranslation();
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const ticketId = Number(id);
@@ -55,25 +58,25 @@ export default function TicketDetail() {
   });
 
   if (ticketLoading) return <Spin size="large" style={{ display: "block", margin: "100px auto" }} />;
-  if (!ticketData) return <Empty description="Ticket not found" />;
+  if (!ticketData) return <Empty description={t("ticketDetail.notFound")} />;
 
   const ticket = ticketData;
 
   const slaColumns = [
-    { title: "Metric", dataIndex: "metric_name", key: "metric_name" },
+    { title: t("ticketDetail.slaColumns.metric"), dataIndex: "metric_name", key: "metric_name" },
     {
-      title: "Value", dataIndex: "metric_seconds", key: "metric_seconds",
+      title: t("ticketDetail.slaColumns.value"), dataIndex: "metric_seconds", key: "metric_seconds",
       render: (v: number) => formatDuration(v),
     },
     {
-      title: "Breached", dataIndex: "sla_breached", key: "sla_breached",
+      title: t("ticketDetail.slaColumns.breached"), dataIndex: "sla_breached", key: "sla_breached",
       render: (v: boolean) => v
-        ? <Tag icon={<CloseCircleOutlined />} color="error">Yes</Tag>
-        : <Tag icon={<CheckCircleOutlined />} color="success">No</Tag>,
+        ? <Tag icon={<CloseCircleOutlined />} color="error">{t("common.yes")}</Tag>
+        : <Tag icon={<CheckCircleOutlined />} color="success">{t("common.no")}</Tag>,
     },
-    { title: "Queue", dataIndex: "queue_name", key: "queue_name" },
-    { title: "Owner", dataIndex: "owner", key: "owner" },
-    { title: "Confidence", dataIndex: "confidence", key: "confidence" },
+    { title: t("ticketDetail.slaColumns.queue"), dataIndex: "queue_name", key: "queue_name" },
+    { title: t("ticketDetail.slaColumns.owner"), dataIndex: "owner", key: "owner" },
+    { title: t("ticketDetail.slaColumns.confidence"), dataIndex: "confidence", key: "confidence" },
   ];
 
   const timelineItems = (timelineData || []).map((e: any) => ({
@@ -97,48 +100,48 @@ export default function TicketDetail() {
   return (
     <div>
       <Space style={{ marginBottom: 16 }}>
-        <Button icon={<ArrowLeftOutlined />} onClick={() => navigate("/tickets")}>Back</Button>
+        <Button icon={<ArrowLeftOutlined />} onClick={() => navigate("/tickets")}>{t("ticketDetail.back")}</Button>
         <Typography.Title level={4} style={{ margin: 0 }}>
           Ticket #{ticket.ticket_number || ticket.ticket_id}
         </Typography.Title>
         <Tag>{ticket.confidence}</Tag>
-        {ticket.is_closed ? <Tag color="green">Closed</Tag> : <Tag color="blue">Open</Tag>}
+        {ticket.is_closed ? <Tag color="green">{t("ticketDetail.closed")}</Tag> : <Tag color="blue">{t("ticketDetail.open")}</Tag>}
       </Space>
 
       <Tabs defaultActiveKey="overview" items={[
         {
           key: "overview",
-          label: "Overview",
+          label: t("ticketDetail.overview"),
           children: (
             <Card size="small">
               <Descriptions column={2} size="small" bordered>
-                <Descriptions.Item label="Ticket ID">{ticket.ticket_id}</Descriptions.Item>
-                <Descriptions.Item label="Ticket Number">{ticket.ticket_number || "-"}</Descriptions.Item>
-                <Descriptions.Item label="Title" span={2}>{ticket.title || "-"}</Descriptions.Item>
-                <Descriptions.Item label="Queue">{ticket.current_queue || "-"}</Descriptions.Item>
-                <Descriptions.Item label="State">{ticket.current_state || "-"}</Descriptions.Item>
-                <Descriptions.Item label="Owner">{ticket.current_owner || "-"}</Descriptions.Item>
-                <Descriptions.Item label="Customer">{ticket.customer_id || "-"}</Descriptions.Item>
-                <Descriptions.Item label="Created">{ticket.created_at ? new Date(ticket.created_at).toLocaleString() : "-"}</Descriptions.Item>
-                <Descriptions.Item label="Updated">{ticket.updated_at ? new Date(ticket.updated_at).toLocaleString() : "-"}</Descriptions.Item>
-                <Descriptions.Item label="First Response">{ticket.first_response_at ? new Date(ticket.first_response_at).toLocaleString() : "-"}</Descriptions.Item>
-                <Descriptions.Item label="Resolution">{ticket.resolution_at ? new Date(ticket.resolution_at).toLocaleString() : "-"}</Descriptions.Item>
-                <Descriptions.Item label="Confidence">{ticket.confidence || "-"}</Descriptions.Item>
-                <Descriptions.Item label="Is Merged">{ticket.is_merged ? "Yes" : "No"}</Descriptions.Item>
+                <Descriptions.Item label={t("ticketDetail.fields.ticketId")}>{ticket.ticket_id}</Descriptions.Item>
+                <Descriptions.Item label={t("ticketDetail.fields.ticketNumber")}>{ticket.ticket_number || "-"}</Descriptions.Item>
+                <Descriptions.Item label={t("ticketDetail.fields.title")} span={2}>{ticket.title || "-"}</Descriptions.Item>
+                <Descriptions.Item label={t("ticketDetail.fields.queue")}>{ticket.current_queue || "-"}</Descriptions.Item>
+                <Descriptions.Item label={t("ticketDetail.fields.state")}>{ticket.current_state || "-"}</Descriptions.Item>
+                <Descriptions.Item label={t("ticketDetail.fields.owner")}>{ticket.current_owner || "-"}</Descriptions.Item>
+                <Descriptions.Item label={t("ticketDetail.fields.customer")}>{ticket.customer_id || "-"}</Descriptions.Item>
+                <Descriptions.Item label={t("ticketDetail.fields.created")}>{ticket.created_at ? new Date(ticket.created_at).toLocaleString() : "-"}</Descriptions.Item>
+                <Descriptions.Item label={t("ticketDetail.fields.updated")}>{ticket.updated_at ? new Date(ticket.updated_at).toLocaleString() : "-"}</Descriptions.Item>
+                <Descriptions.Item label={t("ticketDetail.fields.firstResponse")}>{ticket.first_response_at ? new Date(ticket.first_response_at).toLocaleString() : "-"}</Descriptions.Item>
+                <Descriptions.Item label={t("ticketDetail.fields.resolution")}>{ticket.resolution_at ? new Date(ticket.resolution_at).toLocaleString() : "-"}</Descriptions.Item>
+                <Descriptions.Item label={t("ticketDetail.fields.confidence")}>{ticket.confidence || "-"}</Descriptions.Item>
+                <Descriptions.Item label={t("ticketDetail.fields.isMerged")}>{ticket.is_merged ? t("common.yes") : t("common.no")}</Descriptions.Item>
               </Descriptions>
             </Card>
           ),
         },
         {
           key: "timeline",
-          label: "Event Timeline",
+          label: t("ticketDetail.eventTimeline"),
           children: timelineItems.length > 0
             ? <Timeline items={timelineItems} style={{ maxHeight: 500, overflow: "auto" }} />
-            : <Empty description="No events" />,
+            : <Empty description={t("common.noEvents")} />,
         },
         {
           key: "ownership",
-          label: "Ownership Periods",
+          label: t("ticketDetail.ownershipPeriods"),
           children: (
             <Table
               dataSource={ownershipData || []}
@@ -146,19 +149,19 @@ export default function TicketDetail() {
               size="small"
               pagination={false}
               columns={[
-                { title: "Owner", dataIndex: "owner", key: "owner" },
-                { title: "Queue", dataIndex: "queue_name", key: "queue_name" },
-                { title: "Team", dataIndex: "team_prefix", key: "team_prefix" },
-                { title: "Start", dataIndex: "start_time", key: "start_time", render: (v: string) => v ? new Date(v).toLocaleString() : "-" },
-                { title: "End", dataIndex: "end_time", key: "end_time", render: (v: string) => v ? new Date(v).toLocaleString() : "Active" },
-                { title: "Duration", dataIndex: "duration_seconds", key: "duration_seconds", render: (v: number) => formatDuration(v) },
+                { title: t("ticketDetail.ownershipColumns.owner"), dataIndex: "owner", key: "owner" },
+                { title: t("ticketDetail.ownershipColumns.queue"), dataIndex: "queue_name", key: "queue_name" },
+                { title: t("ticketDetail.ownershipColumns.team"), dataIndex: "team_prefix", key: "team_prefix" },
+                { title: t("ticketDetail.ownershipColumns.start"), dataIndex: "start_time", key: "start_time", render: (v: string) => v ? new Date(v).toLocaleString() : "-" },
+                { title: t("ticketDetail.ownershipColumns.end"), dataIndex: "end_time", key: "end_time", render: (v: string) => v ? new Date(v).toLocaleString() : t("common.active") },
+                { title: t("ticketDetail.ownershipColumns.duration"), dataIndex: "duration_seconds", key: "duration_seconds", render: (v: number) => formatDuration(v) },
               ]}
             />
           ),
         },
         {
           key: "queue_periods",
-          label: "Queue Periods",
+          label: t("ticketDetail.queuePeriods"),
           children: (
             <Table
               dataSource={queuePeriodsData || []}
@@ -166,18 +169,18 @@ export default function TicketDetail() {
               size="small"
               pagination={false}
               columns={[
-                { title: "Queue", dataIndex: "queue_name", key: "queue_name" },
-                { title: "Entered", dataIndex: "entered_at", key: "entered_at", render: (v: string) => v ? new Date(v).toLocaleString() : "-" },
-                { title: "Exited", dataIndex: "exited_at", key: "exited_at", render: (v: string) => v ? new Date(v).toLocaleString() : "Active" },
-                { title: "Duration", dataIndex: "duration_seconds", key: "duration_seconds", render: (v: number) => formatDuration(v) },
-                { title: "Owners", dataIndex: "owner_count", key: "owner_count" },
+                { title: t("ticketDetail.queueColumns.queue"), dataIndex: "queue_name", key: "queue_name" },
+                { title: t("ticketDetail.queueColumns.entered"), dataIndex: "entered_at", key: "entered_at", render: (v: string) => v ? new Date(v).toLocaleString() : "-" },
+                { title: t("ticketDetail.queueColumns.exited"), dataIndex: "exited_at", key: "exited_at", render: (v: string) => v ? new Date(v).toLocaleString() : t("common.active") },
+                { title: t("ticketDetail.queueColumns.duration"), dataIndex: "duration_seconds", key: "duration_seconds", render: (v: number) => formatDuration(v) },
+                { title: t("ticketDetail.queueColumns.owners"), dataIndex: "owner_count", key: "owner_count" },
               ]}
             />
           ),
         },
         {
           key: "sla",
-          label: "SLA Metrics",
+          label: t("ticketDetail.slaMetrics"),
           children: (
             <Table
               dataSource={slaData || []}
@@ -191,12 +194,4 @@ export default function TicketDetail() {
       ]} />
     </div>
   );
-}
-
-function formatDuration(seconds: number): string {
-  if (!seconds || seconds === 0) return "0s";
-  if (seconds < 60) return `${Math.round(seconds)}s`;
-  if (seconds < 3600) return `${Math.round(seconds / 60)}m`;
-  if (seconds < 86400) return `${(seconds / 3600).toFixed(1)}h`;
-  return `${(seconds / 86400).toFixed(1)}d`;
 }

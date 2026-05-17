@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Typography, Upload, Button, Card, message } from "antd";
 import { InboxOutlined } from "@ant-design/icons";
+import { useTranslation } from "react-i18next";
 import { importsApi } from "../api/imports";
 import { useNavigate } from "react-router-dom";
 import type { UploadFile } from "antd/es/upload/interface";
@@ -8,13 +9,14 @@ import type { UploadFile } from "antd/es/upload/interface";
 const { Dragger } = Upload;
 
 export default function ImportUpload() {
+  const { t } = useTranslation();
   const [fileList, setFileList] = useState<UploadFile[]>([]);
   const [uploading, setUploading] = useState(false);
   const navigate = useNavigate();
 
   const handleUpload = async () => {
     if (fileList.length === 0) {
-      message.warning("Please select files");
+      message.warning(t("importUpload.pleaseSelectFiles"));
       return;
     }
     setUploading(true);
@@ -39,23 +41,23 @@ export default function ImportUpload() {
       });
 
       if (!hasBacklog && !hasHistory) {
-        message.error("Please upload backlog and/or history CSV files");
+        message.error(t("importUpload.uploadBacklogAndHistory"));
         setUploading(false);
         return;
       }
 
       const resp = await importsApi.create(formData);
-      message.success("Import session created");
+      message.success(t("importUpload.sessionCreated"));
 
       const id = (resp.data as any).id;
       if (id && hasBacklog && hasHistory) {
         await importsApi.start(id);
-        message.loading({ content: "Pipeline started...", key: "pipeline" });
+        message.loading({ content: t("importUpload.pipelineStarted"), key: "pipeline" });
       }
 
       navigate("/imports");
     } catch {
-      message.error("Upload failed");
+      message.error(t("importUpload.uploadFailed"));
     } finally {
       setUploading(false);
     }
@@ -63,7 +65,7 @@ export default function ImportUpload() {
 
   return (
     <div>
-      <Typography.Title level={4}>New Import</Typography.Title>
+      <Typography.Title level={4}>{t("importUpload.title")}</Typography.Title>
       <Card>
         <Dragger
           multiple
@@ -75,8 +77,8 @@ export default function ImportUpload() {
           <p className="ant-upload-drag-icon">
             <InboxOutlined />
           </p>
-          <p>Click or drag CSV files to upload</p>
-          <p>Upload backlog_*.csv and history_*.csv files</p>
+          <p>{t("importUpload.clickOrDrag")}</p>
+          <p>{t("importUpload.backlogHint")}</p>
         </Dragger>
         <Button
           type="primary"
@@ -85,7 +87,7 @@ export default function ImportUpload() {
           disabled={fileList.length === 0}
           style={{ marginTop: 16 }}
         >
-          {uploading ? "Uploading..." : "Start Import"}
+          {uploading ? t("importUpload.uploading") : t("importUpload.startImport")}
         </Button>
       </Card>
     </div>

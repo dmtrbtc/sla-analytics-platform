@@ -1,30 +1,13 @@
 import { useEffect, useState } from "react";
 import { Typography, Button, Space, Table, Tag, message } from "antd";
-import { UploadOutlined, ReloadOutlined, CheckCircleOutlined, CloseCircleOutlined, SyncOutlined, EyeOutlined } from "@ant-design/icons";
+import { CheckCircleOutlined, CloseCircleOutlined, EyeOutlined, ReloadOutlined, SyncOutlined, UploadOutlined } from "@ant-design/icons";
+import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 import { importsApi, ImportSession } from "../api/imports";
-
-const statusColors: Record<string, string> = {
-  draft: "default",
-  validating: "processing",
-  parsing: "processing",
-  normalizing: "processing",
-  rebuilding: "processing",
-  computing_sla: "processing",
-  completed: "success",
-  failed: "error",
-};
-
-const statusIcons: Record<string, React.ReactNode> = {
-  completed: <CheckCircleOutlined />,
-  failed: <CloseCircleOutlined />,
-  parsing: <SyncOutlined spin />,
-  normalizing: <SyncOutlined spin />,
-  rebuilding: <SyncOutlined spin />,
-  computing_sla: <SyncOutlined spin />,
-};
+import { IMPORT_STATUS_COLORS } from "../utils/constants";
 
 export default function Imports() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const [sessions, setSessions] = useState<ImportSession[]>([]);
   const [loading, setLoading] = useState(false);
@@ -35,7 +18,7 @@ export default function Imports() {
       const resp = await importsApi.list();
       setSessions(resp.data);
     } catch {
-      message.error("Failed to load sessions");
+      message.error(t("imports.failedToLoad"));
     } finally {
       setLoading(false);
     }
@@ -50,81 +33,81 @@ export default function Imports() {
   const handleStart = async (id: string) => {
     try {
       await importsApi.start(id);
-      message.success("Pipeline started");
+      message.success(t("imports.pipelineStarted"));
       fetchSessions();
     } catch {
-      message.error("Failed to start pipeline");
+      message.error(t("imports.failedToStart"));
     }
   };
 
   const handleReprocess = async (id: string) => {
     try {
       await importsApi.reprocess(id);
-      message.success("Reprocessing started");
+      message.success(t("imports.reprocessingStarted"));
       fetchSessions();
     } catch {
-      message.error("Failed to reprocess");
+      message.error(t("imports.failedToReprocess"));
     }
   };
 
   const columns = [
     {
-      title: "Status",
+      title: t("imports.columns.status"),
       dataIndex: "status",
       key: "status",
       render: (status: string) => (
-        <Tag icon={statusIcons[status]} color={statusColors[status] || "default"}>
+        <Tag icon={status === "completed" ? <CheckCircleOutlined /> : status === "failed" ? <CloseCircleOutlined /> : <SyncOutlined spin />} color={IMPORT_STATUS_COLORS[status] || "default"}>
           {status.toUpperCase()}
         </Tag>
       ),
     },
     {
-      title: "Backlog",
+      title: t("imports.columns.backlog"),
       key: "backlog",
       render: (_: unknown, record: ImportSession) => record.backlog_file || "-",
     },
     {
-      title: "History",
+      title: t("imports.columns.history"),
       key: "history",
       render: (_: unknown, record: ImportSession) => record.history_file || "-",
     },
     {
-      title: "Events",
+      title: t("imports.columns.events"),
       key: "events",
       render: (_: unknown, record: ImportSession) => (record.stats as any)?.events_parsed ?? "-",
     },
     {
-      title: "Tickets",
+      title: t("imports.columns.tickets"),
       key: "tickets",
       render: (_: unknown, record: ImportSession) => (record.stats as any)?.tickets ?? "-",
     },
     {
-      title: "Errors",
+      title: t("imports.columns.errors"),
       key: "errors",
       render: (_: unknown, record: ImportSession) => record.error_details?.length ?? 0,
     },
     {
-      title: "Created",
+      title: t("imports.columns.created"),
       dataIndex: "created_at",
       key: "created_at",
       render: (d: string) => new Date(d).toLocaleString(),
     },
     {
-      title: "Actions",
+      title: t("common.actions"),
       key: "actions",
       render: (_: unknown, record: ImportSession) => (
         <Space>
           <Button size="small" icon={<EyeOutlined />} onClick={() => navigate(`/imports/${record.id}`)}>
-            View
+            {t("common.view")}
           </Button>
           {record.status === "draft" || record.status === "validating" ? (
             <Button size="small" type="primary" onClick={() => handleStart(record.id)}>
-              Start
+              {t("common.start")}
             </Button>
           ) : null}
           {record.status === "failed" || record.status === "completed" ? (
             <Button size="small" icon={<ReloadOutlined />} onClick={() => handleReprocess(record.id)}>
-              Reprocess
+              {t("common.reprocess")}
             </Button>
           ) : null}
         </Space>
@@ -135,11 +118,11 @@ export default function Imports() {
   return (
     <div>
       <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 16 }}>
-        <Typography.Title level={4}>Import Sessions</Typography.Title>
+        <Typography.Title level={4}>{t("imports.title")}</Typography.Title>
         <Space>
-          <Button onClick={fetchSessions} loading={loading}>Refresh</Button>
+          <Button onClick={fetchSessions} loading={loading}>{t("imports.refresh")}</Button>
           <Button type="primary" icon={<UploadOutlined />} onClick={() => navigate("/imports/new")}>
-            New Import
+            {t("imports.newImport")}
           </Button>
         </Space>
       </div>

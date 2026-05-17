@@ -13,6 +13,7 @@ import {
   Popconfirm,
 } from "antd";
 import { PlusOutlined, EditOutlined, StopOutlined } from "@ant-design/icons";
+import { useTranslation } from "react-i18next";
 import { authApi } from "../api/auth";
 
 interface User {
@@ -31,6 +32,7 @@ const ROLE_COLORS: Record<string, string> = {
 };
 
 export default function AdminUsers() {
+  const { t } = useTranslation();
   const [users, setUsers] = useState<User[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(false);
@@ -45,7 +47,7 @@ export default function AdminUsers() {
       setUsers(resp.data.users || []);
       setTotal(resp.data.total || 0);
     } catch {
-      message.error("Failed to load users");
+      message.error(t("adminUsers.failedToLoad"));
     } finally {
       setLoading(false);
     }
@@ -72,10 +74,10 @@ export default function AdminUsers() {
       const values = await form.validateFields();
       if (editingUser) {
         await authApi.updateUser(editingUser.id, values);
-        message.success("User updated");
+        message.success(t("adminUsers.userUpdated"));
       } else {
         await authApi.createUser(values);
-        message.success("User created");
+        message.success(t("adminUsers.userCreated"));
       }
       setModalOpen(false);
       fetchUsers();
@@ -89,26 +91,26 @@ export default function AdminUsers() {
   const handleDeactivate = async (user: User) => {
     try {
       await authApi.deleteUser(user.id);
-      message.success("User deactivated");
+      message.success(t("adminUsers.userDeactivated"));
       fetchUsers();
     } catch (err: any) {
-      message.error(err?.response?.data?.detail || "Failed to deactivate user");
+      message.error(err?.response?.data?.detail || t("adminUsers.failedToDeactivate"));
     }
   };
 
   const columns = [
     {
-      title: "Name",
+      title: t("adminUsers.columns.name"),
       dataIndex: "display_name",
       key: "display_name",
     },
     {
-      title: "Email",
+      title: t("adminUsers.columns.email"),
       dataIndex: "email",
       key: "email",
     },
     {
-      title: "Role",
+      title: t("adminUsers.columns.role"),
       dataIndex: "role",
       key: "role",
       render: (role: string) => (
@@ -116,20 +118,20 @@ export default function AdminUsers() {
       ),
     },
     {
-      title: "Status",
+      title: t("adminUsers.columns.status"),
       dataIndex: "is_active",
       key: "is_active",
       render: (active: boolean) =>
-        active ? <Tag color="green">Active</Tag> : <Tag color="red">Inactive</Tag>,
+        active ? <Tag color="green">{t("adminUsers.statusLabels.active")}</Tag> : <Tag color="red">{t("adminUsers.statusLabels.inactive")}</Tag>,
     },
     {
-      title: "Created",
+      title: t("adminUsers.columns.created"),
       dataIndex: "created_at",
       key: "created_at",
       render: (d: string) => new Date(d).toLocaleDateString(),
     },
     {
-      title: "Actions",
+      title: t("adminUsers.columns.actions"),
       key: "actions",
       render: (_: any, record: User) => (
         <Space>
@@ -138,15 +140,15 @@ export default function AdminUsers() {
             icon={<EditOutlined />}
             onClick={() => openEdit(record)}
           >
-            Edit
+            {t("common.edit")}
           </Button>
           {record.is_active && (
             <Popconfirm
-              title="Deactivate this user?"
+              title={t("adminUsers.deactivateConfirm")}
               onConfirm={() => handleDeactivate(record)}
             >
               <Button type="link" danger icon={<StopOutlined />}>
-                Deactivate
+                {t("common.delete")}
               </Button>
             </Popconfirm>
           )}
@@ -166,10 +168,10 @@ export default function AdminUsers() {
         }}
       >
         <Typography.Title level={4} style={{ margin: 0 }}>
-          User Management
+          {t("adminUsers.title")}
         </Typography.Title>
         <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>
-          Create User
+          {t("adminUsers.createUser")}
         </Button>
       </div>
 
@@ -182,26 +184,26 @@ export default function AdminUsers() {
       />
 
       <Modal
-        title={editingUser ? "Edit User" : "Create User"}
+        title={editingUser ? t("adminUsers.editUser") : t("adminUsers.createUser")}
         open={modalOpen}
         onOk={handleSave}
         onCancel={() => setModalOpen(false)}
-        okText={editingUser ? "Save" : "Create"}
+        okText={editingUser ? t("adminUsers.save") : t("adminUsers.create")}
       >
         <Form form={form} layout="vertical">
           <Form.Item
             name="display_name"
-            label="Display Name"
+            label={t("adminUsers.form.displayName")}
             rules={[{ required: true }]}
           >
             <Input />
           </Form.Item>
           <Form.Item
             name="email"
-            label="Email"
+            label={t("adminUsers.form.email")}
             rules={[
               { required: true },
-              { type: "email", message: "Invalid email" },
+              { type: "email", message: t("adminUsers.form.invalidEmail") },
             ]}
           >
             <Input disabled={!!editingUser} />
@@ -209,17 +211,17 @@ export default function AdminUsers() {
           {!editingUser && (
             <Form.Item
               name="password"
-              label="Password"
-              rules={[{ required: true, min: 6 }]}
+              label={t("adminUsers.form.password")}
+              rules={[{ required: true, min: 6, message: t("adminUsers.form.passwordMinLength") }]}
             >
               <Input.Password />
             </Form.Item>
           )}
-          <Form.Item name="role" label="Role" rules={[{ required: true }]}>
+          <Form.Item name="role" label={t("adminUsers.form.role")} rules={[{ required: true }]}>
             <Select>
-              <Select.Option value="admin">Admin</Select.Option>
-              <Select.Option value="analyst">Analyst</Select.Option>
-              <Select.Option value="viewer">Viewer</Select.Option>
+              <Select.Option value="admin">{t("adminUsers.roles.admin")}</Select.Option>
+              <Select.Option value="analyst">{t("adminUsers.roles.analyst")}</Select.Option>
+              <Select.Option value="viewer">{t("adminUsers.roles.viewer")}</Select.Option>
             </Select>
           </Form.Item>
         </Form>

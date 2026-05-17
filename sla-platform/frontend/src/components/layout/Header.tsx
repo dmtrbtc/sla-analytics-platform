@@ -5,6 +5,7 @@ import {
   LogoutOutlined,
   UserOutlined,
 } from "@ant-design/icons";
+import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 import { useUIStore } from "../../stores/uiStore";
 import { useAuthStore } from "../../stores/authStore";
@@ -20,6 +21,7 @@ const ROLE_COLORS: Record<string, string> = {
 };
 
 export default function Header() {
+  const { t } = useTranslation();
   const { sidebarCollapsed, toggleSidebar } = useUIStore();
   const { user, logout } = useAuthStore();
   const navigate = useNavigate();
@@ -54,7 +56,7 @@ export default function Header() {
     {
       key: "logout",
       icon: <LogoutOutlined />,
-      label: "Sign Out",
+      label: t("header.signOut"),
       onClick: handleLogout,
     },
   ];

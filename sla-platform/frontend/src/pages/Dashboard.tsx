@@ -1,19 +1,19 @@
 import { useState } from "react";
-import { Row, Col, Card, Statistic, Typography, Spin, DatePicker, Select, Space, Tag } from "antd";
+import { Row, Col, Card, Statistic, Typography, Spin, Select, Space } from "antd";
 import {
   CheckCircleOutlined,
   CloseCircleOutlined,
   ClockCircleOutlined,
   CarOutlined,
 } from "@ant-design/icons";
+import { useTranslation } from "react-i18next";
 import ReactECharts from "echarts-for-react";
 import { useQuery } from "@tanstack/react-query";
 import { dashboardsApi } from "../api/dashboards";
-import dayjs from "dayjs";
-
-const { RangePicker } = DatePicker;
+import { formatDuration } from "../utils/format";
 
 export default function Dashboard() {
+  const { t } = useTranslation();
   const [days, setDays] = useState(30);
 
   const { data: overview, isLoading } = useQuery({
@@ -54,25 +54,25 @@ export default function Dashboard() {
   const kpis = overview || {};
 
   const kpiCards = [
-    { title: "Total Tickets", value: kpis.total_tickets ?? 0, icon: <CarOutlined />, color: "#1677ff" },
-    { title: "Open Tickets", value: kpis.open_tickets ?? 0, icon: <ClockCircleOutlined />, color: "#faad14" },
-    { title: "Closed Tickets", value: kpis.closed_tickets ?? 0, icon: <CheckCircleOutlined />, color: "#52c41a" },
-    { title: "SLA Breach %", value: `${kpis.sla_breach_pct ?? 0}%`, icon: <CloseCircleOutlined />, color: kpis.sla_breach_pct > 15 ? "#ff4d4f" : "#52c41a" },
-    { title: "Avg Response", value: formatDuration(kpis.avg_response_time_seconds), icon: <ClockCircleOutlined />, color: "#1677ff" },
-    { title: "Avg Resolution", value: formatDuration(kpis.avg_resolution_time_seconds), icon: <CheckCircleOutlined />, color: "#1677ff" },
-    { title: "Imports Processed", value: kpis.imports_processed ?? 0, icon: <CarOutlined />, color: "#722ed1" },
-    { title: "SLA Breached", value: kpis.sla_breached ?? 0, icon: <CloseCircleOutlined />, color: "#ff4d4f" },
+    { title: t("dashboard.totalTickets"), value: kpis.total_tickets ?? 0, icon: <CarOutlined />, color: "#1677ff" },
+    { title: t("dashboard.openTickets"), value: kpis.open_tickets ?? 0, icon: <ClockCircleOutlined />, color: "#faad14" },
+    { title: t("dashboard.closedTickets"), value: kpis.closed_tickets ?? 0, icon: <CheckCircleOutlined />, color: "#52c41a" },
+    { title: t("dashboard.slaBreachPercent"), value: `${kpis.sla_breach_pct ?? 0}%`, icon: <CloseCircleOutlined />, color: kpis.sla_breach_pct > 15 ? "#ff4d4f" : "#52c41a" },
+    { title: t("dashboard.avgResponse"), value: formatDuration(kpis.avg_response_time_seconds), icon: <ClockCircleOutlined />, color: "#1677ff" },
+    { title: t("dashboard.avgResolution"), value: formatDuration(kpis.avg_resolution_time_seconds), icon: <CheckCircleOutlined />, color: "#1677ff" },
+    { title: t("dashboard.importsProcessed"), value: kpis.imports_processed ?? 0, icon: <CarOutlined />, color: "#722ed1" },
+    { title: t("dashboard.slaBreached"), value: kpis.sla_breached ?? 0, icon: <CloseCircleOutlined />, color: "#ff4d4f" },
   ];
 
   const trendChartOption = {
     tooltip: { trigger: "axis" },
-    legend: { data: ["Created", "Closed", "Breaches"] },
+    legend: { data: [t("dashboard.created"), t("dashboard.closed"), t("dashboard.breaches")] },
     xAxis: { type: "category", data: (timeSeriesData?.created || []).map((d: any) => d.period?.slice(0, 10) || "") },
     yAxis: { type: "value", min: 0 },
     series: [
-      { name: "Created", type: "line", data: (timeSeriesData?.created || []).map((d: any) => d.count), smooth: true },
-      { name: "Closed", type: "line", data: (timeSeriesData?.closed || []).map((d: any) => d.count), smooth: true },
-      { name: "Breaches", type: "line", data: (timeSeriesData?.breaches || []).map((d: any) => d.count), smooth: true, lineStyle: { type: "dashed" } },
+      { name: t("dashboard.created"), type: "line", data: (timeSeriesData?.created || []).map((d: any) => d.count), smooth: true },
+      { name: t("dashboard.closed"), type: "line", data: (timeSeriesData?.closed || []).map((d: any) => d.count), smooth: true },
+      { name: t("dashboard.breaches"), type: "line", data: (timeSeriesData?.breaches || []).map((d: any) => d.count), smooth: true, lineStyle: { type: "dashed" } },
     ],
     grid: { left: 50, right: 20, bottom: 30, top: 40 },
   };
@@ -82,15 +82,15 @@ export default function Dashboard() {
     xAxis: { type: "category", data: (slaTrend || []).map((d: any) => d.date?.slice(5) || "") },
     yAxis: { type: "value", min: 0 },
     series: [
-      { name: "Total", type: "bar", data: (slaTrend || []).map((d: any) => d.total), itemStyle: { color: "#1677ff" } },
-      { name: "Breached", type: "bar", data: (slaTrend || []).map((d: any) => d.breached), itemStyle: { color: "#ff4d4f" } },
+      { name: t("dashboard.total"), type: "bar", data: (slaTrend || []).map((d: any) => d.total), itemStyle: { color: "#1677ff" } },
+      { name: t("dashboard.breached"), type: "bar", data: (slaTrend || []).map((d: any) => d.breached), itemStyle: { color: "#ff4d4f" } },
     ],
     grid: { left: 50, right: 20, bottom: 30, top: 20 },
   };
 
   const responseTrendOption = {
     tooltip: { trigger: "axis" },
-    title: { text: "Response Time Trend (avg seconds)", left: "center", textStyle: { fontSize: 14 } },
+    title: { text: t("dashboard.slaResponseTime"), left: "center", textStyle: { fontSize: 14 } },
     xAxis: { type: "category", data: (timeSeriesData?.responseTime || []).map((d: any) => d.period?.slice(5, 10) || "") },
     yAxis: { type: "value", min: 0 },
     series: [{ type: "line", data: (timeSeriesData?.responseTime || []).map((d: any) => d.avg_seconds), smooth: true, lineStyle: { color: "#722ed1" }, areaStyle: { color: "rgba(114,46,209,0.1)" } }],
@@ -99,7 +99,7 @@ export default function Dashboard() {
 
   const resolutionTrendOption = {
     tooltip: { trigger: "axis" },
-    title: { text: "Resolution Time Trend (avg seconds)", left: "center", textStyle: { fontSize: 14 } },
+    title: { text: t("dashboard.slaResolutionTime"), left: "center", textStyle: { fontSize: 14 } },
     xAxis: { type: "category", data: (timeSeriesData?.resolutionTime || []).map((d: any) => d.period?.slice(5, 10) || "") },
     yAxis: { type: "value", min: 0 },
     series: [{ type: "line", data: (timeSeriesData?.resolutionTime || []).map((d: any) => d.avg_seconds), smooth: true, lineStyle: { color: "#13c2c2" }, areaStyle: { color: "rgba(19,194,194,0.1)" } }],
@@ -109,7 +109,7 @@ export default function Dashboard() {
   const queueData = kpis.tickets_by_queue ? Object.entries(kpis.tickets_by_queue).slice(0, 10) : [];
   const queueOption = {
     tooltip: { trigger: "axis", axisPointer: { type: "shadow" } },
-    title: { text: "Tickets by Queue", left: "center", textStyle: { fontSize: 14 } },
+    title: { text: t("dashboard.ticketsByQueue"), left: "center", textStyle: { fontSize: 14 } },
     xAxis: { type: "value", min: 0 },
     yAxis: { type: "category", data: queueData.map(([q]) => q).reverse() },
     series: [{ type: "bar", data: queueData.map(([, c]) => c).reverse(), itemStyle: { color: "#1677ff" } }],
@@ -119,7 +119,7 @@ export default function Dashboard() {
   const stateData = kpis.tickets_by_state ? Object.entries(kpis.tickets_by_state) : [];
   const stateOption = {
     tooltip: { trigger: "item" },
-    title: { text: "Tickets by State", left: "center", textStyle: { fontSize: 14 } },
+    title: { text: t("dashboard.ticketsByState"), left: "center", textStyle: { fontSize: 14 } },
     series: [{
       type: "pie", radius: ["40%", "70%"], center: ["50%", "55%"],
       data: stateData.map(([s, c]) => ({ name: s, value: c })),
@@ -130,7 +130,7 @@ export default function Dashboard() {
   const priorityData = kpis.tickets_by_priority ? Object.entries(kpis.tickets_by_priority) : [];
   const priorityOption = {
     tooltip: { trigger: "item" },
-    title: { text: "Tickets by Priority", left: "center", textStyle: { fontSize: 14 } },
+    title: { text: t("dashboard.ticketsByPriority"), left: "center", textStyle: { fontSize: 14 } },
     series: [{
       type: "pie", radius: ["40%", "70%"], center: ["50%", "55%"],
       data: priorityData.map(([p, c]) => ({ name: p || "none", value: c })),
@@ -141,13 +141,13 @@ export default function Dashboard() {
   return (
     <div>
       <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 16, alignItems: "center" }}>
-        <Typography.Title level={4} style={{ margin: 0 }}>Dashboard</Typography.Title>
+        <Typography.Title level={4} style={{ margin: 0 }}>{t("dashboard.title")}</Typography.Title>
         <Space>
-          <Typography.Text type="secondary">Period:</Typography.Text>
+          <Typography.Text type="secondary">{t("dashboard.period")}</Typography.Text>
           <Select value={days} onChange={setDays} style={{ width: 120 }}>
-            <Select.Option value={7}>Last 7 days</Select.Option>
-            <Select.Option value={30}>Last 30 days</Select.Option>
-            <Select.Option value={90}>Last 90 days</Select.Option>
+            <Select.Option value={7}>{t("dashboard.last7days")}</Select.Option>
+            <Select.Option value={30}>{t("dashboard.last30days")}</Select.Option>
+            <Select.Option value={90}>{t("dashboard.last90days")}</Select.Option>
           </Select>
         </Space>
       </div>
@@ -169,12 +169,12 @@ export default function Dashboard() {
 
       <Row gutter={[12, 12]} style={{ marginTop: 16 }}>
         <Col xs={24} lg={16}>
-          <Card title="Ticket and Breach Trends" size="small">
+          <Card title={t("dashboard.ticketTrends")} size="small">
             <ReactECharts option={trendChartOption} style={{ height: 280 }} />
           </Card>
         </Col>
         <Col xs={24} lg={8}>
-          <Card title="SLA Breach Trend" size="small">
+          <Card title={t("dashboard.slaBreachTrend")} size="small">
             <ReactECharts option={slaTrendOption} style={{ height: 280 }} />
           </Card>
         </Col>
@@ -182,17 +182,17 @@ export default function Dashboard() {
 
       <Row gutter={[12, 12]} style={{ marginTop: 12 }}>
         <Col xs={24} lg={8}>
-          <Card title="SLA Response Time" size="small">
+          <Card title={t("dashboard.slaResponseTime")} size="small">
             <ReactECharts option={responseTrendOption} style={{ height: 220 }} />
           </Card>
         </Col>
         <Col xs={24} lg={8}>
-          <Card title="SLA Resolution Time" size="small">
+          <Card title={t("dashboard.slaResolutionTime")} size="small">
             <ReactECharts option={resolutionTrendOption} style={{ height: 220 }} />
           </Card>
         </Col>
         <Col xs={24} lg={8}>
-          <Card title="Tickets by State" size="small">
+          <Card title={t("dashboard.ticketsByState")} size="small">
             <ReactECharts option={stateOption} style={{ height: 220 }} />
           </Card>
         </Col>
@@ -200,24 +200,16 @@ export default function Dashboard() {
 
       <Row gutter={[12, 12]} style={{ marginTop: 12 }}>
         <Col xs={24} lg={12}>
-          <Card title="Tickets by Queue" size="small">
+          <Card title={t("dashboard.ticketsByQueue")} size="small">
             <ReactECharts option={queueOption} style={{ height: 250 }} />
           </Card>
         </Col>
         <Col xs={24} lg={12}>
-          <Card title="Tickets by Priority" size="small">
+          <Card title={t("dashboard.ticketsByPriority")} size="small">
             <ReactECharts option={priorityOption} style={{ height: 250 }} />
           </Card>
         </Col>
       </Row>
     </div>
   );
-}
-
-function formatDuration(seconds: number): string {
-  if (!seconds || seconds === 0) return "0s";
-  if (seconds < 60) return `${Math.round(seconds)}s`;
-  if (seconds < 3600) return `${Math.round(seconds / 60)}m`;
-  if (seconds < 86400) return `${(seconds / 3600).toFixed(1)}h`;
-  return `${(seconds / 86400).toFixed(1)}d`;
 }

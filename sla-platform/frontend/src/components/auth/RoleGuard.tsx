@@ -1,6 +1,7 @@
 import { ReactNode } from "react";
 import { Navigate } from "react-router-dom";
 import { Result } from "antd";
+import { useTranslation } from "react-i18next";
 import { useAuthStore } from "../../stores/authStore";
 
 interface RoleGuardProps {
@@ -9,6 +10,7 @@ interface RoleGuardProps {
 }
 
 export default function RoleGuard({ roles, children }: RoleGuardProps) {
+  const { t } = useTranslation();
   const user = useAuthStore((s) => s.user);
 
   if (!user) {
@@ -20,7 +22,7 @@ export default function RoleGuard({ roles, children }: RoleGuardProps) {
       <Result
         status="403"
         title="403"
-        subTitle="You do not have permission to access this page."
+        subTitle={t("roleGuard.forbidden")}
       />
     );
   }

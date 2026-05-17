@@ -1,0 +1,334 @@
+{
+  "app": {
+    "title": "SLA Analytics Platform",
+    "platform": "SLA Platform"
+  },
+  "nav": {
+    "dashboard": "Dashboard",
+    "teamDashboard": "Team Dashboard",
+    "tickets": "Tickets",
+    "imports": "Imports",
+    "sla": "SLA",
+    "reports": "Reports",
+    "teamsConfig": "Teams Config",
+    "admin": "Admin"
+  },
+  "auth": {
+    "signIn": "Sign In",
+    "signOut": "Sign Out",
+    "emailLogin": "Email / Login",
+    "password": "Password",
+    "welcomeBack": "Welcome back!",
+    "invalidCredentials": "Invalid email or password",
+    "pleaseEnterEmail": "Please enter your email or login",
+    "pleaseEnterPassword": "Please enter your password",
+    "defaultCredentials": "Default: admin / admin123",
+    "user": "User"
+  },
+  "common": {
+    "back": "Back",
+    "refresh": "Refresh",
+    "view": "View",
+    "edit": "Edit",
+    "create": "Create",
+    "save": "Save",
+    "download": "Download",
+    "generate": "Generate",
+    "start": "Start",
+    "reprocess": "Reprocess",
+    "uploading": "Uploading...",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "active": "Active",
+    "inactive": "Inactive",
+    "yes": "Yes",
+    "no": "No",
+    "duration": "Duration",
+    "startTime": "Start Time",
+    "endTime": "End Time",
+    "owner": "Owner",
+    "queue": "Queue",
+    "team": "Team",
+    "title": "Title",
+    "status": "Status",
+    "noData": "No data",
+    "noEvents": "No events",
+    "notFound": "Not found",
+    "period": "Period:",
+    "actions": "Actions"
+  },
+  "dashboard": {
+    "title": "Dashboard",
+    "period": "Period:",
+    "last7days": "Last 7 days",
+    "last30days": "Last 30 days",
+    "last90days": "Last 90 days",
+    "totalTickets": "Total Tickets",
+    "openTickets": "Open Tickets",
+    "closedTickets": "Closed Tickets",
+    "slaBreachPercent": "SLA Breach %",
+    "avgResponse": "Avg Response",
+    "avgResolution": "Avg Resolution",
+    "importsProcessed": "Imports Processed",
+    "slaBreached": "SLA Breached",
+    "ticketTrends": "Ticket and Breach Trends",
+    "slaBreachTrend": "SLA Breach Trend",
+    "slaResponseTime": "SLA Response Time",
+    "slaResolutionTime": "SLA Resolution Time",
+    "ticketsByState": "Tickets by State",
+    "ticketsByQueue": "Tickets by Queue",
+    "ticketsByPriority": "Tickets by Priority",
+    "created": "Created",
+    "closed": "Closed",
+    "breaches": "Breaches",
+    "total": "Total",
+    "breached": "Breached"
+  },
+  "teamDashboard": {
+    "title": "Team Performance Analytics",
+    "period": "Period:",
+    "last30days": "Last 30 days",
+    "last90days": "Last 90 days",
+    "lastYear": "Last year",
+    "team": "Team",
+    "prefix": "Prefix",
+    "tickets": "Tickets",
+    "slaBreachPercent": "SLA Breach %",
+    "responseSlaPct": "Response SLA %",
+    "resolutionSlaPct": "Resolution SLA %",
+    "avgOwnership": "Avg Ownership",
+    "avgQueueTime": "Avg Queue Time",
+    "reassignments": "Reassignments",
+    "slaBreachComparison": "SLA Breach Comparison by Team",
+    "reassignmentCount": "Reassignment Count by Team",
+    "overall": "Overall",
+    "response": "Response",
+    "resolution": "Resolution"
+  },
+  "tickets": {
+    "title": "Tickets",
+    "search": "Search ticket # or title...",
+    "filterState": "Filter state",
+    "filterStatus": "Status",
+    "open": "Open",
+    "closed": "Closed",
+    "pending": "Pending",
+    "closedSuccessful": "Closed Successful",
+    "closedUnsuccessful": "Closed Unsuccessful",
+    "columns": {
+      "id": "ID",
+      "ticketNo": "Ticket#",
+      "title": "Title",
+      "queue": "Queue",
+      "state": "State",
+      "owner": "Owner",
+      "status": "Status",
+      "confidence": "Confidence",
+      "created": "Created"
+    }
+  },
+  "ticketDetail": {
+    "back": "Back",
+    "closed": "Closed",
+    "open": "Open",
+    "overview": "Overview",
+    "eventTimeline": "Event Timeline",
+    "ownershipPeriods": "Ownership Periods",
+    "queuePeriods": "Queue Periods",
+    "slaMetrics": "SLA Metrics",
+    "notFound": "Ticket not found",
+    "fields": {
+      "ticketId": "Ticket ID",
+      "ticketNumber": "Ticket Number",
+      "title": "Title",
+      "queue": "Queue",
+      "state": "State",
+      "owner": "Owner",
+      "customer": "Customer",
+      "created": "Created",
+      "updated": "Updated",
+      "firstResponse": "First Response",
+      "resolution": "Resolution",
+      "confidence": "Confidence",
+      "isMerged": "Is Merged"
+    },
+    "slaColumns": {
+      "metric": "Metric",
+      "value": "Value",
+      "breached": "Breached",
+      "queue": "Queue",
+      "owner": "Owner",
+      "confidence": "Confidence"
+    },
+    "ownershipColumns": {
+      "owner": "Owner",
+      "queue": "Queue",
+      "team": "Team",
+      "start": "Start",
+      "end": "End",
+      "duration": "Duration"
+    },
+    "queueColumns": {
+      "queue": "Queue",
+      "entered": "Entered",
+      "exited": "Exited",
+      "duration": "Duration",
+      "owners": "Owners"
+    }
+  },
+  "imports": {
+    "title": "Imports",
+    "refresh": "Refresh",
+    "newImport": "New Import",
+    "failedToLoad": "Failed to load sessions",
+    "pipelineStarted": "Pipeline started",
+    "failedToStart": "Failed to start pipeline",
+    "reprocessingStarted": "Reprocessing started",
+    "failedToReprocess": "Failed to reprocess",
+    "columns": {
+      "status": "Status",
+      "backlog": "Backlog",
+      "history": "History",
+      "events": "Events",
+      "tickets": "Tickets",
+      "errors": "Errors",
+      "created": "Created",
+      "actions": "Actions"
+    }
+  },
+  "importDetail": {
+    "back": "Back",
+    "title": "Import Session Details",
+    "notFound": "Session not found",
+    "sessionInfo": "Session Info",
+    "pipelineStats": "Pipeline Stats",
+    "errors": "Errors",
+    "noStats": "No stats available",
+    "pipeline": {
+      "validate": "Validate",
+      "backlog": "Backlog",
+      "parse": "Parse",
+      "normalize": "Normalize",
+      "rebuild": "Rebuild",
+      "sla": "SLA",
+      "complete": "Complete"
+    },
+    "fields": {
+      "sessionId": "Session ID",
+      "status": "Status",
+      "backlogFile": "Backlog File",
+      "historyFile": "History File",
+      "backlogRows": "Backlog Rows",
+      "historyRows": "History Rows",
+      "created": "Created",
+      "completed": "Completed",
+      "errorCount": "Error Count"
+    },
+    "errorColumns": {
+      "step": "Step",
+      "message": "Message",
+      "timestamp": "Timestamp"
+    }
+  },
+  "importUpload": {
+    "title": "New Import",
+    "pleaseSelectFiles": "Please select files",
+    "uploadBacklogAndHistory": "Please upload backlog and/or history CSV files",
+    "clickOrDrag": "Click or drag CSV files to upload",
+    "backlogHint": "Upload backlog_*.csv and history_*.csv files",
+    "sessionCreated": "Import session created",
+    "pipelineStarted": "Pipeline started...",
+    "uploadFailed": "Upload failed",
+    "startImport": "Start Import",
+    "uploading": "Uploading..."
+  },
+  "reports": {
+    "title": "Reports",
+    "generateReport": "Generate Report",
+    "generate": "Generate",
+    "refresh": "Refresh",
+    "generatedReports": "Generated Reports",
+    "reportGenerated": "Report generated successfully",
+    "reportFailed": "Report generation failed",
+    "reportStarted": "Report generation started",
+    "reportTakingLonger": "Report generation is taking longer than expected",
+    "failedToStart": "Failed to start report generation",
+    "failedToDownload": "Failed to download report",
+    "generatingMessage": "Report is being generated in the background. Please wait...",
+    "types": {
+      "slaBreaches": "SLA Breaches",
+      "teamPerformance": "Team Performance",
+      "ticketLifecycle": "Ticket Lifecycle",
+      "importsSummary": "Imports Summary"
+    },
+    "columns": {
+      "filename": "Filename",
+      "size": "Size",
+      "modified": "Modified",
+      "action": "Action"
+    }
+  },
+  "adminUsers": {
+    "title": "User Management",
+    "createUser": "Create User",
+    "editUser": "Edit User",
+    "create": "Create",
+    "save": "Save",
+    "userUpdated": "User updated",
+    "userCreated": "User created",
+    "userDeactivated": "User deactivated",
+    "failedToLoad": "Failed to load users",
+    "failedToDeactivate": "Failed to deactivate user",
+    "deactivateConfirm": "Deactivate this user?",
+    "columns": {
+      "name": "Name",
+      "email": "Email",
+      "role": "Role",
+      "status": "Status",
+      "created": "Created",
+      "actions": "Actions"
+    },
+    "form": {
+      "displayName": "Display Name",
+      "email": "Email",
+      "password": "Password",
+      "role": "Role",
+      "invalidEmail": "Invalid email",
+      "passwordMinLength": "Minimum 6 characters"
+    },
+    "roles": {
+      "admin": "Admin",
+      "analyst": "Analyst",
+      "viewer": "Viewer"
+    },
+    "statusLabels": {
+      "active": "Active",
+      "inactive": "Inactive"
+    }
+  },
+  "slaConfig": {
+    "title": "SLA Configuration",
+    "description": "SLA definitions will be managed here."
+  },
+  "teams": {
+    "title": "Teams Configuration",
+    "description": "Team management will be available here."
+  },
+  "notFound": {
+    "title": "404",
+    "subtitle": "Page not found",
+    "backToDashboard": "Back to Dashboard"
+  },
+  "notifications": {
+    "title": "Notifications",
+    "markAllRead": "Mark all read",
+    "clear": "Clear",
+    "empty": "No notifications"
+  },
+  "roleGuard": {
+    "forbidden": "You do not have permission to access this page."
+  },
+  "header": {
+    "signOut": "Sign Out"
+  }
+}

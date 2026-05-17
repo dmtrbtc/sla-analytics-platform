@@ -1,0 +1,334 @@
+{
+  "app": {
+    "title": "SLA Analytics Platform",
+    "platform": "SLA Platform"
+  },
+  "nav": {
+    "dashboard": "Дашборд",
+    "teamDashboard": "Дашборд команды",
+    "tickets": "Тикеты",
+    "imports": "Импорты",
+    "sla": "SLA",
+    "reports": "Отчёты",
+    "teamsConfig": "Настройка команд",
+    "admin": "Администрирование"
+  },
+  "auth": {
+    "signIn": "Войти",
+    "signOut": "Выйти",
+    "emailLogin": "Email / Логин",
+    "password": "Пароль",
+    "welcomeBack": "С возвращением!",
+    "invalidCredentials": "Неверный email или пароль",
+    "pleaseEnterEmail": "Введите ваш email или логин",
+    "pleaseEnterPassword": "Введите ваш пароль",
+    "defaultCredentials": "По умолчанию: admin / admin123",
+    "user": "Пользователь"
+  },
+  "common": {
+    "back": "Назад",
+    "refresh": "Обновить",
+    "view": "Просмотр",
+    "edit": "Редактировать",
+    "create": "Создать",
+    "save": "Сохранить",
+    "download": "Скачать",
+    "generate": "Сгенерировать",
+    "start": "Запустить",
+    "reprocess": "Переобработать",
+    "uploading": "Загрузка...",
+    "cancel": "Отмена",
+    "delete": "Удалить",
+    "active": "Активный",
+    "inactive": "Неактивный",
+    "yes": "Да",
+    "no": "Нет",
+    "duration": "Длительность",
+    "startTime": "Время начала",
+    "endTime": "Время окончания",
+    "owner": "Ответственный",
+    "queue": "Очередь",
+    "team": "Команда",
+    "title": "Название",
+    "status": "Статус",
+    "noData": "Нет данных",
+    "noEvents": "Нет событий",
+    "notFound": "Не найдено",
+    "period": "Период:",
+    "actions": "Действия"
+  },
+  "dashboard": {
+    "title": "Дашборд",
+    "period": "Период:",
+    "last7days": "Последние 7 дней",
+    "last30days": "Последние 30 дней",
+    "last90days": "Последние 90 дней",
+    "totalTickets": "Всего тикетов",
+    "openTickets": "Открытых тикетов",
+    "closedTickets": "Закрытых тикетов",
+    "slaBreachPercent": "Нарушений SLA %",
+    "avgResponse": "Средний отклик",
+    "avgResolution": "Среднее решение",
+    "importsProcessed": "Импортов обработано",
+    "slaBreached": "Нарушено SLA",
+    "ticketTrends": "Динамика тикетов и нарушений",
+    "slaBreachTrend": "Тренд нарушений SLA",
+    "slaResponseTime": "Время отклика SLA",
+    "slaResolutionTime": "Время решения SLA",
+    "ticketsByState": "Тикеты по статусам",
+    "ticketsByQueue": "Тикеты по очередям",
+    "ticketsByPriority": "Тикеты по приоритетам",
+    "created": "Создано",
+    "closed": "Закрыто",
+    "breaches": "Нарушения",
+    "total": "Всего",
+    "breached": "Нарушено"
+  },
+  "teamDashboard": {
+    "title": "Аналитика производительности команд",
+    "period": "Период:",
+    "last30days": "Последние 30 дней",
+    "last90days": "Последние 90 дней",
+    "lastYear": "Последний год",
+    "team": "Команда",
+    "prefix": "Префикс",
+    "tickets": "Тикеты",
+    "slaBreachPercent": "Нарушений SLA %",
+    "responseSlaPct": "% SLA отклика",
+    "resolutionSlaPct": "% SLA решения",
+    "avgOwnership": "Среднее владение",
+    "avgQueueTime": "Среднее время в очереди",
+    "reassignments": "Переназначения",
+    "slaBreachComparison": "Сравнение нарушений SLA по командам",
+    "reassignmentCount": "Количество переназначений по командам",
+    "overall": "Общий",
+    "response": "Отклик",
+    "resolution": "Решение"
+  },
+  "tickets": {
+    "title": "Тикеты",
+    "search": "Поиск по номеру или названию...",
+    "filterState": "Фильтр по статусу",
+    "filterStatus": "Фильтр по состоянию",
+    "open": "Открыт",
+    "closed": "Закрыт",
+    "pending": "В ожидании",
+    "closedSuccessful": "Закрыт успешно",
+    "closedUnsuccessful": "Закрыт неуспешно",
+    "columns": {
+      "id": "ID",
+      "ticketNo": "№ тикета",
+      "title": "Название",
+      "queue": "Очередь",
+      "state": "Состояние",
+      "owner": "Ответственный",
+      "status": "Статус",
+      "confidence": "Достоверность",
+      "created": "Создан"
+    }
+  },
+  "ticketDetail": {
+    "back": "Назад",
+    "closed": "Закрыт",
+    "open": "Открыт",
+    "overview": "Обзор",
+    "eventTimeline": "Хронология событий",
+    "ownershipPeriods": "Периоды владения",
+    "queuePeriods": "Периоды в очередях",
+    "slaMetrics": "Метрики SLA",
+    "notFound": "Тикет не найден",
+    "fields": {
+      "ticketId": "ID тикета",
+      "ticketNumber": "Номер тикета",
+      "title": "Название",
+      "queue": "Очередь",
+      "state": "Состояние",
+      "owner": "Ответственный",
+      "customer": "Клиент",
+      "created": "Создан",
+      "updated": "Обновлён",
+      "firstResponse": "Первый отклик",
+      "resolution": "Решение",
+      "confidence": "Достоверность",
+      "isMerged": "Объединён"
+    },
+    "slaColumns": {
+      "metric": "Метрика",
+      "value": "Значение",
+      "breached": "Нарушено",
+      "queue": "Очередь",
+      "owner": "Ответственный",
+      "confidence": "Достоверность"
+    },
+    "ownershipColumns": {
+      "owner": "Ответственный",
+      "queue": "Очередь",
+      "team": "Команда",
+      "start": "Начало",
+      "end": "Окончание",
+      "duration": "Длительность"
+    },
+    "queueColumns": {
+      "queue": "Очередь",
+      "entered": "Вход",
+      "exited": "Выход",
+      "duration": "Длительность",
+      "owners": "Ответственных"
+    }
+  },
+  "imports": {
+    "title": "Импорты",
+    "refresh": "Обновить",
+    "newImport": "Новый импорт",
+    "failedToLoad": "Не удалось загрузить сессии",
+    "pipelineStarted": "Конвейер запущен",
+    "failedToStart": "Не удалось запустить конвейер",
+    "reprocessingStarted": "Переобработка запущена",
+    "failedToReprocess": "Не удалось переобработать",
+    "columns": {
+      "status": "Статус",
+      "backlog": "Backlog",
+      "history": "History",
+      "events": "События",
+      "tickets": "Тикеты",
+      "errors": "Ошибки",
+      "created": "Создан",
+      "actions": "Действия"
+    }
+  },
+  "importDetail": {
+    "back": "Назад",
+    "title": "Детали импорта",
+    "notFound": "Сессия не найдена",
+    "sessionInfo": "Информация о сессии",
+    "pipelineStats": "Статистика конвейера",
+    "errors": "Ошибки",
+    "noStats": "Статистика недоступна",
+    "pipeline": {
+      "validate": "Валидация",
+      "backlog": "Backlog",
+      "parse": "Парсинг",
+      "normalize": "Нормализация",
+      "rebuild": "Перестроение",
+      "sla": "SLA",
+      "complete": "Завершение"
+    },
+    "fields": {
+      "sessionId": "ID сессии",
+      "status": "Статус",
+      "backlogFile": "Файл backlog",
+      "historyFile": "Файл history",
+      "backlogRows": "Строк backlog",
+      "historyRows": "Строк history",
+      "created": "Создан",
+      "completed": "Завершён",
+      "errorCount": "Количество ошибок"
+    },
+    "errorColumns": {
+      "step": "Шаг",
+      "message": "Сообщение",
+      "timestamp": "Время"
+    }
+  },
+  "importUpload": {
+    "title": "Новый импорт",
+    "pleaseSelectFiles": "Пожалуйста, выберите файлы",
+    "uploadBacklogAndHistory": "Загрузите файлы backlog и/или history в формате CSV",
+    "clickOrDrag": "Нажмите или перетащите CSV-файлы для загрузки",
+    "backlogHint": "Загрузите файлы backlog_*.csv и history_*.csv",
+    "sessionCreated": "Сессия импорта создана",
+    "pipelineStarted": "Конвейер запущен...",
+    "uploadFailed": "Загрузка не удалась",
+    "startImport": "Начать импорт",
+    "uploading": "Загрузка..."
+  },
+  "reports": {
+    "title": "Отчёты",
+    "generateReport": "Сгенерировать отчёт",
+    "generate": "Сгенерировать",
+    "refresh": "Обновить",
+    "generatedReports": "Сгенерированные отчёты",
+    "reportGenerated": "Отчёт успешно сгенерирован",
+    "reportFailed": "Сбой генерации отчёта",
+    "reportStarted": "Генерация отчёта запущена",
+    "reportTakingLonger": "Генерация отчёта занимает больше времени, чем ожидалось",
+    "failedToStart": "Не удалось запустить генерацию отчёта",
+    "failedToDownload": "Не удалось скачать отчёт",
+    "generatingMessage": "Отчёт генерируется в фоне. Пожалуйста, подождите...",
+    "types": {
+      "slaBreaches": "Нарушения SLA",
+      "teamPerformance": "Производительность команд",
+      "ticketLifecycle": "Жизненный цикл тикетов",
+      "importsSummary": "Сводка импортов"
+    },
+    "columns": {
+      "filename": "Имя файла",
+      "size": "Размер",
+      "modified": "Изменён",
+      "action": "Действие"
+    }
+  },
+  "adminUsers": {
+    "title": "Управление пользователями",
+    "createUser": "Создать пользователя",
+    "editUser": "Редактировать пользователя",
+    "create": "Создать",
+    "save": "Сохранить",
+    "userUpdated": "Пользователь обновлён",
+    "userCreated": "Пользователь создан",
+    "userDeactivated": "Пользователь деактивирован",
+    "failedToLoad": "Не удалось загрузить пользователей",
+    "failedToDeactivate": "Не удалось деактивировать пользователя",
+    "deactivateConfirm": "Деактивировать этого пользователя?",
+    "columns": {
+      "name": "Имя",
+      "email": "Email",
+      "role": "Роль",
+      "status": "Статус",
+      "created": "Создан",
+      "actions": "Действия"
+    },
+    "form": {
+      "displayName": "Отображаемое имя",
+      "email": "Email",
+      "password": "Пароль",
+      "role": "Роль",
+      "invalidEmail": "Неверный email",
+      "passwordMinLength": "Минимум 6 символов"
+    },
+    "roles": {
+      "admin": "Администратор",
+      "analyst": "Аналитик",
+      "viewer": "Наблюдатель"
+    },
+    "statusLabels": {
+      "active": "Активен",
+      "inactive": "Неактивен"
+    }
+  },
+  "slaConfig": {
+    "title": "Конфигурация SLA",
+    "description": "Определения SLA будут управляться здесь."
+  },
+  "teams": {
+    "title": "Конфигурация команд",
+    "description": "Управление командами будет доступно здесь."
+  },
+  "notFound": {
+    "title": "404",
+    "subtitle": "Страница не найдена",
+    "backToDashboard": "На дашборд"
+  },
+  "notifications": {
+    "title": "Уведомления",
+    "markAllRead": "Отметить все",
+    "clear": "Очистить",
+    "empty": "Нет уведомлений"
+  },
+  "roleGuard": {
+    "forbidden": "У вас нет прав для доступа к этой странице."
+  },
+  "header": {
+    "signOut": "Выйти"
+  }
+}
