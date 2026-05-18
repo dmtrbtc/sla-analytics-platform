@@ -34,11 +34,11 @@ export default function DashboardTeam() {
     },
     {
       title: t("teamDashboard.responseSlaPct"), dataIndex: "response_sla_pct", key: "response_sla_pct",
-      render: (v: number) => <Tag color={v > 15 ? "red" : v > 5 ? "orange" : "green"}>{100 - v}% pass</Tag>,
+      render: (v: number) => <Tag color={v > 15 ? "red" : v > 5 ? "orange" : "green"}>{100 - v}% {t("teamDashboard.pass")}</Tag>,
     },
     {
       title: t("teamDashboard.resolutionSlaPct"), dataIndex: "resolution_sla_pct", key: "resolution_sla_pct",
-      render: (v: number) => <Tag color={v > 15 ? "red" : v > 5 ? "orange" : "green"}>{100 - v}% pass</Tag>,
+      render: (v: number) => <Tag color={v > 15 ? "red" : v > 5 ? "orange" : "green"}>{100 - v}% {t("teamDashboard.pass")}</Tag>,
     },
     {
       title: t("teamDashboard.avgOwnership"), dataIndex: "avg_ownership_time_seconds", key: "avg_ownership_time_seconds",
@@ -54,7 +54,7 @@ export default function DashboardTeam() {
   const breachChartOption = {
     tooltip: { trigger: "axis", axisPointer: { type: "shadow" } },
     xAxis: { type: "category", data: teams.map((t: any) => t.team_name) },
-    yAxis: { type: "value", name: "Breach %", max: 100 },
+    yAxis: { type: "value", name: t("teamDashboard.slaBreachPercent"), max: 100 },
     series: [
       { name: t("teamDashboard.overall"), type: "bar", data: teams.map((t: any) => t.sla_breach_pct), itemStyle: { color: "#1677ff" } },
       { name: t("teamDashboard.response"), type: "bar", data: teams.map((t: any) => t.response_sla_pct), itemStyle: { color: "#faad14" } },
@@ -67,7 +67,7 @@ export default function DashboardTeam() {
   const reassignChartOption = {
     tooltip: { trigger: "axis", axisPointer: { type: "shadow" } },
     xAxis: { type: "category", data: teams.map((t: any) => t.team_name) },
-    yAxis: { type: "value", name: "Reassignments", min: 0 },
+    yAxis: { type: "value", name: t("teamDashboard.reassignments"), min: 0 },
     series: [{ type: "bar", data: teams.map((t: any) => t.reassignments), itemStyle: { color: "#722ed1" } }],
     grid: { left: 60, right: 20, bottom: 30, top: 20 },
   };

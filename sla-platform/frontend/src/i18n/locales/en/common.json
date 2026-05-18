@@ -59,7 +59,8 @@
     "period": "Period:",
     "actions": "Actions",
     "required": "Required",
-    "description": "Description"
+    "description": "Description",
+    "all": "All"
   },
   "dashboard": {
     "title": "Dashboard",
@@ -105,6 +106,7 @@
     "reassignments": "Reassignments",
     "slaBreachComparison": "SLA Breach Comparison by Team",
     "reassignmentCount": "Reassignment Count by Team",
+    "pass": "pass",
     "overall": "Overall",
     "response": "Response",
     "resolution": "Resolution"
@@ -189,6 +191,13 @@
     "failedToStart": "Failed to start pipeline",
     "reprocessingStarted": "Reprocessing started",
     "failedToReprocess": "Failed to reprocess",
+    "status": {
+      "draft": "Draft",
+      "validating": "Validating",
+      "processing": "Processing",
+      "completed": "Completed",
+      "failed": "Failed"
+    },
     "columns": {
       "status": "Status",
       "backlog": "Backlog",
@@ -355,7 +364,10 @@
     "safe": "Safe",
     "responseBreach": "Response Breach",
     "resolutionBreach": "Resolution Breach",
-    "simRatio": "Sim Ratio"
+    "simRatio": "Sim Ratio",
+    "riskLevel": "Risk Level",
+    "searchRules": "Search rules...",
+    "patternPlaceholder": "Support*"
   },
   "slaQueue": {
     "title": "SLA by Queue",
@@ -381,7 +393,11 @@
     "title": "Notifications",
     "markAllRead": "Mark all read",
     "clear": "Clear",
-    "empty": "No notifications"
+    "empty": "No notifications",
+    "level_info": "INFO",
+    "level_warning": "WARNING",
+    "level_error": "ERROR",
+    "level_success": "SUCCESS"
   },
   "roleGuard": {
     "forbidden": "You do not have permission to access this page."

@@ -42,7 +42,7 @@ export default function Header() {
       label: (
         <Space>
           <UserOutlined />
-          {user?.display_name || "User"}
+          {user?.display_name || t("auth.user")}
           {user?.role && (
             <Tag color={ROLE_COLORS[user.role]} style={{ margin: 0 }}>
               {user.role}
@@ -82,7 +82,7 @@ export default function Header() {
         <Dropdown menu={{ items }} placement="bottomRight">
           <Button type="text" style={{ display: "flex", alignItems: "center", gap: 8 }}>
             <UserOutlined />
-            <Typography.Text>{user?.display_name || "User"}</Typography.Text>
+            <Typography.Text>{user?.display_name || t("auth.user")}</Typography.Text>
           </Button>
         </Dropdown>
       </Space>

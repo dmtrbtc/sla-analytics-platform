@@ -309,6 +309,7 @@ async def create_queue_rule(
         priority=payload.priority,
         response_target_seconds=payload.response_target_seconds,
         resolution_target_seconds=payload.resolution_target_seconds,
+        calendar_id=payload.calendar_id,
         is_active=payload.is_active,
         description=payload.description,
         created_by=current_user.id,
@@ -346,7 +347,7 @@ async def update_queue_rule(
     update_fields = {
         "name", "queue_pattern", "priority",
         "response_target_seconds", "resolution_target_seconds",
-        "is_active", "description",
+        "calendar_id", "is_active", "description",
     }
     for field in update_fields:
         val = getattr(payload, field, None)

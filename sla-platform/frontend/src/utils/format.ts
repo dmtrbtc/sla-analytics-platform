@@ -1,11 +1,11 @@
 export function formatDuration(seconds: number): string {
-  if (!seconds || seconds <= 0) return "0 sec";
-  if (seconds < 60) return `${Math.round(seconds)} sec`;
-  if (seconds < 3600) return `${Math.round(seconds / 60)} min`;
+  if (!seconds || seconds <= 0) return "0 сек";
+  if (seconds < 60) return `${Math.round(seconds)} сек`;
+  if (seconds < 3600) return `${Math.round(seconds / 60)} мин`;
   const h = Math.floor(seconds / 3600);
   const m = Math.round((seconds % 3600) / 60);
-  if (m === 0) return `${h} h`;
-  return `${h} h ${m} min`;
+  if (m === 0) return `${h} ч`;
+  return `${h} ч ${m} мин`;
 }
 
 export function parseHumanDuration(input: string): number {

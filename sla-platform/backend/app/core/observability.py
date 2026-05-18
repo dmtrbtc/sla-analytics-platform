@@ -145,6 +145,12 @@ async def health_check(request=None):
         services["redis"] = "unhealthy"
 
     overall = "healthy" if all(v == "healthy" for v in services.values()) else "degraded"
+    if overall != "healthy":
+        from fastapi.responses import JSONResponse
+        return JSONResponse(
+            status_code=503,
+            content={"status": overall, "version": settings.VERSION, "services": services},
+        )
     return {"status": overall, "version": settings.VERSION, "services": services}
 
 

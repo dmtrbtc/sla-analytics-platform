@@ -16,7 +16,7 @@ class Settings(BaseSettings):
     CELERY_BROKER_URL: str = "redis://redis:6379/0"
     CELERY_RESULT_BACKEND: str = "redis://redis:6379/1"
 
-    SECRET_KEY: str = "change-me-in-production"
+    SECRET_KEY: str = "sla-platform-secret-key-change-in-production-2026"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
     REFRESH_TOKEN_EXPIRE_DAYS: int = 7
 

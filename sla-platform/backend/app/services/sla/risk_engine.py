@@ -12,7 +12,7 @@ from typing import Optional
 
 from sqlalchemy.orm import Session
 
-from app.domain.models import SLADefinition, SLAQueueRule, TicketSnapshot
+from app.domain.models import SLADefinition, TicketSnapshot
 
 logger = logging.getLogger(__name__)
 
@@ -57,7 +57,8 @@ def compute_ticket_risk(
     bh_config = sla_def.business_hours if sla_def.business_hours_only else None
 
     # Check queue rule override
-    queue_rule = _resolve_queue_rule(db, ticket.current_queue)
+    from app.services.sla.metrics_engine import MetricsEngine
+    queue_rule = MetricsEngine.resolve_sla_rule_by_queue(db, ticket.current_queue)
     response_target = queue_rule.response_target_seconds if queue_rule else sla_def.response_target_seconds
     resolution_target = queue_rule.resolution_target_seconds if queue_rule else sla_def.resolution_target_seconds
 
@@ -114,22 +115,6 @@ def compute_ticket_risk(
         "risk_reason": worst["reason"],
         "risks": risks,
     }
-
-
-def _resolve_queue_rule(db: Session, queue_name: Optional[str]) -> Optional[SLAQueueRule]:
-    if not queue_name:
-        return None
-    import fnmatch
-    rules = (
-        db.query(SLAQueueRule)
-        .filter(SLAQueueRule.is_active == True)
-        .order_by(SLAQueueRule.priority.desc().nullslast(), SLAQueueRule.created_at.asc())
-        .all()
-    )
-    for rule in rules:
-        if fnmatch.fnmatch(queue_name, rule.queue_pattern):
-            return rule
-    return None
 
 
 def compute_risks_for_import(db: Session, import_id: str) -> list[dict]:

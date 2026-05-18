@@ -80,7 +80,7 @@ export default function Login() {
               { required: true, message: t("auth.pleaseEnterEmail") },
             ]}
           >
-            <Input prefix={<MailOutlined />} placeholder="admin" size="large" />
+            <Input prefix={<MailOutlined />} placeholder={t("auth.emailLogin")} size="large" />
           </Form.Item>
           <Form.Item
             name="password"

@@ -114,7 +114,7 @@ export default function AdminUsers() {
       dataIndex: "role",
       key: "role",
       render: (role: string) => (
-        <Tag color={ROLE_COLORS[role] || "default"}>{role}</Tag>
+        <Tag color={ROLE_COLORS[role] || "default"}>{t(`adminUsers.roles.${role}`, role)}</Tag>
       ),
     },
     {

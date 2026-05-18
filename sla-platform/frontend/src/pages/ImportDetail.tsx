@@ -59,7 +59,7 @@ export default function ImportDetail() {
           {t("importDetail.title")}
         </Typography.Title>
         <Tag icon={s.status === "completed" ? <CheckCircleOutlined /> : s.status === "failed" ? <CloseCircleOutlined /> : <SyncOutlined spin />} color={IMPORT_STATUS_COLORS[s.status]}>
-          {s.status.toUpperCase()}
+          {t(`imports.status.${s.status}`, s.status.toUpperCase())}
         </Tag>
       </Space>
 

@@ -8,6 +8,7 @@ import {
 import { useTranslation } from "react-i18next";
 import { useNotificationStore, Notification } from "../../stores/notificationStore";
 import dayjs from "dayjs";
+import "dayjs/locale/ru";
 
 const { Text, Paragraph } = Typography;
 
@@ -74,7 +75,7 @@ export default function NotificationCenter() {
                 <div style={{ width: "100%" }}>
                   <Space style={{ marginBottom: 4 }}>
                     <Tag color={levelColors[item.level] || "blue"}>
-                      {item.level.toUpperCase()}
+                      {t(`notifications.level_${item.level}`, item.level.toUpperCase())}
                     </Tag>
                     <Text strong>{item.title}</Text>
                   </Space>
@@ -86,7 +87,7 @@ export default function NotificationCenter() {
                     {item.message}
                   </Paragraph>
                   <Text type="secondary" style={{ fontSize: 11 }}>
-                    {dayjs(item.timestamp * 1000).format("MMM D, HH:mm")}
+                    {dayjs(item.timestamp * 1000).locale("ru").format("D MMM, HH:mm")}
                   </Text>
                 </div>
               </List.Item>

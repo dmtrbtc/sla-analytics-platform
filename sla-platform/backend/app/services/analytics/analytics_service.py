@@ -47,7 +47,7 @@ class AnalyticsService:
                 .group_by(SLAMetric.queue_name)
                 .having(
                     func.sum(case((SLAMetric.sla_breached == True, 1), else_=0)) * 1.0
-                    / func.count(SLAMetric.id) > 0.20
+                    / func.nullif(func.count(SLAMetric.id), 0) > 0.20
                 )
             )
         ).all()
@@ -66,7 +66,7 @@ class AnalyticsService:
             await db.execute(
                 select(
                     func.count(TicketEvent.id) * 1.0
-                    / func.nullsafe(func.count(func.distinct(TicketEvent.ticket_id)))
+                    / func.nullif(func.count(func.distinct(TicketEvent.ticket_id)), 0)
                 )
                 .where(
                     TicketEvent.event_type == "OwnerUpdate",

@@ -59,7 +59,8 @@
     "period": "Период:",
     "actions": "Действия",
     "required": "Обязательное поле",
-    "description": "Описание"
+    "description": "Описание",
+    "all": "Все"
   },
   "dashboard": {
     "title": "Дашборд",
@@ -105,6 +106,7 @@
     "reassignments": "Переназначения",
     "slaBreachComparison": "Сравнение нарушений SLA по командам",
     "reassignmentCount": "Количество переназначений по командам",
+    "pass": "проход",
     "overall": "Общий",
     "response": "Отклик",
     "resolution": "Решение"
@@ -189,10 +191,17 @@
     "failedToStart": "Не удалось запустить конвейер",
     "reprocessingStarted": "Переобработка запущена",
     "failedToReprocess": "Не удалось переобработать",
+    "status": {
+      "draft": "Черновик",
+      "validating": "Валидация",
+      "processing": "Обработка",
+      "completed": "Завершён",
+      "failed": "Ошибка"
+    },
     "columns": {
       "status": "Статус",
       "backlog": "Backlog",
-      "history": "History",
+      "history": "История",
       "events": "События",
       "tickets": "Тикеты",
       "errors": "Ошибки",
@@ -355,7 +364,10 @@
     "safe": "Безопасно",
     "responseBreach": "Нарушение реакции",
     "resolutionBreach": "Нарушение решения",
-    "simRatio": "Коэффициент"
+    "simRatio": "Коэффициент",
+    "riskLevel": "Уровень риска",
+    "searchRules": "Поиск правил...",
+    "patternPlaceholder": "Support*"
   },
   "slaQueue": {
     "title": "SLA по очередям",
@@ -381,7 +393,11 @@
     "title": "Уведомления",
     "markAllRead": "Отметить все",
     "clear": "Очистить",
-    "empty": "Нет уведомлений"
+    "empty": "Нет уведомлений",
+    "level_info": "INFO",
+    "level_warning": "WARNING",
+    "level_error": "ERROR",
+    "level_success": "SUCCESS"
   },
   "roleGuard": {
     "forbidden": "У вас нет прав для доступа к этой странице."

@@ -102,7 +102,7 @@ export default function TicketDetail() {
       <Space style={{ marginBottom: 16 }}>
         <Button icon={<ArrowLeftOutlined />} onClick={() => navigate("/tickets")}>{t("ticketDetail.back")}</Button>
         <Typography.Title level={4} style={{ margin: 0 }}>
-          Ticket #{ticket.ticket_number || ticket.ticket_id}
+          {t("ticketDetail.fields.ticketNumber")} #{ticket.ticket_number || ticket.ticket_id}
         </Typography.Title>
         <Tag>{ticket.confidence}</Tag>
         {ticket.is_closed ? <Tag color="green">{t("ticketDetail.closed")}</Tag> : <Tag color="blue">{t("ticketDetail.open")}</Tag>}

@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Typography, Button, Space, Table, Tag, message } from "antd";
+import { Typography, Button, Space, Table, Tag, message, Tooltip } from "antd";
 import { CheckCircleOutlined, CloseCircleOutlined, EyeOutlined, ReloadOutlined, SyncOutlined, UploadOutlined } from "@ant-design/icons";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
@@ -55,11 +55,20 @@ export default function Imports() {
       title: t("imports.columns.status"),
       dataIndex: "status",
       key: "status",
-      render: (status: string) => (
-        <Tag icon={status === "completed" ? <CheckCircleOutlined /> : status === "failed" ? <CloseCircleOutlined /> : <SyncOutlined spin />} color={IMPORT_STATUS_COLORS[status] || "default"}>
-          {status.toUpperCase()}
-        </Tag>
-      ),
+      render: (status: string) => {
+        const statusLabels: Record<string, string> = {
+          draft: t("imports.status.draft"),
+          validating: t("imports.status.validating"),
+          processing: t("imports.status.processing"),
+          completed: t("imports.status.completed"),
+          failed: t("imports.status.failed"),
+        };
+        return (
+          <Tag icon={status === "completed" ? <CheckCircleOutlined /> : status === "failed" ? <CloseCircleOutlined /> : <SyncOutlined spin />} color={IMPORT_STATUS_COLORS[status] || "default"}>
+            {statusLabels[status] || status}
+          </Tag>
+        );
+      },
     },
     {
       title: t("imports.columns.backlog"),

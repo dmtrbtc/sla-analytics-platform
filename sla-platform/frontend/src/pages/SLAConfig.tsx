@@ -3,7 +3,7 @@ import {
   Typography, Tabs, Card, Table, Button, Modal, Form, Input, InputNumber, Select, Switch,
   Space, Tag, message, Popconfirm, Row, Col, Spin, Alert,
 } from "antd";
-import { PlusOutlined, EditOutlined, CopyOutlined, StopOutlined, DeleteOutlined, ExperimentOutlined } from "@ant-design/icons";
+import { PlusOutlined, EditOutlined, CopyOutlined, StopOutlined, DeleteOutlined, ExperimentOutlined, SearchOutlined } from "@ant-design/icons";
 import { useTranslation } from "react-i18next";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { slaApi } from "../api/sla";
@@ -21,6 +21,8 @@ export default function SLAConfig() {
   const [editEsc, setEditEsc] = useState<any>(null);
   const [simOpen, setSimOpen] = useState(false);
   const [simResult, setSimResult] = useState<any>(null);
+  const [ruleSearch, setRuleSearch] = useState("");
+  const [ruleFilter, setRuleFilter] = useState<"all" | "active" | "inactive">("all");
   const [form] = Form.useForm();
   const [calForm] = Form.useForm();
   const [escForm] = Form.useForm();
@@ -92,6 +94,15 @@ export default function SLAConfig() {
     });
   };
 
+  const deleteCalMut = useMutation({
+    mutationFn: (id: string) => slaApi.deleteCalendar(id),
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["sla-calendars"] }); message.success(t("common.deleted")); },
+  });
+  const deleteEscMut = useMutation({
+    mutationFn: (id: string) => slaApi.deleteEscalation(id),
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["sla-escalations"] }); message.success(t("common.deleted")); },
+  });
+
   const saveCalendar = async (values: any) => {
     const payload = { ...values };
     if (editCal) {
@@ -130,11 +141,20 @@ export default function SLAConfig() {
     setSimResult(resp.data);
   };
 
-  const rules = rulesData || [];
+  const rules = (rulesData || []).filter((r: any) => {
+    if (ruleFilter === "active" && !r.is_active) return false;
+    if (ruleFilter === "inactive" && r.is_active) return false;
+    if (ruleSearch && !r.name.toLowerCase().includes(ruleSearch.toLowerCase()) && !r.queue_pattern.toLowerCase().includes(ruleSearch.toLowerCase())) return false;
+    return true;
+  });
 
   const ruleColumns = [
     { title: t("slaConfig.queue"), dataIndex: "queue_pattern", key: "queue_pattern", width: 180 },
-    { title: t("slaConfig.priority"), dataIndex: "priority", key: "priority", width: 80 },
+    { title: t("slaConfig.priority"), dataIndex: "priority", key: "priority", width: 80, render: (v: number) => {
+      const colors: Record<number, string> = { 0: "default", 5: "blue", 10: "orange", 20: "red" };
+      const color = Object.entries(colors).sort((a, b) => Number(b[0]) - Number(a[0])).find(([k]) => v >= Number(k));
+      return <Tag color={color?.[1] || "default"}>{v}</Tag>;
+    } },
     { title: t("slaConfig.responseTime"), dataIndex: "response_target_seconds", key: "response", width: 140, render: (v: number) => formatHumanDuration(v) },
     { title: t("slaConfig.resolutionTime"), dataIndex: "resolution_target_seconds", key: "resolution", width: 140, render: (v: number) => formatHumanDuration(v) },
     {
@@ -169,6 +189,9 @@ export default function SLAConfig() {
       render: (_: any, r: any) => (
         <Space size="small">
           <Button size="small" icon={<EditOutlined />} onClick={() => { setEditCal(r); calForm.setFieldsValue(r); setCalModalOpen(true); }} />
+          <Popconfirm title={t("common.delete") + "?"} onConfirm={() => deleteCalMut.mutate(r.id)}>
+            <Button size="small" danger icon={<DeleteOutlined />} />
+          </Popconfirm>
         </Space>
       ),
     },
@@ -190,6 +213,9 @@ export default function SLAConfig() {
       render: (_: any, r: any) => (
         <Space size="small">
           <Button size="small" icon={<EditOutlined />} onClick={() => { setEditEsc(r); escForm.setFieldsValue(r); setEscModalOpen(true); }} />
+          <Popconfirm title={t("common.delete") + "?"} onConfirm={() => deleteEscMut.mutate(r.id)}>
+            <Button size="small" danger icon={<DeleteOutlined />} />
+          </Popconfirm>
         </Space>
       ),
     },
@@ -206,6 +232,14 @@ export default function SLAConfig() {
           label: t("slaConfig.queueRules"),
           children: (
             <Card size="small" extra={<Button type="primary" icon={<PlusOutlined />} onClick={() => { setEditRule(null); form.resetFields(); setModalOpen(true); }}>{t("common.create")}</Button>}>
+              <div style={{ marginBottom: 12, display: "flex", gap: 8, alignItems: "center" }}>
+                <Input prefix={<SearchOutlined />} placeholder={t("slaConfig.searchRules")} value={ruleSearch} onChange={(e) => setRuleSearch(e.target.value)} style={{ maxWidth: 320 }} allowClear />
+                <Select value={ruleFilter} onChange={setRuleFilter} style={{ width: 140 }} size="small">
+                  <Select.Option value="all">{t("common.all", "Все")}</Select.Option>
+                  <Select.Option value="active">{t("common.active")}</Select.Option>
+                  <Select.Option value="inactive">{t("common.inactive")}</Select.Option>
+                </Select>
+              </div>
               {rulesLoading ? <Spin /> : (
                 <Table dataSource={rules} rowKey="id" size="small" pagination={false} columns={ruleColumns} scroll={{ x: true }} />
               )}
@@ -239,7 +273,7 @@ export default function SLAConfig() {
                 <Card size="small" title={<><ExperimentOutlined /> {t("slaConfig.simulateTitle")}</>}>
                   <Form form={simForm} layout="vertical" onFinish={runSim}>
                     <Form.Item name="queue_name" label={t("slaConfig.queue")} rules={[{ required: true, message: t("common.required") }]}>
-                      <Input placeholder={t("slaConfig.queuePatternPlaceholder")} />
+                      <Input placeholder={t("slaConfig.patternPlaceholder", "Support*")} />
                     </Form.Item>
                     <Form.Item name="response_human" label={t("slaConfig.responseTime")} rules={[{ required: true }]}>
                       <Input placeholder="15 мин" />
@@ -248,7 +282,7 @@ export default function SLAConfig() {
                       <Input placeholder="4 ч" />
                     </Form.Item>
                     <Form.Item name="calendar_id" label={t("slaConfig.calendar")}>
-                      <Select allowClear placeholder={t("common.no") + " (24x7)"}>
+                      <Select allowClear placeholder={t("slaConfig.noCalendar")}>
                         {(calendars || []).filter((c: any) => c.is_active).map((c: any) => (
                           <Select.Option key={c.id} value={c.id}>{c.name}</Select.Option>
                         ))}
@@ -285,7 +319,7 @@ export default function SLAConfig() {
             <Input />
           </Form.Item>
           <Form.Item name="queue_pattern" label={t("slaConfig.queuePattern")} rules={[{ required: true }]} help={t("slaConfig.patternHelp")}>
-            <Input placeholder="Support*" />
+            <Input placeholder={t("slaConfig.patternPlaceholder", "Support*")} />
           </Form.Item>
           <Form.Item name="priority" label={t("slaConfig.priority")}>
             <InputNumber min={0} max={100} style={{ width: 120 }} />
@@ -367,10 +401,10 @@ export default function SLAConfig() {
             </Select>
           </Form.Item>
           <Form.Item name="notify_email" label={t("slaConfig.notifyEmail")}>
-            <Input placeholder="admin@example.com" />
+            <Input placeholder="admin@example.ru" />
           </Form.Item>
           <Form.Item name="webhook_url" label={t("slaConfig.webhookUrl")}>
-            <Input placeholder="https://hooks.example.com/alert" />
+            <Input placeholder="https://hooks.example.ru/alert" />
           </Form.Item>
           <Space>
             <Button type="primary" htmlType="submit">{t("common.save")}</Button>
