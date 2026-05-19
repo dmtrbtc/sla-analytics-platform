@@ -1,7 +1,7 @@
 import { useState } from "react";
 import {
   Typography, Tabs, Card, Table, Button, Modal, Form, Input, InputNumber, Select, Switch,
-  Space, Tag, message, Popconfirm, Row, Col, Spin, Alert,
+  Space, Tag, message, Popconfirm, Row, Col, Spin, Alert, Tooltip,
 } from "antd";
 import { PlusOutlined, EditOutlined, CopyOutlined, StopOutlined, DeleteOutlined, ExperimentOutlined, SearchOutlined } from "@ant-design/icons";
 import { useTranslation } from "react-i18next";
@@ -56,27 +56,52 @@ export default function SLAConfig() {
   });
 
   const saveRule = async (values: any) => {
-    const data = {
-      ...values,
-      response_target_seconds: parseHumanDuration(values.response_human),
-      resolution_target_seconds: parseHumanDuration(values.resolution_human),
-    };
-    if (editRule) {
-      await slaApi.updateQueueRule(editRule.id, data);
-    } else {
-      await slaApi.createQueueRule(data);
+    try {
+      const responseSeconds = parseHumanDuration(values.response_human);
+      const resolutionSeconds = parseHumanDuration(values.resolution_human);
+      if (responseSeconds <= 0) {
+        message.error(t("slaConfig.invalidDuration", "Некорректное время реакции"));
+        return;
+      }
+      if (resolutionSeconds <= 0) {
+        message.error(t("slaConfig.invalidDuration", "Некорректное время решения"));
+        return;
+      }
+      const data = {
+        name: values.name,
+        queue_pattern: values.queue_pattern,
+        priority: values.priority ?? 0,
+        response_target_seconds: responseSeconds,
+        resolution_target_seconds: resolutionSeconds,
+        calendar_id: values.calendar_id || null,
+        is_active: values.is_active,
+        description: values.description || "",
+      };
+      if (editRule) {
+        await slaApi.updateQueueRule(editRule.id, data);
+      } else {
+        await slaApi.createQueueRule(data);
+      }
+      queryClient.invalidateQueries({ queryKey: ["sla-queue-rules"] });
+      message.success(editRule ? t("common.saved") : t("common.created"));
+      setModalOpen(false);
+      setEditRule(null);
+      form.resetFields();
+    } catch (err: any) {
+      const detail = err?.response?.data?.detail;
+      message.error(detail ? (Array.isArray(detail) ? detail.map((d: any) => d.msg).join("; ") : detail) : t("common.error"));
     }
-    queryClient.invalidateQueries({ queryKey: ["sla-queue-rules"] });
-    message.success(editRule ? t("common.saved") : t("common.created"));
-    setModalOpen(false);
-    setEditRule(null);
-    form.resetFields();
   };
 
   const openEdit = (rule: any) => {
     setEditRule(rule);
     form.setFieldsValue({
-      ...rule,
+      name: rule.name,
+      queue_pattern: rule.queue_pattern,
+      priority: rule.priority,
+      calendar_id: rule.calendar_id || null,
+      description: rule.description,
+      is_active: rule.is_active,
       response_human: formatHumanDuration(rule.response_target_seconds),
       resolution_human: formatHumanDuration(rule.resolution_target_seconds),
     });
@@ -141,6 +166,12 @@ export default function SLAConfig() {
     setSimResult(resp.data);
   };
 
+  const { data: queueBreachesData } = useQuery({
+    queryKey: ["sla-queue-breaches"],
+    queryFn: async () => { const r = await slaApi.getQueueBreaches(); return r.data.queue_breaches || []; },
+    refetchInterval: 60_000,
+  });
+
   const rules = (rulesData || []).filter((r: any) => {
     if (ruleFilter === "active" && !r.is_active) return false;
     if (ruleFilter === "inactive" && r.is_active) return false;
@@ -148,31 +179,100 @@ export default function SLAConfig() {
     return true;
   });
 
+  const getRuleHealth = (rule: any): { status: "ok" | "warn" | "high" | "crit"; breachPct: number; efficiency: number } => {
+    const pattern = (rule.queue_pattern || "").replace(/\*/g, "").toLowerCase();
+    const matchingQueues = (queueBreachesData || []).filter((qb: any) =>
+      (qb.queue_name || "").toLowerCase().includes(pattern)
+    );
+    const total = matchingQueues.reduce((s: number, q: any) => s + (q.tickets_total || 0), 0);
+    const breached = matchingQueues.reduce((s: number, q: any) => s + (q.breached_response || 0) + (q.breached_resolution || 0), 0);
+    const breachPct = total > 0 ? Math.round((breached / total) * 100) : 0;
+    const efficiency = 100 - breachPct;
+    const status = efficiency >= 95 ? "ok" : efficiency >= 85 ? "warn" : efficiency >= 70 ? "high" : "crit";
+    return { status, breachPct, efficiency };
+  };
+
+  const healthColors: Record<string, string> = { ok: "#22c55e", warn: "#f59e0b", high: "#f97316", crit: "#ef4444" };
+  const healthBgColors: Record<string, string> = { ok: "#f0fdf4", warn: "#fffbeb", high: "#fff7ed", crit: "#fef2f2" };
+
+  const getEscalationsForRule = (ruleId: string) =>
+    (escalations || []).filter((e: any) => e.sla_rule_id === ruleId);
+
   const ruleColumns = [
-    { title: t("slaConfig.queue"), dataIndex: "queue_pattern", key: "queue_pattern", width: 180 },
-    { title: t("slaConfig.priority"), dataIndex: "priority", key: "priority", width: 80, render: (v: number) => {
+    {
+      title: t("slaConfig.queue"), dataIndex: "queue_pattern", key: "queue_pattern", width: 160,
+      render: (v: string) => <Typography.Text strong>{v}</Typography.Text>,
+    },
+    { title: t("slaConfig.priority"), dataIndex: "priority", key: "priority", width: 70, render: (v: number) => {
       const colors: Record<number, string> = { 0: "default", 5: "blue", 10: "orange", 20: "red" };
       const color = Object.entries(colors).sort((a, b) => Number(b[0]) - Number(a[0])).find(([k]) => v >= Number(k));
       return <Tag color={color?.[1] || "default"}>{v}</Tag>;
     } },
-    { title: t("slaConfig.responseTime"), dataIndex: "response_target_seconds", key: "response", width: 140, render: (v: number) => formatHumanDuration(v) },
-    { title: t("slaConfig.resolutionTime"), dataIndex: "resolution_target_seconds", key: "resolution", width: 140, render: (v: number) => formatHumanDuration(v) },
     {
-      title: t("slaConfig.calendar"), dataIndex: "calendar_id", key: "calendar", width: 120,
-      render: (v: string) => v ? <Tag>{calendars?.find((c: any) => c.id === v)?.name || "—"}</Tag> : <Tag>24x7</Tag>,
+      title: "SLA", key: "sla_targets", width: 200,
+      render: (_: any, r: any) => (
+        <Space size={4} direction="vertical" style={{ lineHeight: 1.4 }}>
+          <Typography.Text type="secondary" style={{ fontSize: 11 }}>Отклик: <b>{formatHumanDuration(r.response_target_seconds)}</b></Typography.Text>
+          <Typography.Text type="secondary" style={{ fontSize: 11 }}>Решение: <b>{formatHumanDuration(r.resolution_target_seconds)}</b></Typography.Text>
+        </Space>
+      ),
     },
     {
-      title: t("common.active"), dataIndex: "is_active", key: "active", width: 80,
+      title: "Календарь", dataIndex: "calendar_id", key: "calendar", width: 100,
+      render: (v: string) => v
+        ? <Tag color="blue" style={{ fontSize: 11 }}>{calendars?.find((c: any) => c.id === v)?.name || "—"}</Tag>
+        : <Tag style={{ fontSize: 11 }}>24x7</Tag>,
+    },
+    {
+      title: "Эскалация", key: "escalation", width: 100,
+      render: (_: any, r: any) => {
+        const escs = getEscalationsForRule(r.id);
+        if (escs.length === 0) return <Typography.Text type="secondary" style={{ fontSize: 12 }}>—</Typography.Text>;
+        const sev: Record<string, number> = { warning: 1, high: 2, critical: 3 };
+        const worst = escs.reduce((w: any, e: any) => {
+          return (sev[e.severity] || 0) > (sev[w.severity] || 0) ? e : w;
+        }, escs[0]);
+        const escColors: Record<string, string> = { warning: "gold", high: "orange", critical: "red" };
+        return <Tag color={escColors[worst.severity]} style={{ fontSize: 11 }}>{escs.length} ур.</Tag>;
+      },
+    },
+    {
+      title: "Эффективность", key: "health", width: 130,
+      render: (_: any, r: any) => {
+        const { status, breachPct, efficiency } = getRuleHealth(r);
+        return (
+          <Space size={6}>
+            <div style={{
+              width: 8, height: 8, borderRadius: "50%",
+              background: healthColors[status],
+              boxShadow: `0 0 0 3px ${healthBgColors[status]}`,
+            }} />
+            <div>
+              <Typography.Text style={{ fontSize: 12, fontWeight: 500, color: healthColors[status] }}>{efficiency}%</Typography.Text>
+              <Typography.Text type="secondary" style={{ fontSize: 11, marginLeft: 4 }}> / {breachPct}%</Typography.Text>
+            </div>
+          </Space>
+        );
+      },
+    },
+    {
+      title: t("common.active"), dataIndex: "is_active", key: "active", width: 70,
       render: (v: boolean, r: any) => <Switch checked={v} onChange={(ch) => toggleMut.mutate({ id: r.id, is_active: ch })} size="small" />,
     },
     {
-      title: "", key: "actions", width: 200,
+      title: "", key: "actions", width: 160,
       render: (_: any, r: any) => (
         <Space size="small">
-          <Button size="small" icon={<EditOutlined />} onClick={() => openEdit(r)} />
-          <Button size="small" icon={<CopyOutlined />} onClick={() => openDup(r)} />
+          <Tooltip title={t("common.edit")}>
+            <Button size="small" icon={<EditOutlined />} onClick={() => openEdit(r)} />
+          </Tooltip>
+          <Tooltip title={t("slaConfig.duplicate", "Копировать")}>
+            <Button size="small" icon={<CopyOutlined />} onClick={() => openDup(r)} />
+          </Tooltip>
           <Popconfirm title={t("common.delete") + "?"} onConfirm={() => deleteMut.mutate(r.id)}>
-            <Button size="small" danger icon={<DeleteOutlined />} />
+            <Tooltip title={t("common.delete")}>
+              <Button size="small" danger icon={<DeleteOutlined />} />
+            </Tooltip>
           </Popconfirm>
         </Space>
       ),

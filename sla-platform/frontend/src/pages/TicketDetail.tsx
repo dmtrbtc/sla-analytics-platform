@@ -1,10 +1,11 @@
 import { useParams, useNavigate } from "react-router-dom";
-import { Typography, Card, Descriptions, Table, Tag, Spin, Timeline, Tabs, Space, Button, Empty } from "antd";
-import { ArrowLeftOutlined, CheckCircleOutlined, CloseCircleOutlined, ClockCircleOutlined } from "@ant-design/icons";
+import { Typography, Card, Descriptions, Table, Tag, Timeline, Tabs, Space, Button, Empty, Spin } from "antd";
+import { ArrowLeftOutlined, CheckCircleOutlined, CloseCircleOutlined, ClockCircleOutlined, InfoCircleOutlined } from "@ant-design/icons";
 import { useTranslation } from "react-i18next";
 import { useQuery } from "@tanstack/react-query";
 import { ticketsApi } from "../api/tickets";
 import { formatDuration } from "../utils/format";
+import SLAExplainer from "../components/sla/SLAExplainer";
 
 export default function TicketDetail() {
   const { t } = useTranslation();
@@ -190,6 +191,11 @@ export default function TicketDetail() {
               columns={slaColumns}
             />
           ),
+        },
+        {
+          key: "sla_explain",
+          label: <span><InfoCircleOutlined /> SLA Explanation</span>,
+          children: <SLAExplainer ticketId={ticketId} />,
         },
       ]} />
     </div>

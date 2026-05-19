@@ -183,8 +183,12 @@ class SLADefinitionCreate(BaseModel):
     metric_type: str
     warning_seconds: int = Field(..., gt=0)
     critical_seconds: int = Field(..., gt=0)
-    is_active: bool = True
+    queue_pattern: str = "*"
+    priority: Optional[str] = "0"
+    pause_on_pending: bool = True
     business_hours_only: bool = True
+    business_hours: Optional[dict] = None
+    is_active: bool = True
 
 
 class SLADefinitionUpdate(BaseModel):
@@ -193,8 +197,12 @@ class SLADefinitionUpdate(BaseModel):
     metric_type: Optional[str] = None
     warning_seconds: Optional[int] = Field(None, gt=0)
     critical_seconds: Optional[int] = Field(None, gt=0)
-    is_active: Optional[bool] = None
+    queue_pattern: Optional[str] = None
+    priority: Optional[str] = None
+    pause_on_pending: Optional[bool] = None
     business_hours_only: Optional[bool] = None
+    business_hours: Optional[dict] = None
+    is_active: Optional[bool] = None
 
 
 class SLAMetricResponse(BaseModel):
@@ -351,6 +359,14 @@ class SLAQueueRuleUpdate(BaseModel):
     calendar_id: Optional[UUID] = None
     is_active: Optional[bool] = None
     description: Optional[str] = None
+
+    @field_validator("resolution_target_seconds")
+    @classmethod
+    def resolution_must_exceed_response(cls, v: Optional[int], info) -> Optional[int]:
+        if v is not None and "response_target_seconds" in info.data and info.data["response_target_seconds"] is not None:
+            if v <= info.data["response_target_seconds"]:
+                raise ValueError("resolution_target_seconds must be greater than response_target_seconds")
+        return v
 
 
 # === Ticket schemas ===

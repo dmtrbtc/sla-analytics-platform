@@ -10,18 +10,17 @@ export function formatDuration(seconds: number): string {
 
 export function parseHumanDuration(input: string): number {
   if (!input) return 0;
-  const cleaned = input.trim().toLowerCase();
   let total = 0;
-  const parts = cleaned.split(/\s+/);
-  for (const part of parts) {
-    const match = part.match(/^(\d+)(\D+)$/);
-    if (!match) continue;
+  // Match "15 мин", "1ч30мин", "2 д 4 ч", "15мин" — any whitespace between number and unit
+  const regex = /(\d+)\s*([дdчhмmсs])/gi;
+  let match: RegExpExecArray | null;
+  while ((match = regex.exec(input)) !== null) {
     const val = parseInt(match[1], 10);
-    const unit = match[2];
-    if (unit.startsWith("д") || unit.startsWith("d")) total += val * 86400;
-    else if (unit.startsWith("ч") || unit.startsWith("h")) total += val * 3600;
-    else if (unit.startsWith("м") || unit.startsWith("m")) total += val * 60;
-    else if (unit.startsWith("с") || unit.startsWith("s")) total += val;
+    const unit = match[2].toLowerCase();
+    if (unit === "д" || unit === "d") total += val * 86400;
+    else if (unit === "ч" || unit === "h") total += val * 3600;
+    else if (unit === "м" || unit === "m") total += val * 60;
+    else if (unit === "с" || unit === "s") total += val;
   }
   return total;
 }

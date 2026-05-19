@@ -3,7 +3,7 @@ from datetime import datetime, timezone
 from typing import Optional
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query
 from sqlalchemy import and_, case, select, func, desc
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -21,7 +21,9 @@ from app.domain.models import (
 from app.domain.schemas import (
     BusinessCalendarCreate,
     BusinessCalendarUpdate,
+    SLADefinitionCreate,
     SLADefinitionResponse,
+    SLADefinitionUpdate,
     SLAEscalationRuleCreate,
     SLAEscalationRuleUpdate,
     SLAQueueRuleCreate,
@@ -33,6 +35,8 @@ from app.services.audit_service import AuditService
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
+
+_UNSET = object()
 
 
 @router.get("/definitions", response_model=dict)
@@ -51,36 +55,32 @@ async def list_sla_definitions(
 
 @router.post("/definitions", response_model=SLADefinitionResponse, status_code=201)
 async def create_sla_definition(
-    payload: dict,
+    payload: SLADefinitionCreate,
+    background_tasks: BackgroundTasks,
     db: AsyncSession = Depends(get_db),
     _: User = Depends(require_admin),
 ):
-    required = ["name", "metric_type", "warning_seconds", "critical_seconds"]
-    for field in required:
-        if field not in payload:
-            raise HTTPException(400, detail=f"Missing required field: {field}")
-
     sd = SLADefinition(
-        name=payload["name"],
-        queue_pattern=payload.get("queue_pattern", "*"),
-        priority=payload.get("priority"),
-        response_target_seconds=payload["warning_seconds"],
-        resolution_target_seconds=payload["critical_seconds"],
-        pause_on_pending=payload.get("pause_on_pending", True),
-        business_hours_only=payload.get("business_hours_only", False),
-        business_hours=payload.get("business_hours"),
-        is_active=payload.get("is_active", True),
+        name=payload.name,
+        queue_pattern=payload.queue_pattern,
+        priority=str(payload.priority) if payload.priority is not None else "0",
+        response_target_seconds=payload.warning_seconds,
+        resolution_target_seconds=payload.critical_seconds,
+        pause_on_pending=payload.pause_on_pending,
+        business_hours_only=payload.business_hours_only,
+        business_hours=payload.business_hours or {},
+        is_active=payload.is_active,
         created_at=datetime.now(timezone.utc),
     )
     db.add(sd)
     await db.flush()
     await db.refresh(sd)
-    _sync_audit("sla_definition_created", "sla_definition", str(sd.id), details={"name": sd.name})
+    background_tasks.add_task(_sync_audit, "sla_definition_created", "sla_definition", str(sd.id), {"name": sd.name})
     return {
         "id": sd.id,
         "name": sd.name,
-        "description": payload.get("description"),
-        "metric_type": payload["metric_type"],
+        "description": payload.description,
+        "metric_type": payload.metric_type,
         "warning_seconds": sd.response_target_seconds,
         "critical_seconds": sd.resolution_target_seconds,
         "is_active": sd.is_active,
@@ -115,7 +115,8 @@ async def get_sla_definition(
 @router.put("/definitions/{definition_id}", response_model=SLADefinitionResponse)
 async def update_sla_definition(
     definition_id: int,
-    payload: dict,
+    payload: SLADefinitionUpdate,
+    background_tasks: BackgroundTasks,
     db: AsyncSession = Depends(get_db),
     _: User = Depends(require_admin),
 ):
@@ -123,27 +124,25 @@ async def update_sla_definition(
     if not sd:
         raise HTTPException(404, detail="SLA definition not found")
 
-    for field in (
-        "name", "queue_pattern", "priority",
-        "response_target_seconds", "resolution_target_seconds",
-        "pause_on_pending", "business_hours_only", "business_hours",
-        "is_active",
-    ):
-        if field in payload:
-            setattr(sd, field, payload[field])
-    if "warning_seconds" in payload:
-        sd.response_target_seconds = payload["warning_seconds"]
-    if "critical_seconds" in payload:
-        sd.resolution_target_seconds = payload["critical_seconds"]
+    update_data = payload.model_dump(exclude_unset=True)
+    if "warning_seconds" in update_data:
+        sd.response_target_seconds = update_data.pop("warning_seconds")
+    if "critical_seconds" in update_data:
+        sd.resolution_target_seconds = update_data.pop("critical_seconds")
+    if "priority" in update_data:
+        update_data["priority"] = str(update_data["priority"])
+    for field, val in update_data.items():
+        if hasattr(sd, field):
+            setattr(sd, field, val)
 
     await db.flush()
     await db.refresh(sd)
-    _sync_audit("sla_definition_updated", "sla_definition", str(sd.id), details={"name": sd.name})
+    background_tasks.add_task(_sync_audit, "sla_definition_updated", "sla_definition", str(sd.id), {"name": sd.name})
     return {
         "id": sd.id,
         "name": sd.name,
-        "description": payload.get("description"),
-        "metric_type": payload.get("metric_type", "response_time"),
+        "description": sd.description,
+        "metric_type": payload.metric_type or "response_time",
         "warning_seconds": sd.response_target_seconds,
         "critical_seconds": sd.resolution_target_seconds,
         "is_active": sd.is_active,
@@ -156,6 +155,7 @@ async def update_sla_definition(
 @router.delete("/definitions/{definition_id}", response_model=dict)
 async def delete_sla_definition(
     definition_id: int,
+    background_tasks: BackgroundTasks,
     db: AsyncSession = Depends(get_db),
     _: User = Depends(require_admin),
 ):
@@ -163,7 +163,7 @@ async def delete_sla_definition(
     if not sd:
         raise HTTPException(404, detail="SLA definition not found")
     await db.delete(sd)
-    _sync_audit("sla_definition_deleted", "sla_definition", str(definition_id), details={"name": sd.name})
+    background_tasks.add_task(_sync_audit, "sla_definition_deleted", "sla_definition", str(definition_id), {"name": sd.name})
     return {"status": "deleted"}
 
 
@@ -301,6 +301,7 @@ async def list_queue_rules(
 @router.post("/queue-rules", response_model=dict, status_code=201)
 async def create_queue_rule(
     payload: SLAQueueRuleCreate,
+    background_tasks: BackgroundTasks,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(require_admin),
 ):
@@ -319,7 +320,7 @@ async def create_queue_rule(
     db.add(rule)
     await db.flush()
     await db.refresh(rule)
-    _sync_audit("queue_rule_created", "sla_queue_rule", str(rule.id), details={"name": rule.name})
+    background_tasks.add_task(_sync_audit, "queue_rule_created", "sla_queue_rule", str(rule.id), {"name": rule.name})
     return {"queue_rule": _queue_rule_to_dict(rule)}
 
 
@@ -338,6 +339,7 @@ async def get_queue_rule(
 async def update_queue_rule(
     rule_id: UUID,
     payload: SLAQueueRuleUpdate,
+    background_tasks: BackgroundTasks,
     db: AsyncSession = Depends(get_db),
     _: User = Depends(require_admin),
 ):
@@ -351,20 +353,21 @@ async def update_queue_rule(
         "calendar_id", "is_active", "description",
     }
     for field in update_fields:
-        val = getattr(payload, field, None)
-        if val is not None:
+        val = getattr(payload, field, _UNSET)
+        if val is not _UNSET:
             setattr(rule, field, val)
     rule.updated_at = datetime.now(timezone.utc)
 
     await db.flush()
     await db.refresh(rule)
-    _sync_audit("queue_rule_updated", "sla_queue_rule", str(rule.id), details={"name": rule.name})
+    background_tasks.add_task(_sync_audit, "queue_rule_updated", "sla_queue_rule", str(rule.id), {"name": rule.name})
     return {"queue_rule": _queue_rule_to_dict(rule)}
 
 
 @router.delete("/queue-rules/{rule_id}", response_model=dict)
 async def delete_queue_rule(
     rule_id: UUID,
+    background_tasks: BackgroundTasks,
     db: AsyncSession = Depends(get_db),
     _: User = Depends(require_admin),
 ):
@@ -372,7 +375,7 @@ async def delete_queue_rule(
     if not rule:
         raise HTTPException(404, detail="Queue SLA rule not found")
     await db.delete(rule)
-    _sync_audit("queue_rule_deleted", "sla_queue_rule", str(rule_id), details={"name": rule.name})
+    background_tasks.add_task(_sync_audit, "queue_rule_deleted", "sla_queue_rule", str(rule_id), {"name": rule.name})
     return {"status": "deleted"}
 
 
@@ -531,8 +534,8 @@ async def update_calendar(
     if not cal:
         raise HTTPException(404, detail="Calendar not found")
     for field in ("name", "timezone", "workdays", "start_time", "end_time", "holidays_json", "is_24x7", "is_active", "description"):
-        val = getattr(payload, field, None)
-        if val is not None:
+        val = getattr(payload, field, _UNSET)
+        if val is not _UNSET:
             setattr(cal, field, val)
     cal.updated_at = datetime.now(timezone.utc)
     await db.flush()
@@ -617,8 +620,8 @@ async def update_escalation(
     if not rule:
         raise HTTPException(404, detail="Escalation rule not found")
     for field in ("threshold_percent", "severity", "notify_email", "notify_telegram", "webhook_url", "is_active"):
-        val = getattr(payload, field, None)
-        if val is not None:
+        val = getattr(payload, field, _UNSET)
+        if val is not _UNSET:
             setattr(rule, field, val)
     rule.updated_at = datetime.now(timezone.utc)
     await db.flush()
