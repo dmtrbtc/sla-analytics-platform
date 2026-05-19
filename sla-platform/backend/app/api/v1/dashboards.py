@@ -2,7 +2,7 @@ from datetime import datetime
 from typing import Optional
 
 from fastapi import APIRouter, Depends, Query
-from sqlalchemy import select, func, text
+from sqlalchemy import case, select, func, text, Integer
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
@@ -67,7 +67,7 @@ async def sla_trend(
             select(
                 func.date_trunc("day", SLAMetric.computed_at).label("day"),
                 func.count(SLAMetric.id),
-                func.sum(SLAMetric.sla_breached.cast(type(1))),
+                func.sum(case((SLAMetric.sla_breached == True, 1), else_=0)).label("breached"),
             )
             .where(SLAMetric.computed_at >= since)
             .group_by(text("day"))

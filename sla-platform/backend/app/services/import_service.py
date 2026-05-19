@@ -97,7 +97,7 @@ class ImportService:
             if period:
                 imp.period_end = period
 
-        if imp.backlog_file and imp.history_file:
+        if imp.status == ImportStatus.DRAFT.value:
             imp.status = ImportStatus.VALIDATING.value
 
         db.add(imp)
@@ -113,7 +113,7 @@ class ImportService:
         if not imp:
             raise ValueError(f"ImportSession {session_id} not found")
 
-        if imp.status not in (ImportStatus.VALIDATING.value, ImportStatus.FAILED.value):
+        if imp.status not in (ImportStatus.DRAFT.value, ImportStatus.VALIDATING.value, ImportStatus.FAILED.value):
             raise ValueError(
                 f"Cannot start processing from status '{imp.status}'"
             )

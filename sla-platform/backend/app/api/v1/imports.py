@@ -3,12 +3,13 @@ import logging
 from typing import Optional
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, File, Form, UploadFile, HTTPException
+from fastapi import APIRouter, BackgroundTasks, Depends, File, Form, UploadFile, HTTPException
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db, sync_session_factory
 from app.core.dependencies import require_admin
+from app.domain.enums import ImportStatus
 from app.domain.models import ImportSession, User
 from app.domain.schemas import (
     ImportSessionResponse,
@@ -17,7 +18,6 @@ from app.domain.schemas import (
 )
 from app.services.audit_service import AuditService
 from app.services.import_service import ImportService
-from app.tasks.import_tasks import run_import_pipeline
 from app.utils.file_validator import validate_upload
 
 logger = logging.getLogger(__name__)
@@ -148,16 +148,18 @@ async def reprocess_session(
     if not session:
         raise HTTPException(status_code=404, detail="Import session not found")
 
-    from app.tasks.import_tasks import run_import_pipeline
-
-    session.status = "parsing"
+    session.status = ImportStatus.FAILED.value
     session.error_details = []
     session.stats = {}
     db.add(session)
     await db.commit()
 
-    _sync_audit("import_reprocessed", "import_session", str(session.id), details={"status": "restarted"})
-    run_import_pipeline.delay(str(session_id))
+    background_tasks.add_task(_sync_audit, "import_reprocessed", "import_session", str(session.id), {"status": "restarted"})
+    try:
+        await ImportService.start_processing(db, session_id)
+    except ValueError as e:
+        logger.warning("Reprocess failed: %s", e)
+        raise HTTPException(status_code=400, detail=str(e))
 
     return PipelineStatusResponse(
         import_id=session.id,
