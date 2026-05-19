@@ -1,10 +1,25 @@
+import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { Typography, Card, Descriptions, Tag, Spin, Table, Empty, Button, Space, Steps } from "antd";
-import { ArrowLeftOutlined, CheckCircleOutlined, CloseCircleOutlined, SyncOutlined } from "@ant-design/icons";
+import { Typography, Card, Descriptions, Tag, Spin, Table, Empty, Button, Space, Progress, Statistic, Row, Col } from "antd";
+import { ArrowLeftOutlined, CheckCircleOutlined, CloseCircleOutlined, SyncOutlined, DashboardOutlined, FieldTimeOutlined, DatabaseOutlined, ExperimentOutlined } from "@ant-design/icons";
 import { useTranslation } from "react-i18next";
 import { useQuery } from "@tanstack/react-query";
 import { importsApi, ImportSession } from "../api/imports";
 import { IMPORT_STATUS_COLORS } from "../utils/constants";
+import axios from "axios";
+
+const API_BASE = import.meta.env.VITE_API_BASE_URL || "/api/v1";
+
+const STAGE_LABELS: Record<string, { label: string; pct: number }> = {
+  validate: { label: "Валидация", pct: 10 },
+  backlog: { label: "Загрузка бэкапа", pct: 25 },
+  parse: { label: "Парсинг событий", pct: 40 },
+  normalize: { label: "Нормализация", pct: 55 },
+  rebuild: { label: "Восстановление", pct: 70 },
+  compute_sla: { label: "Расчёт SLA", pct: 85 },
+  complete: { label: "Завершение", pct: 100 },
+  failed: { label: "Ошибка", pct: 0 },
+};
 
 export default function ImportDetail() {
   const { t } = useTranslation();
@@ -20,11 +35,19 @@ export default function ImportDetail() {
     enabled: !!id,
     refetchInterval: (query) => {
       const d = query.state.data;
-      if (!d || ["draft", "validating", "parsing", "normalizing", "rebuilding", "computing_sla"].includes((d as ImportSession).status)) {
-        return 5000;
-      }
+      if (!d || ["draft", "validating", "parsing", "normalizing", "rebuilding", "computing_sla"].includes((d as ImportSession).status)) return 5000;
       return false;
     },
+  });
+
+  const { data: progress } = useQuery({
+    queryKey: ["import-progress", id],
+    queryFn: async () => {
+      const resp = await axios.get(`${API_BASE}/imports/sessions/${id}/progress`);
+      return resp.data;
+    },
+    enabled: !!id,
+    refetchInterval: 5000,
   });
 
   if (isLoading) return <Spin size="large" style={{ display: "block", margin: "100px auto" }} />;
@@ -32,24 +55,20 @@ export default function ImportDetail() {
 
   const s = sessionData;
   const stats = s.stats as Record<string, any>;
+  const p = progress || {};
+
+  const activeStatuses = ["validating", "parsing", "normalizing", "rebuilding", "computing_sla"];
+  const isActive = activeStatuses.includes(s.status);
+
+  const currentStage = p.current_stage || s.status;
+  const stageInfo = STAGE_LABELS[currentStage] || STAGE_LABELS.validate;
+  const progressPct = s.status === "completed" ? 100 : s.status === "failed" ? 0 : (p.progress_pct ?? stageInfo.pct);
 
   const stepStatus: Record<string, "process" | "finish" | "error" | "wait"> = {
     draft: "process", validating: "process", parsing: "process",
     normalizing: "process", rebuilding: "process", computing_sla: "process",
     completed: "finish", failed: "error",
   };
-
-  const pipelineSteps = [
-    { title: t("importDetail.pipeline.validate"), status: s.status === "failed" ? (s.error_details?.some((e: any) => e.step === "validate") ? "error" : "finish") : "finish" },
-    { title: t("importDetail.pipeline.backlog"), status: s.status === "failed" ? (s.error_details?.some((e: any) => e.step === "backlog") ? "error" : "finish") : "finish" },
-    { title: t("importDetail.pipeline.parse"), status: s.status === "failed" ? (s.error_details?.some((e: any) => e.step === "parse") ? "error" : "finish") : "finish" },
-    { title: t("importDetail.pipeline.normalize"), status: s.status === "failed" ? (s.error_details?.some((e: any) => e.step === "normalize") ? "error" : "finish") : "finish" },
-    { title: t("importDetail.pipeline.rebuild"), status: s.status === "failed" ? (s.error_details?.some((e: any) => e.step === "rebuild") ? "error" : "finish") : "finish" },
-    { title: t("importDetail.pipeline.sla"), status: s.status === "failed" ? (s.error_details?.some((e: any) => e.step === "compute_sla") ? "error" : "finish") : "finish" },
-    { title: t("importDetail.pipeline.complete"), status: s.status === "completed" ? "finish" : (s.status === "failed" ? (s.error_details?.some((e: any) => e.step === "complete") ? "error" : "wait") : "process") },
-  ];
-
-  const statsEntries = Object.entries(stats).filter(([k]) => !["step_durations"].includes(k));
 
   return (
     <div>
@@ -63,13 +82,37 @@ export default function ImportDetail() {
         </Tag>
       </Space>
 
-      <Steps
-        current={pipelineSteps.findIndex((ps) => ps.status === "process")}
-        status={s.status === "failed" ? "error" : "process"}
-        items={pipelineSteps.map((ps) => ({ title: ps.title, status: ps.status as any }))}
-        style={{ marginBottom: 24 }}
-        size="small"
-      />
+      {isActive && (
+        <Card size="small" style={{ marginBottom: 16, background: "#fafafa" }}>
+          <Progress
+            percent={progressPct}
+            strokeColor={{ from: "#108ee9", to: "#87d068" }}
+            status={s.status === "failed" ? "exception" : "active"}
+            format={(pct) => `${pct}%`}
+            style={{ marginBottom: 12 }}
+          />
+          <Row gutter={16}>
+            <Col span={6}>
+              <Statistic title="Текущий этап" value={stageInfo.label} prefix={<SyncOutlined spin />} valueStyle={{ fontSize: 14 }} />
+            </Col>
+            <Col span={4}>
+              <Statistic title="Строк/сек" value={p.rows_per_second ?? "-"} prefix={<DashboardOutlined />} valueStyle={{ fontSize: 14 }} />
+            </Col>
+            <Col span={4}>
+              <Statistic title="ETA" value={p.eta_seconds ? `${Math.round(p.eta_seconds / 60)} мин` : "-"} prefix={<FieldTimeOutlined />} valueStyle={{ fontSize: 14 }} />
+            </Col>
+            <Col span={4}>
+              <Statistic title="Прошло" value={p.elapsed_seconds ? `${Math.round(p.elapsed_seconds / 60)} мин` : "-"} prefix={<ExperimentOutlined />} valueStyle={{ fontSize: 14 }} />
+            </Col>
+            <Col span={4}>
+              <Statistic title="Память" value={p.memory_mb ? `${p.memory_mb} MB` : "-"} prefix={<DatabaseOutlined />} valueStyle={{ fontSize: 14 }} />
+            </Col>
+            <Col span={2}>
+              <Statistic title="Ошибки" value={p.errors ?? 0} valueStyle={{ fontSize: 14, color: (p.errors ?? 0) > 0 ? "red" : undefined }} />
+            </Col>
+          </Row>
+        </Card>
+      )}
 
       <Card title={t("importDetail.sessionInfo")} size="small" style={{ marginBottom: 16 }}>
         <Descriptions column={2} size="small" bordered>
@@ -86,9 +129,9 @@ export default function ImportDetail() {
       </Card>
 
       <Card title={t("importDetail.pipelineStats")} size="small" style={{ marginBottom: 16 }}>
-        {statsEntries.length > 0 ? (
+        {Object.keys(stats).length > 0 ? (
           <Table
-            dataSource={statsEntries.map(([k, v]) => ({ key: k, metric: k, value: typeof v === "object" ? JSON.stringify(v) : String(v) }))}
+            dataSource={Object.entries(stats).filter(([k]) => k !== "step_durations").map(([k, v]) => ({ key: k, metric: k, value: typeof v === "object" ? JSON.stringify(v) : String(v) }))}
             columns={[
               { title: t("importDetail.fields.sessionId"), dataIndex: "metric", key: "metric" },
               { title: t("common.title"), dataIndex: "value", key: "value", ellipsis: true },

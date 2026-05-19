@@ -1,6 +1,7 @@
 """Redis cache layer with key prefixes, TTL management, and invalidation."""
 from __future__ import annotations
 
+import functools
 import json
 import logging
 from typing import Any, Callable, Optional
@@ -82,15 +83,55 @@ def delete_pattern(pattern: str) -> int:
         return 0
 
 
-def cached(ttl: int = DEFAULT_TTL, key_prefix: str = ""):
-    """Decorator: cache function result in Redis."""
+def _make_cache_key(fn: Callable, args: tuple, kwargs: dict, skip_args: int = 0) -> str:
+    parts = [fn.__name__]
+    for a in args[skip_args:]:
+        if hasattr(a, "__name__"):
+            parts.append(a.__name__)
+        else:
+            parts.append(str(a))
+    for k in sorted(kwargs):
+        v = kwargs[k]
+        if hasattr(v, "__name__"):
+            parts.append(f"{k}={v.__name__}")
+        else:
+            parts.append(f"{k}={v}")
+    return cache_key(*parts)
+
+
+def cached(ttl: int = DEFAULT_TTL, key_prefix: str = "", skip_args: int = 0):
+    """Decorator: cache async function result in Redis.
+    skip_args: number of leading positional args to exclude from cache key (e.g. db session).
+    """
     def decorator(fn: Callable):
         async def wrapper(*args, **kwargs):
-            key = cache_key(key_prefix or fn.__name__, *(str(a) for a in args), *(f"{k}={v}" for k, v in sorted(kwargs.items())))
+            key = _make_cache_key(fn, args, kwargs, skip_args)
+            if key_prefix:
+                key = cache_key(key_prefix, key)
             cached_val = get(key)
             if cached_val is not None:
                 return cached_val
             result = await fn(*args, **kwargs)
+            set(key, result, ttl)
+            return result
+        return wrapper
+    return decorator
+
+
+def cached_sync(ttl: int = DEFAULT_TTL, key_prefix: str = "", skip_args: int = 0):
+    """Decorator: cache sync function result in Redis.
+    skip_args: number of leading positional args to exclude from cache key (e.g. db session).
+    """
+    def decorator(fn: Callable):
+        @functools.wraps(fn)
+        def wrapper(*args, **kwargs):
+            key = _make_cache_key(fn, args, kwargs, skip_args)
+            if key_prefix:
+                key = cache_key(key_prefix, key)
+            cached_val = get(key)
+            if cached_val is not None:
+                return cached_val
+            result = fn(*args, **kwargs)
             set(key, result, ttl)
             return result
         return wrapper

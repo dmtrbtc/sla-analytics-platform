@@ -72,6 +72,9 @@ class SLAEngine:
 
         if metrics_written > 0:
             db.commit()
+            from app.core.cache import invalidate_dashboard_cache, invalidate_analytics_cache
+            invalidate_dashboard_cache()
+            invalidate_analytics_cache()
 
         return {"metrics_written": metrics_written, "errors": errors}
 

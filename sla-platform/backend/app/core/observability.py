@@ -1,9 +1,10 @@
 """Observability setup: structured logging, Prometheus metrics, health checks, request timing."""
 from __future__ import annotations
 
+import functools
 import os
 import time
-from typing import Callable
+from typing import Any, Callable
 
 import structlog
 from fastapi import FastAPI, Request, Response
@@ -116,6 +117,30 @@ active_dashboard_sessions = Gauge(
     "active_dashboard_sessions",
     "Number of active dashboard sessions",
 )
+
+
+SLOW_QUERY_THRESHOLD = float(os.environ.get("SLOW_QUERY_SECONDS", "1.0"))
+
+
+class query_timer:
+    def __init__(self, query_name: str, threshold: float = SLOW_QUERY_THRESHOLD):
+        self.query_name = query_name
+        self.threshold = threshold
+        self.start: float | None = None
+
+    def __enter__(self):
+        self.start = time.monotonic()
+        return self
+
+    def __exit__(self, *args: Any) -> None:
+        if self.start is None:
+            return
+        elapsed = time.monotonic() - self.start
+        observe_db_query(elapsed, self.query_name)
+        observe_analytics_query(elapsed, self.query_name)
+        if elapsed > self.threshold:
+            logger = structlog.get_logger("slow_query")
+            logger.warning("slow_query_detected", query=self.query_name, duration_seconds=round(elapsed, 3), threshold=self.threshold)
 
 
 def increment_error_counter(error_type: str, endpoint: str) -> None:

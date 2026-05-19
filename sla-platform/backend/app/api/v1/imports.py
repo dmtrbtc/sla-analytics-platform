@@ -1,5 +1,6 @@
 import hashlib
 import logging
+from pathlib import Path
 from typing import Optional
 from uuid import UUID
 
@@ -7,6 +8,7 @@ from fastapi import APIRouter, BackgroundTasks, Depends, File, Form, UploadFile,
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.config import settings
 from app.core.database import get_db, sync_session_factory
 from app.core.dependencies import require_admin
 from app.domain.enums import ImportStatus
@@ -17,8 +19,7 @@ from app.domain.schemas import (
     PipelineStatusResponse,
 )
 from app.services.audit_service import AuditService
-from app.services.import_service import ImportService
-from app.utils.file_validator import validate_upload
+from app.services.import_service import ImportService, sanitize_filename
 
 logger = logging.getLogger(__name__)
 
@@ -62,23 +63,21 @@ async def create_session(
         session = await ImportService.create_session(db)
 
         if backlog:
-            content = await backlog.read()
-            errors = validate_upload(backlog.filename or "", backlog.content_type or "", content)
-            if errors:
-                raise HTTPException(status_code=400, detail="; ".join(errors))
-            ext = _detect_file_type(backlog.filename or "")
+            sha256, row_count = await _stream_upload_to_disk(
+                backlog, session.id, "backlog"
+            )
             await ImportService.upload_file(
-                db, session.id, content, backlog.filename or "backlog.csv", ext or "backlog"
+                db, session.id, backlog.filename or "backlog.csv", "backlog",
+                sha256, row_count,
             )
 
         if history:
-            content = await history.read()
-            errors = validate_upload(history.filename or "", history.content_type or "", content)
-            if errors:
-                raise HTTPException(status_code=400, detail="; ".join(errors))
-            ext = _detect_file_type(history.filename or "")
+            sha256, row_count = await _stream_upload_to_disk(
+                history, session.id, "history"
+            )
             await ImportService.upload_file(
-                db, session.id, content, history.filename or "history.csv", ext or "history"
+                db, session.id, history.filename or "history.csv", "history",
+                sha256, row_count,
             )
 
         return ImportUploadResponse(
@@ -169,6 +168,39 @@ async def reprocess_session(
     )
 
 
+@router.get("/sessions/{session_id}/progress")
+async def get_import_progress(
+    session_id: UUID,
+    db: AsyncSession = Depends(get_db),
+):
+    session = await ImportService.get_session(db, session_id)
+    if not session:
+        raise HTTPException(status_code=404, detail="Import session not found")
+    stats = dict(session.stats or {})
+    active = session.status in ("validating", "parsing", "normalizing", "rebuilding", "computing_sla")
+    stage_order = ["validate", "backlog", "parse", "normalize", "rebuild", "compute_sla", "complete"]
+    stage_map = {"validating": "validate", "parsing": "parse", "normalizing": "normalize", "rebuilding": "rebuild", "computing_sla": "compute_sla"}
+    current_stage = stage_map.get(session.status, session.status)
+    stage_idx = stage_order.index(current_stage) if current_stage in stage_order else 0
+    progress_pct = round((stage_idx / max(len(stage_order) - 1, 1)) * 100) if not session.completed_at else 100
+
+    return {
+        "session_id": session_id,
+        "status": session.status,
+        "progress_pct": min(progress_pct, 100),
+        "current_stage": current_stage,
+        "active": active,
+        "rows_processed": stats.get("events_parsed") or stats.get("normalized") or 0,
+        "rows_total": session.history_rows or 0,
+        "tickets_processed": stats.get("tickets") or stats.get("snapshots") or 0,
+        "rows_per_second": stats.get("rows_per_second"),
+        "eta_seconds": stats.get("eta_seconds"),
+        "elapsed_seconds": stats.get("elapsed_seconds"),
+        "memory_mb": stats.get("memory_mb"),
+        "errors": len(session.error_details or []),
+    }
+
+
 def _sync_audit(action: str, resource_type: str, resource_id: str, details: Optional[dict] = None) -> None:
     try:
         sync_db = sync_session_factory()
@@ -185,3 +217,39 @@ def _detect_file_type(filename: str) -> Optional[str]:
     if "history" in low:
         return "history"
     return None
+
+
+async def _stream_upload_to_disk(
+    upload: UploadFile, session_id: UUID, file_type: str
+) -> tuple[str, int]:
+    filename = upload.filename or f"{file_type}.csv"
+    from app.utils.file_validator import validate_extension, validate_mime
+    if not validate_extension(filename):
+        raise HTTPException(status_code=400, detail=f"File extension not allowed: {filename}")
+    if upload.content_type and not validate_mime(upload.content_type):
+        raise HTTPException(status_code=400, detail=f"Content-Type not allowed: {upload.content_type}")
+
+    total_size = 0
+    import_dir = Path(settings.DATA_DIR) / "imports" / str(session_id)
+    import_dir.mkdir(parents=True, exist_ok=True)
+    safe_name = sanitize_filename(filename)
+    dest = import_dir / safe_name
+
+    h = hashlib.sha256()
+    row_count = 0
+    header_skipped = False
+    with open(dest, "wb") as f:
+        async for chunk in upload.iter_chunks():
+            data = chunk[0] if isinstance(chunk, tuple) else chunk
+            if not data:
+                break
+            total_size += len(data)
+            if total_size > 100 * 1024 * 1024:
+                raise HTTPException(status_code=413, detail="File exceeds maximum size of 100MB")
+            f.write(data)
+            h.update(data)
+            if not header_skipped:
+                header_skipped = True
+            else:
+                row_count += data.count(b"\n")
+    return h.hexdigest(), row_count

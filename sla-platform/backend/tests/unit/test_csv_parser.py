@@ -1,6 +1,6 @@
-"""Unit tests for csv_parser.py — schema validation."""
-
-import polars as pl
+import csv
+import os
+import tempfile
 
 from app.utils.csv_parser import (
     validate_backlog_columns,
@@ -10,80 +10,81 @@ from app.utils.csv_parser import (
 )
 
 
-def _make_df(cols: list[str]) -> pl.DataFrame:
-    data = {c: [] for c in cols}
-    return pl.DataFrame(data)
+def _make_csv(cols: list[str], tmpdir: str) -> str:
+    path = os.path.join(tmpdir, "test.csv")
+    with open(path, "w", newline="", encoding="utf-8-sig") as f:
+        writer = csv.writer(f)
+        writer.writerow(cols)
+    return path
 
 
 def test_backlog_all_columns():
-    df = _make_df(list(BACKLOG_EXPECTED_COLS))
-    assert validate_backlog_columns(df) == []
+    with tempfile.TemporaryDirectory() as td:
+        path = _make_csv(list(BACKLOG_EXPECTED_COLS), td)
+        assert validate_backlog_columns(path) == []
 
 
 def test_backlog_missing_column():
-    cols = list(BACKLOG_EXPECTED_COLS)
-    cols.remove("ticket_id")
-    df = _make_df(cols)
-    errors = validate_backlog_columns(df)
-    assert len(errors) == 1
-    assert "ticket_id" in errors[0]
+    with tempfile.TemporaryDirectory() as td:
+        cols = list(BACKLOG_EXPECTED_COLS)
+        cols.remove("ticket_id")
+        path = _make_csv(cols, td)
+        errors = validate_backlog_columns(path)
+        assert len(errors) == 1
+        assert "ticket_id" in errors[0]
 
 
 def test_backlog_missing_multiple():
-    df = _make_df(["ticket_id", "title"])
-    errors = validate_backlog_columns(df)
-    assert len(errors) == 1
-    assert "Missing backlog columns" in errors[0]
+    with tempfile.TemporaryDirectory() as td:
+        path = _make_csv(["ticket_id", "title"], td)
+        errors = validate_backlog_columns(path)
+        assert len(errors) == 1
+        assert "Missing columns" in errors[0]
 
 
 def test_backlog_extra_column():
-    cols = list(BACKLOG_EXPECTED_COLS) + ["extra_col"]
-    df = _make_df(cols)
-    assert validate_backlog_columns(df) == []
-
-
-def test_backlog_empty_dataframe():
-    df = _make_df(list(BACKLOG_EXPECTED_COLS))
-    assert validate_backlog_columns(df) == []
+    with tempfile.TemporaryDirectory() as td:
+        cols = list(BACKLOG_EXPECTED_COLS) + ["extra_col"]
+        path = _make_csv(cols, td)
+        assert validate_backlog_columns(path) == []
 
 
 def test_backlog_no_columns():
-    df = _make_df([])
-    errors = validate_backlog_columns(df)
-    assert len(errors) == 1
+    with tempfile.TemporaryDirectory() as td:
+        path = _make_csv([], td)
+        errors = validate_backlog_columns(path)
+        assert len(errors) == 1
 
 
 def test_history_all_columns():
-    df = _make_df(list(HISTORY_EXPECTED_COLS))
-    assert validate_history_columns(df) == []
+    with tempfile.TemporaryDirectory() as td:
+        path = _make_csv(list(HISTORY_EXPECTED_COLS), td)
+        assert validate_history_columns(path) == []
 
 
 def test_history_missing_column():
-    cols = list(HISTORY_EXPECTED_COLS)
-    cols.remove("event_time")
-    df = _make_df(cols)
-    errors = validate_history_columns(df)
-    assert len(errors) == 1
-    assert "event_time" in errors[0]
+    with tempfile.TemporaryDirectory() as td:
+        cols = list(HISTORY_EXPECTED_COLS)
+        cols.remove("event_time")
+        path = _make_csv(cols, td)
+        errors = validate_history_columns(path)
+        assert len(errors) == 1
+        assert "event_time" in errors[0]
 
 
 def test_history_missing_multiple():
-    df = _make_df(["ticket_id", "event_name"])
-    errors = validate_history_columns(df)
-    assert len(errors) == 1
+    with tempfile.TemporaryDirectory() as td:
+        path = _make_csv(["ticket_id", "event_name"], td)
+        errors = validate_history_columns(path)
+        assert len(errors) == 1
 
 
 def test_history_extra_column():
-    cols = list(HISTORY_EXPECTED_COLS) + ["extra"]
-    df = _make_df(cols)
-    assert validate_history_columns(df) == []
-
-
-def test_history_empty_dataframe():
-    df = _make_df(list(HISTORY_EXPECTED_COLS))
-    assert validate_history_columns(df) == []
+    with tempfile.TemporaryDirectory() as td:
+        cols = list(HISTORY_EXPECTED_COLS) + ["extra"]
+        path = _make_csv(cols, td)
+        assert validate_history_columns(path) == []
 
 
 def test_backlog_vs_history_schemas_different():
-    """Backlog and history have different expected columns."""
     assert BACKLOG_EXPECTED_COLS != HISTORY_EXPECTED_COLS

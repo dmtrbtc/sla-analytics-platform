@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 
 from app.core.config import settings
 from app.domain.models import ImportSession
-from app.utils.csv_parser import read_backlog_csv, validate_backlog_columns
+from app.utils.csv_parser import read_backlog_chunks, validate_backlog_columns
 
 logger = logging.getLogger(__name__)
 
@@ -32,19 +32,15 @@ class BacklogService:
         if not backlog_path.exists():
             return {"backlog_loaded": 0, "skipped": True}
 
-        df = read_backlog_csv(str(backlog_path))
-        errs = validate_backlog_columns(df)
+        errs = validate_backlog_columns(str(backlog_path))
         if errs:
             raise ValueError(f"Backlog validation errors: {errs}")
 
-        total = len(df)
         loaded = 0
 
-        for offset in range(0, total, BATCH_SIZE):
-            batch = df[offset : offset + BATCH_SIZE]
-            rows = batch.to_dicts()
+        for chunk in read_backlog_chunks(str(backlog_path), BATCH_SIZE):
             param_rows = []
-            for row in rows:
+            for row in chunk:
                 ticket_id = int(row["ticket_id"])
                 created_raw = row.get("ticket_created_time")
                 updated_raw = row.get("ticket_last_change_time")
@@ -100,7 +96,7 @@ class BacklogService:
                 loaded += len(param_rows)
 
             db.commit()
-            logger.info("Loaded backlog batch %s/%s", loaded, total)
+            logger.info("Loaded backlog batch (%s total)", loaded)
 
         return {"backlog_loaded": loaded, "skipped": False}
 

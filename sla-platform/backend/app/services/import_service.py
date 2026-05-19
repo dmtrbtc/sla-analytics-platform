@@ -1,33 +1,21 @@
-import hashlib
 import os
 import uuid
 from datetime import datetime, timezone
-from pathlib import Path
 from typing import Optional
 from uuid import UUID
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.config import settings
 from app.domain.enums import ImportStatus
 from app.domain.models import ImportSession
 from app.tasks.import_tasks import run_import_pipeline
 
 
 def sanitize_filename(filename: str) -> str:
-    """Strip path separators and dangerous characters from filename."""
     filename = os.path.basename(filename)
     filename = filename.replace("/", "_").replace("\\", "_")
     return filename
-
-
-def _compute_sha256(file_path: str) -> str:
-    h = hashlib.sha256()
-    with open(file_path, "rb") as f:
-        for chunk in iter(lambda: f.read(65536), b""):
-            h.update(chunk)
-    return h.hexdigest()
 
 
 def _extract_period_from_filename(filename: str) -> Optional[datetime]:
@@ -39,12 +27,6 @@ def _extract_period_from_filename(filename: str) -> Optional[datetime]:
         except ValueError:
             continue
     return None
-
-
-def _ensure_import_dir(import_id: UUID) -> Path:
-    path = Path(settings.DATA_DIR) / "imports" / str(import_id)
-    path.mkdir(parents=True, exist_ok=True)
-    return path
 
 
 class ImportService:
@@ -66,21 +48,16 @@ class ImportService:
     async def upload_file(
         db: AsyncSession,
         session_id: UUID,
-        file_content: bytes,
         filename: str,
         file_type: str,
+        sha256: str,
+        row_count: int,
     ) -> ImportSession:
         imp = await db.get(ImportSession, session_id)
         if not imp:
             raise ValueError(f"ImportSession {session_id} not found")
 
-        import_dir = _ensure_import_dir(session_id)
         safe_name = sanitize_filename(filename)
-        dest = import_dir / safe_name
-        dest.write_bytes(file_content)
-
-        sha256 = _compute_sha256(str(dest))
-        row_count = _count_csv_rows(str(dest))
 
         if file_type == "backlog":
             imp.backlog_file = safe_name
@@ -190,11 +167,3 @@ class ImportService:
             db.add(imp)
             await db.commit()
 
-
-def _count_csv_rows(file_path: str) -> int:
-    import csv
-
-    with open(file_path, "r", encoding="utf-8-sig") as f:
-        reader = csv.reader(f)
-        row_count = sum(1 for _ in reader)
-    return max(0, row_count - 1)

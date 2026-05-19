@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 
 from app.core.config import settings
 from app.domain.models import ImportSession, RawEvent
-from app.utils.csv_parser import read_history_csv, validate_history_columns
+from app.utils.csv_parser import read_history_chunks, validate_history_columns
 from app.utils.raw_parser import parse_event_raw
 
 logger = logging.getLogger(__name__)
@@ -38,29 +38,22 @@ class ParserService:
         if not (history_path and history_path.exists()):
             return stats
 
-        df_history = read_history_csv(str(history_path))
-        errs = validate_history_columns(df_history)
+        errs = validate_history_columns(str(history_path))
         if errs:
             stats["errors"].extend(errs)
             return stats
 
-        total = len(df_history)
-        stats["history_rows"] = total
-
         ParserService._clear_import_events(db, import_id)
         db.commit()
 
-        for offset in range(0, total, BATCH_SIZE):
-            batch_df = df_history[offset : offset + BATCH_SIZE]
-            rows = ParserService._df_to_raw_rows(batch_df, import_id)
+        for chunk in read_history_chunks(str(history_path), BATCH_SIZE):
+            rows = ParserService._chunk_to_raw_rows(chunk, import_id)
             ParserService._bulk_insert(db, rows)
             db.commit()
             stats["events_parsed"] += len(rows)
-            logger.info(
-                "Parsed history batch %s/%s",
-                offset + len(rows),
-                total,
-            )
+            logger.info("Parsed history batch (%s total)", stats["events_parsed"])
+
+        stats["history_rows"] = stats["events_parsed"]
 
         return stats
 
@@ -99,10 +92,9 @@ class ParserService:
         )
 
     @staticmethod
-    def _df_to_raw_rows(df, import_id: UUID) -> list[dict]:
-        records = df.to_dicts()
-        rows = []
-        for row in records:
+    def _chunk_to_raw_rows(rows: list[dict], import_id: UUID) -> list[dict]:
+        result = []
+        for row in rows:
             parsed = parse_event_raw(
                 row.get("event_name") or "",
                 row.get("event_raw_name") or "",
@@ -110,7 +102,7 @@ class ParserService:
             ev_time = row.get("event_time")
             ev_name = row.get("event_name", "")
             ev_raw = row.get("event_raw_name", "")
-            rows.append(
+            result.append(
                 {
                     "import_id": import_id,
                     "ticket_id": int(row["ticket_id"]) if row.get("ticket_id") else 0,
@@ -132,7 +124,7 @@ class ParserService:
                     "duplicate_key": f"{ev_time}|{ev_name}|{ev_raw}",
                 }
             )
-        return rows
+        return result
 
     @staticmethod
     def _bulk_insert(db: Session, rows: list[dict]) -> None:

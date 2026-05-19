@@ -8,6 +8,7 @@ from datetime import datetime, timedelta
 from sqlalchemy import select, func, text, case
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.cache import cached
 from app.domain.models import (
     QueuePeriod,
     SLAMetric,
@@ -19,6 +20,7 @@ from app.domain.models import (
 class AnalyticsService:
 
     @staticmethod
+    @cached(ttl=120, key_prefix="analytics", skip_args=1)
     async def get_overview(db: AsyncSession, days: int = 30) -> dict:
         """Operational intelligence KPI cards."""
         now = datetime.utcnow()
@@ -114,6 +116,7 @@ class AnalyticsService:
         }
 
     @staticmethod
+    @cached(ttl=300, key_prefix="analytics", skip_args=1)
     async def get_queue_heatmap(db: AsyncSession, days: int = 30) -> list[dict]:
         """Queue heatmap data: breach count by (queue, weekday, hour)."""
         now = datetime.utcnow()
@@ -152,6 +155,7 @@ class AnalyticsService:
         ]
 
     @staticmethod
+    @cached(ttl=120, key_prefix="analytics", skip_args=1)
     async def get_bottlenecks(db: AsyncSession, days: int = 90) -> list[dict]:
         """Bottleneck detection per queue."""
         now = datetime.utcnow()

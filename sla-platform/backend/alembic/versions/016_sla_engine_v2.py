@@ -28,47 +28,19 @@ branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
 
+def _create_index_if_not_exists(index_name: str, table: str, columns: list[str]) -> None:
+    sql = f"CREATE INDEX IF NOT EXISTS {index_name} ON {table} ({', '.join(columns)})"
+    op.execute(sql)
+
+
 def upgrade() -> None:
-    # sla_metrics V2 metric filtering composite
-    op.create_index(
-        "ix_sla_metrics_metric_breached_time",
-        "sla_metrics",
-        ["metric_name", "sla_breached", "computed_at"],
-        unique=False,
-    )
-    # sla_metrics risk-level queries
-    op.create_index(
-        "ix_sla_metrics_risk_level_time",
-        "sla_metrics",
-        ["risk_level", "computed_at"],
-        unique=False,
-    )
-    # sla_metrics team SLA analytics
-    op.create_index(
-        "ix_sla_metrics_team_metric",
-        "sla_metrics",
-        ["team_prefix", "metric_name"],
-        unique=False,
-    )
-    # sla_metrics per-ticket V2 metrics
-    op.create_index(
-        "ix_sla_metrics_ticket_metric",
-        "sla_metrics",
-        ["ticket_id", "metric_name"],
-        unique=False,
-    )
-    # sla_metrics per-import V2 metrics
-    op.create_index(
-        "ix_sla_metrics_import_metric",
-        "sla_metrics",
-        ["import_id", "metric_name"],
-        unique=False,
-    )
+    _create_index_if_not_exists("ix_sla_metrics_metric_breached_time", "sla_metrics", ["metric_name", "sla_breached", "computed_at"])
+    _create_index_if_not_exists("ix_sla_metrics_risk_level_time", "sla_metrics", ["risk_level", "computed_at"])
+    _create_index_if_not_exists("ix_sla_metrics_team_metric", "sla_metrics", ["team_prefix", "metric_name"])
+    _create_index_if_not_exists("ix_sla_metrics_ticket_metric", "sla_metrics", ["ticket_id", "metric_name"])
+    _create_index_if_not_exists("ix_sla_metrics_import_metric", "sla_metrics", ["import_id", "metric_name"])
 
 
 def downgrade() -> None:
-    op.drop_index("ix_sla_metrics_metric_breached_time")
-    op.drop_index("ix_sla_metrics_risk_level_time")
-    op.drop_index("ix_sla_metrics_team_metric")
-    op.drop_index("ix_sla_metrics_ticket_metric")
-    op.drop_index("ix_sla_metrics_import_metric")
+    for name in ("ix_sla_metrics_metric_breached_time", "ix_sla_metrics_risk_level_time", "ix_sla_metrics_team_metric", "ix_sla_metrics_ticket_metric", "ix_sla_metrics_import_metric"):
+        op.execute(f"DROP INDEX IF EXISTS {name}")

@@ -1,10 +1,12 @@
 """Import pipeline Celery tasks with exponential backoff, timeouts, and dead letter routing."""
 
 import logging
+import time
 from datetime import datetime, timezone
 
 from celery import chain
 
+from app.core.cache import invalidate_dashboard_cache, invalidate_analytics_cache
 from app.core.celery_app import celery_app, exponential_backoff
 from app.core.database import sync_session_factory
 from app.core.websocket_manager import publish_ws_event
@@ -54,7 +56,7 @@ def validate_step(self, import_id: str) -> dict:
         _record_error(db, import_id, "validate")
         _retry_or_fail(self, db, import_id, "validate")
     else:
-        _publish("import_progress", import_id=import_id, step="validate", status="completed", progress=10)
+        _publish_progress(import_id, step="validate", progress=10, db_session=db)
     finally:
         db.close()
 
@@ -75,7 +77,7 @@ def backlog_step(self, prev_result: dict) -> dict:
         _record_error(db, import_id, "backlog")
         _retry_or_fail(self, db, import_id, "backlog")
     else:
-        _publish("import_progress", import_id=import_id, step="backlog", status="completed", progress=25)
+        _publish_progress(import_id, step="backlog", progress=25, db_session=db)
     finally:
         db.close()
 
@@ -98,7 +100,7 @@ def parse_step(self, prev_result: dict) -> dict:
         _record_error(db, import_id, "parse")
         _retry_or_fail(self, db, import_id, "parse")
     else:
-        _publish("import_progress", import_id=import_id, step="parse", status="completed", progress=40)
+        _publish_progress(import_id, step="parse", progress=40, db_session=db)
     finally:
         db.close()
 
@@ -119,7 +121,7 @@ def normalize_step(self, prev_result: dict) -> dict:
         _record_error(db, import_id, "normalize")
         _retry_or_fail(self, db, import_id, "normalize")
     else:
-        _publish("import_progress", import_id=import_id, step="normalize", status="completed", progress=55)
+        _publish_progress(import_id, step="normalize", progress=55, db_session=db)
     finally:
         db.close()
 
@@ -140,7 +142,7 @@ def rebuild_step(self, prev_result: dict) -> dict:
         _record_error(db, import_id, "rebuild")
         _retry_or_fail(self, db, import_id, "rebuild")
     else:
-        _publish("import_progress", import_id=import_id, step="rebuild", status="completed", progress=70)
+        _publish_progress(import_id, step="rebuild", progress=70, db_session=db)
     finally:
         db.close()
 
@@ -161,7 +163,7 @@ def compute_sla_step(self, prev_result: dict) -> dict:
         _record_error(db, import_id, "compute_sla")
         _retry_or_fail(self, db, import_id, "compute_sla")
     else:
-        _publish("import_progress", import_id=import_id, step="compute_sla", status="completed", progress=85)
+        _publish_progress(import_id, step="compute_sla", progress=85, db_session=db)
     finally:
         db.close()
 
@@ -177,24 +179,63 @@ def complete_step(self, prev_result: dict) -> dict:
             imp.status = ImportStatus.COMPLETED.value
             imp.completed_at = datetime.now(timezone.utc)
             db.commit()
+            invalidate_dashboard_cache()
+            invalidate_analytics_cache()
             logger.info("Import completed", extra={"import_id": import_id})
         return {"import_id": import_id, "status": "completed"}
     except Exception:
         _record_error(db, import_id, "complete")
         _retry_or_fail(self, db, import_id, "complete")
     else:
-        _publish("import_progress", import_id=import_id, step="complete", status="completed", progress=100)
+        _publish_progress(import_id, step="complete", progress=100, db_session=db)
     finally:
         db.close()
 
 
+_PIPELINE_START = {}
+
+
 def _publish(event_type: str, **kwargs) -> None:
-    """Publish a WebSocket event via Redis pub/sub."""
     publish_ws_event({"type": event_type, "ts": datetime.now(timezone.utc).timestamp(), **kwargs})
 
 
+def _publish_progress(import_id: str, step: str, progress: int, db_session=None) -> None:
+    elapsed = time.time() - _PIPELINE_START.get(import_id, time.time())
+    rows_total = None
+    if db_session:
+        imp = db_session.query(ImportSession).filter_by(id=import_id).first()
+        if imp:
+            rows_total = imp.history_rows
+    stats = _get_stats_from_db(import_id)
+    rows_processed = stats.get("events_parsed") or stats.get("normalized") or 0
+    rows_per_second = round(rows_processed / elapsed, 1) if elapsed > 0 else 0
+    eta_seconds = None
+    if rows_per_second > 0 and rows_total and rows_total > rows_processed:
+        eta_seconds = round((rows_total - rows_processed) / rows_per_second)
+    _publish("import_progress",
+        import_id=import_id, step=step, progress=progress,
+        rows_processed=rows_processed, rows_total=rows_total,
+        rows_per_second=rows_per_second, eta_seconds=eta_seconds,
+        elapsed_seconds=round(elapsed, 1))
+
+
+def _get_stats_from_db(import_id: str) -> dict:
+    try:
+        fresh = sync_session_factory()
+        imp = fresh.query(ImportSession).filter_by(id=import_id).first()
+        if imp:
+            return dict(imp.stats or {})
+        return {}
+    except Exception:
+        return {}
+    finally:
+        fresh.close()
+
+
 def _set_status(db, import_id: str, status: str) -> None:
-    db.query(ImportSession).filter_by(id=import_id).update({"status": status})
+    if import_id not in _PIPELINE_START:
+        _PIPELINE_START[import_id] = time.time()
+    db.query(ImportSession).filter_by(id=import_id).update({"status": status, "updated_at": datetime.now(timezone.utc)})
     db.commit()
 
 
@@ -203,6 +244,18 @@ def _update_stats(db, import_id: str, stats: dict) -> None:
     if imp:
         current = dict(imp.stats or {})
         current.update(stats)
+        elapsed = time.time() - _PIPELINE_START.get(import_id, time.time())
+        current["elapsed_seconds"] = round(elapsed, 1)
+        rows = stats.get("events_parsed") or stats.get("normalized") or stats.get("backlog_loaded") or 0
+        if elapsed > 0 and rows > 0:
+            current["rows_per_second"] = round(rows / elapsed, 1)
+        import os
+        import psutil
+        try:
+            proc = psutil.Process(os.getpid())
+            current["memory_mb"] = round(proc.memory_info().rss / (1024 * 1024), 1)
+        except Exception:
+            pass
         imp.stats = current
         db.commit()
 
@@ -248,7 +301,7 @@ def _fail(import_id: str, step: str) -> None:
     finally:
         fresh.close()
     _route_to_dead_letter(import_id, step)
-    _publish("import_progress", import_id=import_id, step=step, status="failed")
+    _publish_progress(import_id, step=step, progress=0)
     logger.error("Import %s failed permanently at step %s", import_id, step)
 
 

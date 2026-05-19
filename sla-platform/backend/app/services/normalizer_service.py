@@ -39,7 +39,6 @@ class NormalizerService:
         total_normalized = 0
         total_dedup = 0
 
-        all_norm_events = []
         for tid in ticket_ids:
             raw_events = db.execute(
                 text(
@@ -69,30 +68,29 @@ class NormalizerService:
             norm_events = NormalizerService._build_normalized(
                 tid, unique_events, import_id
             )
-            all_norm_events.extend(norm_events)
             total_normalized += len(norm_events)
 
-        if all_norm_events:
-            db.execute(
-                text(
-                    """
-                    INSERT INTO ticket_events (
-                        ticket_id, ticket_number, event_seq, event_time,
-                        event_type, queue_name, state_name, owner_name,
-                        src_queue, dest_queue, old_state, new_state,
-                        new_owner, old_owner, pending_until,
-                        is_system_action, import_id, raw_event_id
-                    ) VALUES (
-                        :ticket_id, :ticket_number, :event_seq, :event_time,
-                        :event_type, :queue_name, :state_name, :owner_name,
-                        :src_queue, :dest_queue, :old_state, :new_state,
-                        :new_owner, :old_owner, :pending_until,
-                        :is_system_action, :import_id, :raw_event_id
-                    )
-                    """
-                ),
-                all_norm_events,
-            )
+            for offset in range(0, len(norm_events), 2000):
+                batch = norm_events[offset:offset + 2000]
+                db.execute(
+                    text("""
+                        INSERT INTO ticket_events (
+                            ticket_id, ticket_number, event_seq, event_time,
+                            event_type, queue_name, state_name, owner_name,
+                            src_queue, dest_queue, old_state, new_state,
+                            new_owner, old_owner, pending_until,
+                            is_system_action, import_id, raw_event_id
+                        ) VALUES (
+                            :ticket_id, :ticket_number, :event_seq, :event_time,
+                            :event_type, :queue_name, :state_name, :owner_name,
+                            :src_queue, :dest_queue, :old_state, :new_state,
+                            :new_owner, :old_owner, :pending_until,
+                            :is_system_action, :import_id, :raw_event_id
+                        )
+                    """),
+                    batch,
+                )
+
             db.commit()
 
         return {

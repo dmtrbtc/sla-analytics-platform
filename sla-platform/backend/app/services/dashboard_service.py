@@ -7,6 +7,7 @@ from sqlalchemy import and_, case, select, func, text
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import Session
 
+from app.core.cache import cached
 from app.domain.models import (
     ImportSession,
     OwnershipPeriod,
@@ -23,6 +24,7 @@ class DashboardService:
     """Aggregate dashboard data using SQL GROUP BY — no row-by-row loading."""
 
     @staticmethod
+    @cached(ttl=120, key_prefix="dash", skip_args=1)
     async def get_overview(db: AsyncSession, days: int = 30) -> dict:
         now = datetime.utcnow()
         since = now - timedelta(days=days)
@@ -241,6 +243,7 @@ class DashboardService:
         return []
 
     @staticmethod
+    @cached(ttl=300, key_prefix="dash", skip_args=1)
     async def get_teams_analytics(db: AsyncSession, days: int = 90) -> list:
         since = datetime.utcnow() - timedelta(days=days)
         teams = (await db.execute(select(Team).where(Team.is_active == True))).scalars().all()

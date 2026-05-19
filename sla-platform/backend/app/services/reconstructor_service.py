@@ -26,8 +26,9 @@ class ReconstructorService:
         total_snapshots = 0
         total_ownership = 0
         total_queue = 0
+        COMMIT_EVERY = 50
 
-        for tid in ticket_ids:
+        for idx, tid in enumerate(ticket_ids):
             events = db.execute(
                 text(
                     "SELECT ticket_number, title, event_time, event_type, "
@@ -56,6 +57,9 @@ class ReconstructorService:
             total_queue += queue_count
 
             total_snapshots += 1
+
+            if (idx + 1) % COMMIT_EVERY == 0:
+                db.commit()
 
         db.commit()
 
