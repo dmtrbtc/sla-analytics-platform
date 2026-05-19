@@ -8,6 +8,9 @@ import {
   ClockCircleOutlined,
   SettingOutlined,
   FundOutlined,
+  ExclamationCircleOutlined,
+  BugOutlined,
+  AimOutlined,
 } from "@ant-design/icons";
 import { useTranslation } from "react-i18next";
 import { useAuthStore } from "../../stores/authStore";
@@ -27,10 +30,15 @@ export default function Sidebar() {
     { key: "/tickets", icon: <FileTextOutlined />, label: t("nav.tickets") },
     { key: "/imports", icon: <UploadOutlined />, label: t("nav.imports") },
     { key: "/sla/config", icon: <ClockCircleOutlined />, label: t("nav.slaConfig") },
+    { key: "/sla/monitor", icon: <AimOutlined />, label: t("nav.slaMonitor") },
+    { key: "/ops/incidents", icon: <ExclamationCircleOutlined />, label: t("nav.incidents") },
     { key: "/reports", icon: <FileTextOutlined />, label: t("nav.reports") },
     { key: "/teams", icon: <TeamOutlined />, label: t("nav.teamsConfig") },
     ...(user?.role === "admin"
-      ? [{ key: "/admin/users", icon: <SettingOutlined />, label: t("nav.admin") }]
+      ? [
+          { key: "/admin/users", icon: <SettingOutlined />, label: t("nav.admin") },
+          { key: "/admin/diagnostics", icon: <BugOutlined />, label: t("nav.diagnostics") },
+        ]
       : []),
   ];
 

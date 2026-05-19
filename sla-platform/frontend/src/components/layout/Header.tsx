@@ -11,6 +11,7 @@ import { useUIStore } from "../../stores/uiStore";
 import { useAuthStore } from "../../stores/authStore";
 import { authApi } from "../../api/auth";
 import NotificationCenter from "../notifications/NotificationCenter";
+import { DemoModeToggle } from "../common/DemoModeToggle";
 
 const { Header: AntHeader } = Layout;
 
@@ -78,6 +79,7 @@ export default function Header() {
         onClick={toggleSidebar}
       />
       <Space>
+        <DemoModeToggle />
         <NotificationCenter />
         <Dropdown menu={{ items }} placement="bottomRight">
           <Button type="text" style={{ display: "flex", alignItems: "center", gap: 8 }}>

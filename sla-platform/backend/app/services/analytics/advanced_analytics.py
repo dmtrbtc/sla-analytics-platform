@@ -288,16 +288,32 @@ class AdvancedAnalytics:
 
         closed = TicketSnapshot.is_closed == False
 
-        buckets = {}
-        for label, hours in thresholds.items():
-            cutoff = now - timedelta(hours=hours)
-            count = (
-                await db.execute(
-                    select(func.count(TicketSnapshot.ticket_id))
-                    .where(closed, TicketSnapshot.created_at < cutoff)
-                )
-            ).scalar() or 0
-            buckets[label] = count
+        # Single query with FILTER expressions instead of 5 separate COUNTs
+        cutoff_24h = now - timedelta(hours=24)
+        cutoff_48h = now - timedelta(hours=48)
+        cutoff_7d = now - timedelta(hours=168)
+        cutoff_30d = now - timedelta(hours=720)
+        cutoff_90d = now - timedelta(hours=2160)
+
+        row = (
+            await db.execute(
+                select(
+                    func.count(TicketSnapshot.ticket_id).filter(TicketSnapshot.created_at < cutoff_24h).label("c24h"),
+                    func.count(TicketSnapshot.ticket_id).filter(TicketSnapshot.created_at < cutoff_48h).label("c48h"),
+                    func.count(TicketSnapshot.ticket_id).filter(TicketSnapshot.created_at < cutoff_7d).label("c7d"),
+                    func.count(TicketSnapshot.ticket_id).filter(TicketSnapshot.created_at < cutoff_30d).label("c30d"),
+                    func.count(TicketSnapshot.ticket_id).filter(TicketSnapshot.created_at < cutoff_90d).label("c90d"),
+                ).where(closed)
+            )
+        ).one()
+
+        buckets = {
+            "24h": row.c24h or 0,
+            "48h": row.c48h or 0,
+            "7d": row.c7d or 0,
+            "30d": row.c30d or 0,
+            "90d": row.c90d or 0,
+        }
 
         oldest = (
             await db.execute(

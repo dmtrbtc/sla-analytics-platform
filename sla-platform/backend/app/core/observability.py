@@ -1,4 +1,5 @@
 """Observability setup: structured logging, Prometheus metrics, health checks, request timing."""
+from __future__ import annotations
 
 import os
 import time
@@ -72,6 +73,50 @@ error_counter = Counter(
     ["error_type", "endpoint"],
 )
 
+# New metrics for Phase 10
+ws_connections = Gauge(
+    "ws_connections_active",
+    "Number of active WebSocket connections",
+)
+
+ws_events_total = Counter(
+    "ws_events_total",
+    "Total WebSocket events published",
+    ["event_type", "channel"],
+)
+
+sla_computation_duration = Histogram(
+    "sla_computation_duration_seconds",
+    "Duration of SLA computation",
+    ["batch_size"],
+    buckets=(0.1, 0.5, 1.0, 5.0, 10.0, 30.0, 60.0, 120.0),
+)
+
+analytics_query_duration = Histogram(
+    "analytics_query_duration_seconds",
+    "Duration of analytics queries",
+    ["query_name"],
+    buckets=(0.01, 0.05, 0.1, 0.5, 1.0, 2.0, 5.0, 10.0),
+)
+
+redis_latency = Histogram(
+    "redis_latency_seconds",
+    "Redis operation latency",
+    ["operation"],
+    buckets=(0.001, 0.005, 0.01, 0.05, 0.1, 0.5, 1.0),
+)
+
+celery_queue_depth = Gauge(
+    "celery_queue_depth",
+    "Current Celery queue depth by name",
+    ["queue_name"],
+)
+
+active_dashboard_sessions = Gauge(
+    "active_dashboard_sessions",
+    "Number of active dashboard sessions",
+)
+
 
 def increment_error_counter(error_type: str, endpoint: str) -> None:
     error_counter.labels(error_type=error_type, endpoint=endpoint).inc()
@@ -79,6 +124,10 @@ def increment_error_counter(error_type: str, endpoint: str) -> None:
 
 def observe_db_query(duration: float, query_type: str) -> None:
     db_query_duration.labels(query_type=query_type).observe(duration)
+
+
+def observe_analytics_query(duration: float, query_name: str) -> None:
+    analytics_query_duration.labels(query_name=query_name).observe(duration)
 
 
 # ---------------------------------------------------------------------------
@@ -144,7 +193,15 @@ async def health_check(request=None):
     except Exception:
         services["redis"] = "unhealthy"
 
-    overall = "healthy" if all(v == "healthy" for v in services.values()) else "degraded"
+    # WebSocket stats
+    try:
+        from app.core.websocket_manager import manager
+        ws_stats = manager.get_stats()
+        services["websocket"] = f"{ws_stats['connections']} connections"
+    except Exception:
+        services["websocket"] = "unknown"
+
+    overall = "healthy" if all(v == "healthy" for v in services.values() if isinstance(v, str) and v in ("healthy", "unhealthy")) else "degraded"
     if overall != "healthy":
         from fastapi.responses import JSONResponse
         return JSONResponse(
@@ -166,5 +223,3 @@ def configure_observability(app: FastAPI) -> None:
 
     # Request timing
     app.add_middleware(RequestTimingMiddleware)
-
-    # Health check is defined in main.py — nothing to override here

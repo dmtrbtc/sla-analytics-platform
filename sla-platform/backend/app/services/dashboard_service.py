@@ -45,16 +45,28 @@ class DashboardService:
         ).scalar() or 0
         breach_pct = round(sla_breached / sla_total * 100, 2) if sla_total else 0.0
 
-        # Avg response/resolution
-        async def _avg_metric(name: str):
-            q = select(func.avg(SLAMetric.metric_seconds)).where(
+        # Avg response/resolution + percentiles (P50/P90/P95/P99)
+        async def _metric_stats(name: str):
+            q = select(
+                func.avg(SLAMetric.metric_seconds).label("avg"),
+                func.percentile_cont(0.5).within_group(SLAMetric.metric_seconds).label("p50"),
+                func.percentile_cont(0.9).within_group(SLAMetric.metric_seconds).label("p90"),
+                func.percentile_cont(0.95).within_group(SLAMetric.metric_seconds).label("p95"),
+                func.percentile_cont(0.99).within_group(SLAMetric.metric_seconds).label("p99"),
+            ).where(
                 SLAMetric.metric_name == name, SLAMetric.metric_seconds.isnot(None)
             )
-            val = (await db.execute(q)).scalar()
-            return round(float(val), 2) if val else 0.0
+            row = (await db.execute(q)).one()
+            return {
+                "avg": round(float(row.avg), 2) if row.avg else 0.0,
+                "p50": round(float(row.p50), 2) if row.p50 else 0.0,
+                "p90": round(float(row.p90), 2) if row.p90 else 0.0,
+                "p95": round(float(row.p95), 2) if row.p95 else 0.0,
+                "p99": round(float(row.p99), 2) if row.p99 else 0.0,
+            }
 
-        avg_response = await _avg_metric("response_time")
-        avg_resolution = await _avg_metric("resolution_time")
+        response_stats = await _metric_stats("response_time")
+        resolution_stats = await _metric_stats("resolution_time")
 
         # Completed imports
         imports_done = (
@@ -142,8 +154,10 @@ class DashboardService:
             "sla_breach_pct": breach_pct,
             "sla_total": sla_total,
             "sla_breached": sla_breached,
-            "avg_response_time_seconds": avg_response,
-            "avg_resolution_time_seconds": avg_resolution,
+            "avg_response_time_seconds": response_stats["avg"],
+            "avg_resolution_time_seconds": resolution_stats["avg"],
+            "response_percentiles": response_stats,
+            "resolution_percentiles": resolution_stats,
             "imports_processed": imports_done,
             "tickets_by_queue": tickets_by_queue,
             "tickets_by_state": tickets_by_state,

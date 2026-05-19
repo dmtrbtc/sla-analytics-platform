@@ -34,6 +34,8 @@ def generate_report(self, report_type: str, fmt: str = "xlsx", params: dict | No
             result = ReportService.ticket_lifecycle_report(db, fmt=fmt)
         elif report_type == "imports_summary":
             result = ReportService.imports_summary_report(db, fmt=fmt)
+        elif report_type == "executive":
+            result = ReportService.executive_report(db, fmt=fmt)
         else:
             raise ValueError(f"Unknown report type: {report_type}")
         _REPORT_STATUSES[report_id] = {

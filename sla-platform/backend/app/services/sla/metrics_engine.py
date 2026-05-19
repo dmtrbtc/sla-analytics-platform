@@ -6,6 +6,7 @@ No raw datetime subtractions as final logic.
 
 import fnmatch
 import logging
+import time
 from datetime import datetime, timezone
 from typing import Any, Optional
 from uuid import UUID
@@ -18,6 +19,27 @@ from app.services.sla.pause_engine import calculate_active_time, compute_pause_s
 from app.services.sla.business_hours import calculate_business_seconds
 
 logger = logging.getLogger(__name__)
+
+# Module-level cache for SLA queue rules (rarely changes)
+_sla_queue_rules_cache: list[SLAQueueRule] | None = None
+_sla_queue_rules_cache_ts: float = 0
+_SLA_RULES_CACHE_TTL = 60  # seconds
+
+
+def _get_active_queue_rules(db: Session) -> list[SLAQueueRule]:
+    """Return cached active SLA queue rules, refreshing every TTL seconds."""
+    global _sla_queue_rules_cache, _sla_queue_rules_cache_ts
+    now = time.time()
+    if _sla_queue_rules_cache is None or (now - _sla_queue_rules_cache_ts) > _SLA_RULES_CACHE_TTL:
+        rules = (
+            db.query(SLAQueueRule)
+            .filter(SLAQueueRule.is_active == True)
+            .order_by(SLAQueueRule.priority.desc().nullslast(), SLAQueueRule.created_at.asc())
+            .all()
+        )
+        _sla_queue_rules_cache = rules
+        _sla_queue_rules_cache_ts = now
+    return _sla_queue_rules_cache
 
 
 class MetricsEngine:
@@ -34,12 +56,7 @@ class MetricsEngine:
         """
         if not queue_name:
             return None
-        rules = (
-            db.query(SLAQueueRule)
-            .filter(SLAQueueRule.is_active == True)
-            .order_by(SLAQueueRule.priority.desc().nullslast(), SLAQueueRule.created_at.asc())
-            .all()
-        )
+        rules = _get_active_queue_rules(db)
         for rule in rules:
             if fnmatch.fnmatch(queue_name, rule.queue_pattern):
                 return rule

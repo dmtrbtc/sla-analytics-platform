@@ -1,9 +1,20 @@
 import { useState, useEffect, useCallback } from "react";
-import { Typography, Card, Select, Button, Table, Tag, message, Spin, Space, Alert } from "antd";
-import { DownloadOutlined, FileExcelOutlined, ReloadOutlined } from "@ant-design/icons";
+import { Typography, Select, Button, Table, Tag, message, Spin, Space, Alert, Tabs } from "antd";
+import { DownloadOutlined, FileExcelOutlined, ReloadOutlined, StarOutlined, ClockCircleOutlined } from "@ant-design/icons";
 import { useTranslation } from "react-i18next";
 import { useQuery } from "@tanstack/react-query";
 import { reportsApi } from "../api/reports";
+import { palette } from "../design/colors";
+import { typography } from "../design/typography";
+import { cardStyle, sectionTitle } from "../design/tokens";
+
+const REPORT_PRESETS = [
+  { key: "sla_breaches", labelKey: "reports.types.slaBreaches", icon: "📊" },
+  { key: "team_performance", labelKey: "reports.types.teamPerformance", icon: "👥" },
+  { key: "ticket_lifecycle", labelKey: "reports.types.ticketLifecycle", icon: "🔄" },
+  { key: "imports_summary", labelKey: "reports.types.importsSummary", icon: "📥" },
+  { key: "executive", labelKey: "reports.types.executive", icon: "📈" },
+];
 
 export default function Reports() {
   const { t } = useTranslation();
@@ -14,15 +25,11 @@ export default function Reports() {
 
   const { data: reportsData, isLoading: listLoading, refetch: refetchList } = useQuery({
     queryKey: ["reports-list"],
-    queryFn: async () => {
-      const resp = await reportsApi.list();
-      return resp.data.reports;
-    },
+    queryFn: async () => (await reportsApi.list()).data.reports,
   });
 
   const pollStatus = useCallback(async (taskId: string) => {
-    const maxAttempts = 30;
-    for (let i = 0; i < maxAttempts; i++) {
+    for (let i = 0; i < 30; i++) {
       try {
         const resp = await reportsApi.status(taskId);
         const status = resp.data.status;
@@ -39,9 +46,7 @@ export default function Reports() {
           setActiveTaskId(null);
           return;
         }
-      } catch {
-        // continue polling
-      }
+      } catch { /* retry */ }
       await new Promise((r) => setTimeout(r, 2000));
     }
     message.warning(t("reports.reportTakingLonger"));
@@ -53,10 +58,9 @@ export default function Reports() {
     setGenerating(true);
     try {
       const resp = await reportsApi.generate({ report_type: reportType, fmt: format });
-      const taskId = resp.data.task_id;
-      setActiveTaskId(taskId);
+      setActiveTaskId(resp.data.task_id);
       message.info(t("reports.reportStarted"));
-      pollStatus(taskId);
+      pollStatus(resp.data.task_id);
     } catch {
       message.error(t("reports.failedToStart"));
       setGenerating(false);
@@ -72,49 +76,65 @@ export default function Reports() {
       a.download = filename;
       a.click();
       window.URL.revokeObjectURL(url);
-    } catch {
-      message.error(t("reports.failedToDownload"));
-    }
+    } catch { message.error(t("reports.failedToDownload")); }
   };
 
   const reportsColumns = [
-    { title: t("reports.columns.filename"), dataIndex: "filename", key: "filename" },
-    {
-      title: t("reports.columns.size"), dataIndex: "size_bytes", key: "size_bytes",
-      render: (v: number) => v > 1024 * 1024 ? `${(v / 1024 / 1024).toFixed(1)} MB` : `${(v / 1024).toFixed(1)} KB`,
-    },
-    {
-      title: t("reports.columns.modified"), dataIndex: "modified", key: "modified",
-      render: (v: number) => new Date(v * 1000).toLocaleString(),
-    },
-    {
-      title: t("reports.columns.action"), key: "action",
-      render: (_: any, record: any) => (
-        <Button type="link" icon={<DownloadOutlined />} onClick={() => handleDownload(record.filename)}>
-          {t("common.download")}
-        </Button>
-      ),
-    },
+    { title: t("reports.columns.filename"), dataIndex: "filename", key: "filename", render: (v: string) => <span style={{ color: palette.text.primary }}>{v}</span> },
+    { title: t("reports.columns.size"), dataIndex: "size_bytes", key: "size_bytes", render: (v: number) => <span style={{ color: palette.text.secondary, fontFamily: typography.fontMono, fontSize: 12 }}>{v > 1024 * 1024 ? `${(v / 1024 / 1024).toFixed(1)} MB` : `${(v / 1024).toFixed(1)} KB`}</span> },
+    { title: t("reports.columns.modified"), dataIndex: "modified", key: "modified", render: (v: number) => <span style={{ color: palette.text.tertiary, fontSize: 12 }}>{new Date(v * 1000).toLocaleString()}</span> },
+    { title: t("reports.columns.action"), key: "action", render: (_: any, record: any) => (
+      <Button type="link" icon={<DownloadOutlined />} onClick={() => handleDownload(record.filename)} style={{ fontSize: 12 }}>{t("common.download")}</Button>
+    )},
   ];
 
   return (
-    <div>
-      <Typography.Title level={4}>{t("reports.title")}</Typography.Title>
+    <div style={{ padding: "0 0 32px" }}>
+      <div style={{ marginBottom: 20 }}>
+        <Typography.Title level={4} style={{ margin: 0, fontFamily: typography.fontFamily, fontSize: typography.size["2xl"], fontWeight: 600, letterSpacing: "-0.02em", color: palette.text.primary }}>
+          {t("reports.title")}
+        </Typography.Title>
+        <span style={{ fontFamily: typography.fontFamily, fontSize: typography.size.sm, color: palette.text.tertiary, marginTop: 2, display: "inline-block" }}>
+          Генерация и управление отчётами
+        </span>
+      </div>
 
-      <Card title={t("reports.generateReport")} size="small" style={{ marginBottom: 16 }}>
-        <Space direction="vertical" style={{ width: "100%" }}>
+      <div style={{ ...cardStyle, marginBottom: 16 }}>
+        <div style={{ padding: "12px 16px", borderBottom: `1px solid ${palette.borderLight}`, ...sectionTitle }}>
+          {t("reports.generateReport")}
+        </div>
+        <div style={{ padding: 16 }}>
+          <div style={{ display: "flex", gap: 8, marginBottom: 16, flexWrap: "wrap" }}>
+            {REPORT_PRESETS.map((p) => (
+              <div
+                key={p.key}
+                onClick={() => setReportType(p.key)}
+                style={{
+                  padding: "8px 14px",
+                  border: `1px solid ${reportType === p.key ? palette.brand[500] : palette.border}`,
+                  borderRadius: 8,
+                  cursor: "pointer",
+                  background: reportType === p.key ? palette.brand[50] : "transparent",
+                  transition: "all 0.15s",
+                  fontSize: 13,
+                  color: reportType === p.key ? palette.brand[700] : palette.text.secondary,
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 6,
+                }}
+              >
+                <span>{p.icon}</span>
+                <span style={{ fontWeight: reportType === p.key ? 600 : 400 }}>{t(p.labelKey)}</span>
+              </div>
+            ))}
+          </div>
           <Space wrap>
-            <Select value={reportType} onChange={setReportType} style={{ width: 250 }}>
-              <Select.Option value="sla_breaches">{t("reports.types.slaBreaches")}</Select.Option>
-              <Select.Option value="team_performance">{t("reports.types.teamPerformance")}</Select.Option>
-              <Select.Option value="ticket_lifecycle">{t("reports.types.ticketLifecycle")}</Select.Option>
-              <Select.Option value="imports_summary">{t("reports.types.importsSummary")}</Select.Option>
-            </Select>
-            <Select value={format} onChange={setFormat} style={{ width: 100 }}>
+            <span style={{ fontSize: 13, color: palette.text.secondary }}>Формат:</span>
+            <Select value={format} onChange={setFormat} size="small" style={{ width: 100 }}>
               <Select.Option value="xlsx">XLSX</Select.Option>
               <Select.Option value="csv">CSV</Select.Option>
             </Select>
-            <Button type="primary" icon={<FileExcelOutlined />} onClick={handleGenerate} loading={generating}>
+            <Button type="primary" icon={<FileExcelOutlined />} onClick={handleGenerate} loading={generating} style={{ fontSize: 12 }}>
               {t("reports.generate")}
             </Button>
           </Space>
@@ -124,24 +144,26 @@ export default function Reports() {
               type="info"
               showIcon
               icon={<Spin size="small" />}
+              style={{ marginTop: 12, fontSize: 13 }}
             />
           )}
-        </Space>
-      </Card>
+        </div>
+      </div>
 
-      <Card
-        title={t("reports.generatedReports")}
-        size="small"
-        extra={<Button icon={<ReloadOutlined />} onClick={() => refetchList()} loading={listLoading}>{t("reports.refresh")}</Button>}
-      >
+      <div style={cardStyle}>
+        <div style={{ padding: "12px 16px", borderBottom: `1px solid ${palette.borderLight}`, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <span style={sectionTitle}>{t("reports.generatedReports")}</span>
+          <Button size="small" icon={<ReloadOutlined />} onClick={() => refetchList()} loading={listLoading} style={{ fontSize: 11 }}>{t("reports.refresh")}</Button>
+        </div>
         <Table
           dataSource={reportsData || []}
           columns={reportsColumns}
           rowKey="filename"
           size="small"
-          pagination={{ pageSize: 20 }}
+          pagination={{ pageSize: 20, showSizeChanger: false }}
+          style={{ fontSize: 13 }}
         />
-      </Card>
+      </div>
     </div>
   );
 }

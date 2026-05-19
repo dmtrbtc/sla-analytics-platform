@@ -4,9 +4,10 @@ import csv
 import json
 import os
 from collections import defaultdict
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Any, Optional
 
+from sqlalchemy import func, text
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
@@ -20,6 +21,7 @@ from app.domain.models import (
 from app.utils.excel_writer import (
     fmt_time_columns,
     make_multi_sheet_xlsx,
+    make_executive_xlsx,
     RU_SLA_METRICS_HEADERS,
     RU_QUEUE_PERIOD_HEADERS,
     RU_BREACH_HEADERS,
@@ -112,21 +114,19 @@ class ReportService:
         ticket_ids = list({r[0].ticket_id for r in rows_raw})
         qp_map = ReportService._load_queue_periods_map(db, ticket_ids)
 
+        # Batch load all OwnershipPeriods for the ticket set (avoids N+1)
         owner_qp: dict[int, dict[str, int]] = defaultdict(
             lambda: defaultdict(int)
         )
-        for qp_list in qp_map.values():
-            for qp in qp_list:
-                op_rows = (
-                    db.query(OwnershipPeriod)
-                    .filter(OwnershipPeriod.ticket_id == qp.ticket_id)
-                    .filter(OwnershipPeriod.queue_name == qp.queue_name)
-                    .all()
-                )
-                for op in op_rows:
-                    owner_qp[qp.ticket_id][qp.queue_name] += (
-                        op.duration_seconds or 0
-                    )
+        all_ops = (
+            db.query(OwnershipPeriod)
+            .filter(OwnershipPeriod.ticket_id.in_(ticket_ids))
+            .all()
+        )
+        for op in all_ops:
+            owner_qp[op.ticket_id][op.queue_name or ""] += (
+                op.duration_seconds or 0
+            )
 
         enriched = []
         queue_period_rows = []
@@ -331,6 +331,175 @@ class ReportService:
              "rows": rows}
         ]
         return ReportService._write_report("imports_summary", sheets, fmt)
+
+    # ── Executive report ──────────────────────────────────────────
+
+    @staticmethod
+    def executive_report(db: Session, fmt: str = "xlsx") -> dict:
+        """Generate branded executive XLSX with charts and conditional formatting."""
+        now = datetime.utcnow()
+        since = now - timedelta(days=30)
+
+        # KPI data
+        open_tickets = (
+            db.query(func.count(TicketSnapshot.ticket_id))
+            .filter(TicketSnapshot.is_closed == False)
+            .scalar() or 0
+        )
+        total_tickets = db.query(func.count(TicketSnapshot.ticket_id)).scalar() or 0
+        sla_total = db.query(func.count(SLAMetric.id)).scalar() or 0
+        sla_breached = (
+            db.query(func.count(SLAMetric.id))
+            .filter(SLAMetric.sla_breached == True)
+            .scalar() or 0
+        )
+        breach_pct = round(sla_breached / sla_total * 100, 1) if sla_total else 0.0
+        avg_response = (
+            db.query(func.avg(SLAMetric.metric_seconds))
+            .filter(SLAMetric.metric_name == "response_time", SLAMetric.metric_seconds.isnot(None))
+            .scalar() or 0
+        )
+        avg_resolution = (
+            db.query(func.avg(SLAMetric.metric_seconds))
+            .filter(SLAMetric.metric_name == "resolution_time", SLAMetric.metric_seconds.isnot(None))
+            .scalar() or 0
+        )
+        tickets_at_risk = (
+            db.query(func.count(SLAMetric.id))
+            .filter(SLAMetric.risk_level.in_(["high", "critical"]))
+            .scalar() or 0
+        )
+        overloaded_queues = (
+            db.query(func.count(func.distinct(SLAMetric.queue_name)))
+            .filter(SLAMetric.sla_breached == True, SLAMetric.queue_name.isnot(None))
+            .scalar() or 0
+        )
+
+        kpis = [
+            {"label": "Открыто тикетов", "value": open_tickets, "color": "blue"},
+            {"label": "Нарушений SLA %", "value": f"{breach_pct}%", "color": "red" if breach_pct > 20 else "green"},
+            {"label": "Средний отклик", "value": f"{round(avg_response / 60, 1)} мин" if avg_response else "0 мин", "color": "blue"},
+            {"label": "Среднее решение", "value": f"{round(avg_resolution / 3600, 1)} ч" if avg_resolution else "0 ч", "color": "blue"},
+            {"label": "Тикетов под риском", "value": tickets_at_risk, "color": "red" if tickets_at_risk > 50 else "green"},
+            {"label": "Очередей с нарушениями", "value": overloaded_queues, "color": "red" if overloaded_queues > 5 else "green"},
+        ]
+
+        # Breaches by queue
+        bq_rows = (
+            db.query(
+                SLAMetric.queue_name,
+                func.count(SLAMetric.id).label("breaches"),
+            )
+            .filter(SLAMetric.sla_breached == True, SLAMetric.queue_name.isnot(None))
+            .group_by(SLAMetric.queue_name)
+            .order_by(func.count(SLAMetric.id).desc())
+            .limit(10)
+            .all()
+        )
+        breaches_by_queue = [{"queue": r[0], "breaches": r[1]} for r in bq_rows]
+
+        # Breach trend (daily, last 30 days)
+        trend_rows_raw = (
+            db.query(
+                func.date_trunc("day", SLAMetric.computed_at).label("day"),
+                func.count(SLAMetric.id).label("count"),
+            )
+            .filter(SLAMetric.sla_breached == True, SLAMetric.computed_at >= since)
+            .group_by(text("day"))
+            .order_by(text("day"))
+            .all()
+        )
+        breach_trend = [{"date": str(r[0].date()), "count": r[1]} for r in trend_rows_raw]
+
+        # SLA performance detail
+        perf_raw = (
+            db.query(
+                SLAMetric.ticket_id,
+                SLAMetric.metric_name,
+                SLAMetric.metric_seconds,
+                SLAMetric.sla_breached,
+                SLAMetric.queue_name,
+                SLAMetric.owner,
+                SLAMetric.risk_level,
+                SLAMetric.confidence,
+            )
+            .order_by(SLAMetric.computed_at.desc())
+            .limit(5000)
+            .all()
+        )
+        sla_perf_headers = [
+            "ID тикета", "Метрика", "Секунды", "Минуты",
+            "Нарушение", "Очередь", "Ответственный", "Риск", "Достоверность",
+        ]
+        sla_performance = []
+        for r in perf_raw:
+            secs = r[2] if r[2] else 0
+            sla_performance.append([
+                r[0], r[1], secs, round(secs / 60, 1),
+                "Да" if r[3] else "Нет", r[4] or "", r[5] or "",
+                r[6] or "", r[7] or "",
+            ])
+
+        # Queue analysis
+        qa_rows = (
+            db.query(
+                SLAMetric.queue_name,
+                func.count(SLAMetric.id).label("total"),
+                func.sum(SLAMetric.sla_breached.cast(type(1))).label("breached"),
+                func.avg(SLAMetric.metric_seconds).label("avg_secs"),
+            )
+            .filter(SLAMetric.queue_name.isnot(None), SLAMetric.computed_at >= since)
+            .group_by(SLAMetric.queue_name)
+            .order_by(func.count(SLAMetric.id).desc())
+            .all()
+        )
+        queue_analysis_headers = [
+            "Очередь", "Всего метрик", "Нарушений", "% нарушений",
+            "Среднее (сек)", "Среднее (мин)",
+        ]
+        queue_analysis = []
+        for r in qa_rows:
+            total = r[1] or 0
+            breached = r[2] or 0
+            pct = round(breached / total * 100, 1) if total else 0.0
+            avg_s = round(r[3], 1) if r[3] else 0.0
+            queue_analysis.append([
+                r[0], total, breached, pct, avg_s, round(avg_s / 60, 1),
+            ])
+
+        # Trend data for raw sheet
+        trend_headers = ["Дата", "Нарушений"]
+        trend_data = [[t["date"], t["count"]] for t in breach_trend]
+
+        if fmt != "xlsx":
+            return ReportService._write_report("executive", [{"name": "Executive Summary", "headers": sla_perf_headers, "rows": sla_performance}], fmt)
+
+        ReportService._ensure_export_dir()
+        ts = now.strftime("%Y%m%d_%H%M%S")
+        filename = f"executive_{ts}.{fmt}"
+        filepath = os.path.join(EXPORT_DIR, filename)
+
+        buf = make_executive_xlsx(
+            kpis=kpis,
+            breaches_by_queue=breaches_by_queue,
+            breach_trend=breach_trend,
+            sla_performance=sla_performance,
+            sla_perf_headers=sla_perf_headers,
+            queue_analysis=queue_analysis,
+            queue_analysis_headers=queue_analysis_headers,
+            trend_rows=trend_data,
+            trend_headers=trend_headers,
+        )
+        with open(filepath, "wb") as f:
+            f.write(buf.read())
+
+        total_rows = len(sla_performance) + len(queue_analysis) + len(trend_data)
+        return {
+            "filename": filename,
+            "filepath": filepath,
+            "rows": total_rows,
+            "format": fmt,
+        }
 
     # ── Writer ────────────────────────────────────────────────────
 
