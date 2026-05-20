@@ -1,33 +1,26 @@
-import { palette } from "./colors";
+/* Enterprise Design System V3 — Ant Design table theme overrides (light + dark) */
+import { palette, darkPalette } from "./colors";
 import { typography } from "./typography";
-import { radius } from "./spacing";
+
+const base = {
+  fontSize: typography.size.xs,
+  fontWeight: 600,
+  textTransform: "uppercase" as const,
+  letterSpacing: "0.04em",
+};
 
 export const tableTheme = {
-  header: {
-    background: "#f8f9fa",
-    color: palette.text.secondary,
-    fontSize: "11px",
-    fontWeight: 600,
-    textTransform: "uppercase" as const,
-    letterSpacing: "0.04em",
-    borderColor: palette.borderLight,
-    padding: "10px 12px",
-  },
-  body: {
-    fontSize: "13px",
-    color: palette.text.primary,
-    borderColor: palette.borderLight,
-    padding: "10px 12px",
-  },
-  row: {
-    hoverBackground: "#f8f9fa",
-    selectedBackground: "#eef2ff",
-    height: "44px",
-  },
-  radius: radius.md,
-  pagination: {
-    fontSize: "12px",
-    color: palette.text.secondary,
-    activeColor: palette.brand[500],
-  },
-} as const;
+  header: { background: palette.page, color: palette.text.secondary, ...base },
+  body: { fontSize: typography.size.base, color: palette.text.primary },
+  row: { hoverBackground: palette.brand[50], selectedBackground: palette.brand[100], height: "44px" },
+  pagination: { fontSize: typography.size.sm },
+  radius: "6px",
+};
+
+export const darkTableTheme = {
+  header: { background: darkPalette.page, color: darkPalette.text.secondary, ...base },
+  body: { fontSize: typography.size.base, color: darkPalette.text.primary },
+  row: { hoverBackground: darkPalette.brand[50], selectedBackground: darkPalette.brand[100], height: "44px" },
+  pagination: { fontSize: typography.size.sm },
+  radius: "6px",
+};
