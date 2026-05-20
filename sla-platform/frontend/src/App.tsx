@@ -4,7 +4,6 @@ import { Spin } from "antd";
 import AppLayout from "./components/layout/AppLayout";
 import ProtectedRoute from "./components/auth/ProtectedRoute";
 import RoleGuard from "./components/auth/RoleGuard";
-import Teams from "./pages/Teams";
 import SLAConfig from "./pages/SLAConfig";
 
 const Dashboard = lazy(() => import("./pages/Dashboard"));
@@ -26,6 +25,8 @@ const SLAMonitor = lazy(() => import("./pages/SLAMonitor"));
 const AdminDiagnostics = lazy(() => import("./pages/AdminDiagnostics"));
 const SLACommandCenter = lazy(() => import("./pages/SLACommandCenter"));
 const OperationsAdmin = lazy(() => import("./pages/OperationsAdmin"));
+const TeamsPage = lazy(() => import("./pages/Teams"));
+const SettingsPage = lazy(() => import("./pages/Settings"));
 
 function SuspenseWrapper({ children }: { children: React.ReactNode }) {
   return <Suspense fallback={<Spin size="large" style={{ display: "block", margin: "100px auto" }} />}>{children}</Suspense>;
@@ -50,35 +51,15 @@ export default function App() {
           <Route path="/imports/:id" element={<SuspenseWrapper><ImportDetail /></SuspenseWrapper>} />
           <Route path="/imports/new" element={<SuspenseWrapper><ImportUpload /></SuspenseWrapper>} />
           <Route path="/reports" element={<SuspenseWrapper><Reports /></SuspenseWrapper>} />
-          <Route path="/teams" element={<Teams />} />
-          <Route path="/sla" element={<SLAConfig />} />
-          <Route path="/sla/config" element={<SLAConfig />} />
+          <Route path="/teams" element={<SuspenseWrapper><TeamsPage /></SuspenseWrapper>} />
+          <Route path="/sla" element={<SuspenseWrapper><SLAConfig /></SuspenseWrapper>} />
+          <Route path="/sla/config" element={<SuspenseWrapper><SLAConfig /></SuspenseWrapper>} />
           <Route path="/sla/monitor" element={<SuspenseWrapper><SLAMonitor /></SuspenseWrapper>} />
           <Route path="/ops/incidents" element={<SuspenseWrapper><OperationsIncidents /></SuspenseWrapper>} />
-          <Route
-            path="/admin/users"
-            element={
-              <RoleGuard roles={["admin"]}>
-                <SuspenseWrapper><AdminUsers /></SuspenseWrapper>
-              </RoleGuard>
-            }
-          />
-          <Route
-            path="/admin/diagnostics"
-            element={
-              <RoleGuard roles={["admin"]}>
-                <SuspenseWrapper><AdminDiagnostics /></SuspenseWrapper>
-              </RoleGuard>
-            }
-          />
-          <Route
-            path="/admin/operations"
-            element={
-              <RoleGuard roles={["admin"]}>
-                <SuspenseWrapper><OperationsAdmin /></SuspenseWrapper>
-              </RoleGuard>
-            }
-          />
+          <Route path="/settings" element={<SuspenseWrapper><SettingsPage /></SuspenseWrapper>} />
+          <Route path="/admin/users" element={<RoleGuard roles={["admin"]}><SuspenseWrapper><AdminUsers /></SuspenseWrapper></RoleGuard>} />
+          <Route path="/admin/diagnostics" element={<RoleGuard roles={["admin"]}><SuspenseWrapper><AdminDiagnostics /></SuspenseWrapper></RoleGuard>} />
+          <Route path="/admin/operations" element={<RoleGuard roles={["admin"]}><SuspenseWrapper><OperationsAdmin /></SuspenseWrapper></RoleGuard>} />
           <Route path="*" element={<SuspenseWrapper><NotFound /></SuspenseWrapper>} />
         </Route>
       </Route>
