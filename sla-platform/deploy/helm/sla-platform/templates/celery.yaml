@@ -1,0 +1,62 @@
+{{- range $queue, $count := dict "default" .Values.celery.defaultWorkers "imports" .Values.celery.importWorkers "sla_compute" .Values.celery.slaComputeWorkers "analytics" .Values.celery.analyticsWorkers "maintenance" .Values.celery.maintenanceWorkers }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ $.Release.Name }}-celery-{{ $queue }}
+  namespace: {{ $.Release.Namespace }}
+  labels:
+    {{- include "sla-platform.labels" $ | nindent 4 }}
+    component: celery
+    queue: {{ $queue }}
+spec:
+  replicas: {{ $count }}
+  selector:
+    matchLabels:
+      component: celery
+      queue: {{ $queue }}
+  template:
+    metadata:
+      labels:
+        component: celery
+        queue: {{ $queue }}
+    spec:
+      containers:
+        - name: worker
+          image: {{ $.Values.backend.image }}
+          command:
+            - celery
+            - -A
+            - app.core.celery_app
+            - worker
+            - -Q
+            - {{ $queue }}
+            - -c
+            - "4"
+            {{- if eq $queue "maintenance" }}
+            - --beat
+            {{- end }}
+            - --max-tasks-per-child
+            - "1000"
+          env:
+            - name: DATABASE_URL
+              value: "postgresql+asyncpg://sla_user:$(POSTGRES_PASSWORD)@postgres:5432/sla_platform"
+            - name: REDIS_HOST
+              value: "redis"
+            - name: REDIS_PORT
+              value: "6379"
+            - name: CELERY_BROKER_URL
+              value: "redis://redis:6379/0"
+            - name: CELERY_RESULT_BACKEND
+              value: "redis://redis:6379/1"
+            - name: SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: sla-secrets
+                  key: SECRET_KEY
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: sla-secrets
+                  key: POSTGRES_PASSWORD
+{{- end }}

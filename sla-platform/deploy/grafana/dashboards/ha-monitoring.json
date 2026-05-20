@@ -1,0 +1,44 @@
+{
+  "__inputs": [],
+  "__requires": [],
+  "title": "HA Infrastructure Monitoring",
+  "uid": "sla-ha-monitoring",
+  "version": 1,
+  "panels": [
+    {
+      "title": "Redis Cluster Health",
+      "type": "stat",
+      "datasource": "Prometheus",
+      "targets": [{"expr": "redis_up", "legendFormat": "Redis"}],
+      "gridPos": {"x": 0, "y": 0, "w": 4, "h": 4}
+    },
+    {
+      "title": "Postgres Replica Lag",
+      "type": "timeseries",
+      "datasource": "Prometheus",
+      "targets": [{"expr": "pg_replication_lag_seconds", "legendFormat": "Lag"}],
+      "gridPos": {"x": 4, "y": 0, "w": 4, "h": 4}
+    },
+    {
+      "title": "Failover Events",
+      "type": "stat",
+      "datasource": "Prometheus",
+      "targets": [{"expr": "sum(increase(failover_events_total[24h]))", "legendFormat": "Failovers"}],
+      "gridPos": {"x": 8, "y": 0, "w": 4, "h": 4}
+    },
+    {
+      "title": "Degradation Mode",
+      "type": "stat",
+      "datasource": "Prometheus",
+      "targets": [{"expr": "degradation_mode", "legendFormat": "Mode"}],
+      "gridPos": {"x": 0, "y": 4, "w": 4, "h": 4}
+    },
+    {
+      "title": "Queue Failover Status",
+      "type": "table",
+      "datasource": "Prometheus",
+      "targets": [{"expr": "queue_failover_status", "legendFormat": "Queue"}],
+      "gridPos": {"x": 4, "y": 4, "w": 8, "h": 8}
+    }
+  ]
+}

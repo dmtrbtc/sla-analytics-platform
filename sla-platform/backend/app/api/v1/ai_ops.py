@@ -14,6 +14,7 @@ from app.services.ai.staffing import get_staffing_recommendations
 from app.services.ai.root_cause import generate_hints
 from app.services.ai.incident_summary import generate_incident_summary
 from app.services.ai.copilot import natural_query, generate_executive_summary, NL_QUERIES
+from app.services.ai.copilot_v2 import conversational_query, generate_ai_dashboard, clear_conversation_history
 
 logger = logging.getLogger(__name__)
 router = APIRouter(dependencies=[Depends(get_current_user)])
@@ -80,3 +81,26 @@ async def executive_summary(
     """Generate executive summary report."""
     summary = generate_executive_summary(period)
     return {"summary": summary}
+
+
+@router.post("/copilot/conversation")
+async def copilot_conversation(data: dict[str, str], _: User = Depends(get_current_user)):
+    """Multi-turn conversational analytics."""
+    session_id = data.get("session_id", "default")
+    question = data.get("question", "")
+    result = conversational_query(session_id, question)
+    return {"result": result}
+
+
+@router.post("/copilot/conversation/clear")
+async def clear_conversation(data: dict[str, str], _: User = Depends(get_current_user)):
+    """Clear conversation history."""
+    clear_conversation_history(data.get("session_id", "default"))
+    return {"cleared": True}
+
+
+@router.get("/dashboard/generate")
+async def generate_dashboard(focus: str = Query("general"), _: User = Depends(get_current_user)):
+    """Generate an AI-recommended dashboard configuration."""
+    dashboard = generate_ai_dashboard(focus=focus)
+    return {"dashboard": dashboard}

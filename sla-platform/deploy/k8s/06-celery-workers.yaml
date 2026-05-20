@@ -1,0 +1,185 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: celery-default
+  namespace: sla-platform
+  labels:
+    app: sla-celery
+    queue: default
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: sla-celery
+      queue: default
+  template:
+    metadata:
+      labels:
+        app: sla-celery
+        queue: default
+    spec:
+      containers:
+        - name: worker
+          image: sla-platform/backend:1.1.0
+          imagePullPolicy: IfNotPresent
+          command: ["celery", "-A", "app.core.celery_app", "worker", "-Q", "default", "-c", "4", "--max-tasks-per-child", "1000"]
+          envFrom:
+            - configMapRef:
+                name: sla-config
+            - secretRef:
+                name: sla-secrets
+          resources:
+            requests:
+              cpu: "500m"
+              memory: "512Mi"
+            limits:
+              cpu: "2000m"
+              memory: "1Gi"
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: celery-sla-compute
+  namespace: sla-platform
+  labels:
+    app: sla-celery
+    queue: sla_compute
+spec:
+  replicas: 4
+  selector:
+    matchLabels:
+      app: sla-celery
+      queue: sla_compute
+  template:
+    metadata:
+      labels:
+        app: sla-celery
+        queue: sla_compute
+    spec:
+      containers:
+        - name: worker
+          image: sla-platform/backend:1.1.0
+          command: ["celery", "-A", "app.core.celery_app", "worker", "-Q", "sla_compute", "-c", "4", "--max-tasks-per-child", "500"]
+          envFrom:
+            - configMapRef:
+                name: sla-config
+            - secretRef:
+                name: sla-secrets
+          resources:
+            requests:
+              cpu: "1000m"
+              memory: "1Gi"
+            limits:
+              cpu: "4000m"
+              memory: "2Gi"
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: celery-analytics
+  namespace: sla-platform
+  labels:
+    app: sla-celery
+    queue: analytics
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: sla-celery
+      queue: analytics
+  template:
+    metadata:
+      labels:
+        app: sla-celery
+        queue: analytics
+    spec:
+      containers:
+        - name: worker
+          image: sla-platform/backend:1.1.0
+          command: ["celery", "-A", "app.core.celery_app", "worker", "-Q", "analytics", "-c", "2"]
+          envFrom:
+            - configMapRef:
+                name: sla-config
+            - secretRef:
+                name: sla-secrets
+          resources:
+            requests:
+              cpu: "500m"
+              memory: "512Mi"
+            limits:
+              cpu: "1000m"
+              memory: "1Gi"
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: celery-maintenance
+  namespace: sla-platform
+  labels:
+    app: sla-celery
+    queue: maintenance
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: sla-celery
+      queue: maintenance
+  template:
+    metadata:
+      labels:
+        app: sla-celery
+        queue: maintenance
+    spec:
+      containers:
+        - name: worker
+          image: sla-platform/backend:1.1.0
+          command: ["celery", "-A", "app.core.celery_app", "worker", "-Q", "maintenance", "-c", "1", "--beat"]
+          envFrom:
+            - configMapRef:
+                name: sla-config
+            - secretRef:
+                name: sla-secrets
+          resources:
+            requests:
+              cpu: "200m"
+              memory: "256Mi"
+            limits:
+              cpu: "500m"
+              memory: "512Mi"
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: celery-imports
+  namespace: sla-platform
+  labels:
+    app: sla-celery
+    queue: imports
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: sla-celery
+      queue: imports
+  template:
+    metadata:
+      labels:
+        app: sla-celery
+        queue: imports
+    spec:
+      containers:
+        - name: worker
+          image: sla-platform/backend:1.1.0
+          command: ["celery", "-A", "app.core.celery_app", "worker", "-Q", "imports", "-c", "2"]
+          envFrom:
+            - configMapRef:
+                name: sla-config
+            - secretRef:
+                name: sla-secrets
+          resources:
+            requests:
+              cpu: "500m"
+              memory: "512Mi"
+            limits:
+              cpu: "2000m"
+              memory: "1Gi"

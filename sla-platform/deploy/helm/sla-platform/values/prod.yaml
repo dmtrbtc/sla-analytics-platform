@@ -1,0 +1,21 @@
+global:
+  environment: production
+  domain: sla.example.com
+
+backend:
+  replicas: 5
+  autoscaling:
+    minReplicas: 3
+    maxReplicas: 20
+
+celery:
+  slaComputeWorkers: 8
+  importWorkers: 4
+
+postgres:
+  storage: 500Gi
+
+monitoring:
+  grafana: true
+  prometheus: true
+  alertRules: true

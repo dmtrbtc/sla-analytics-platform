@@ -1,0 +1,82 @@
+groups:
+  - name: sla_alerts
+    rules:
+      - alert: SLABreachRateHigh
+        expr: rate(sla_breaches_total[5m]) > 10
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High SLA breach rate ({{ $value }}/s)"
+
+      - alert: QueueDepthCritical
+        expr: celery_queue_length > 1000
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Celery queue depth > 1000"
+
+      - alert: WorkerDown
+        expr: up{job="celery-worker"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Celery worker {{ $labels.instance }} is down"
+
+      - alert: RedisDown
+        expr: redis_up == 0
+        for: 30s
+        labels:
+          severity: critical
+        annotations:
+          summary: "Redis {{ $labels.instance }} is down"
+
+      - alert: PostgresReplicaLag
+        expr: pg_replication_lag_seconds > 60
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Postgres replica lag > 60s"
+
+      - alert: DegradedMode
+        expr: degradation_mode > 0
+        for: 1m
+        labels:
+          severity: warning
+        annotations:
+          summary: "System running in degraded mode ({{ $value }})"
+
+      - alert: ApiErrorRateHigh
+        expr: rate(http_requests_total{status=~"5.."}[5m]) > 0.05
+        for: 3m
+        labels:
+          severity: critical
+        annotations:
+          summary: "API 5xx error rate > 5%"
+
+      - alert: HighMemoryUsage
+        expr: process_memory_bytes / 1024 / 1024 > 500
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Process memory > 500 MB"
+
+      - alert: ExportEncryptionFailure
+        expr: rate(export_encryption_failures_total[5m]) > 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Export encryption failures detected"
+
+      - alert: AuditIngestionLag
+        expr: time() - max(audit_log_timestamp_seconds) > 300
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Audit log ingestion lag > 5 min"

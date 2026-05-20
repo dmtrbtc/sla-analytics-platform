@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: sla-config
+  namespace: sla-platform
+data:
+  DATABASE_URL: "postgresql+asyncpg://sla_user:sla_password@postgres-ha:5432/sla_platform"
+  REDIS_HOST: "redis-ha"
+  REDIS_PORT: "6379"
+  CELERY_BROKER_URL: "redis://redis-ha:6379/0"
+  CELERY_RESULT_BACKEND: "redis://redis-ha:6379/1"
+  CORS_ORIGINS: '["https://sla.example.com"]'
+  DATA_DIR: "/data"
+  PROMETHEUS_MULTIPROC_DIR: "/tmp"

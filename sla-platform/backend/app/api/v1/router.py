@@ -17,6 +17,11 @@ from app.api.v1 import (
     organizations,
     operations,
     security,
+    billing,
+    rbac_api,
+    integrations_api,
+    compliance_api,
+    ha,
 )
 
 api_router = APIRouter()
@@ -41,5 +46,10 @@ protected_router.include_router(diagnostics.router, prefix="/system", tags=["sys
 protected_router.include_router(organizations.router, prefix="/admin", tags=["admin"])
 protected_router.include_router(operations.router, prefix="/ops", tags=["operations"])
 protected_router.include_router(security.router, prefix="/security", tags=["security"])
+protected_router.include_router(billing.router, prefix="/billing", tags=["billing"])
+protected_router.include_router(rbac_api.router, prefix="/rbac", tags=["rbac"])
+protected_router.include_router(integrations_api.router, prefix="/integrations", tags=["integrations"])
+protected_router.include_router(compliance_api.router, prefix="/compliance", tags=["compliance"])
+protected_router.include_router(ha.router, prefix="/ha", tags=["ha"])
 
 api_router.include_router(protected_router)

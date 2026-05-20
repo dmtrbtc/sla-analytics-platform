@@ -1,0 +1,65 @@
+# SLA Platform Helm values
+# Override per environment: -f values/prod.yaml
+
+global:
+  environment: production
+  domain: sla.example.com
+
+backend:
+  replicas: 3
+  image: sla-platform/backend:1.1.0
+  resources:
+    requests:
+      cpu: "500m"
+      memory: "512Mi"
+    limits:
+      cpu: "2000m"
+      memory: "1Gi"
+  autoscaling:
+    enabled: true
+    minReplicas: 2
+    maxReplicas: 10
+    targetCPUUtilizationPercentage: 70
+
+frontend:
+  replicas: 2
+  image: sla-platform/frontend:1.1.0
+  resources:
+    requests:
+      cpu: "100m"
+      memory: "128Mi"
+    limits:
+      cpu: "500m"
+      memory: "512Mi"
+
+celery:
+  importWorkers: 2
+  slaComputeWorkers: 4
+  analyticsWorkers: 2
+  maintenanceWorkers: 1
+  defaultWorkers: 2
+
+postgres:
+  replicas: 2
+  storage: 100Gi
+  resources:
+    requests:
+      cpu: "1000m"
+      memory: "2Gi"
+    limits:
+      cpu: "4000m"
+      memory: "8Gi"
+
+redis:
+  replicas: 3
+  storage: 10Gi
+
+ingress:
+  enabled: true
+  tls: true
+  clusterIssuer: letsencrypt-prod
+
+monitoring:
+  grafana: true
+  prometheus: true
+  alertRules: true

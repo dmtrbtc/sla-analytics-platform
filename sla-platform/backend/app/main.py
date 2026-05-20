@@ -25,6 +25,8 @@ async def lifespan(app: FastAPI):
     from app.seeds import seed_admin_user, seed_sla_definitions
     seed_sla_definitions()
     seed_admin_user()
+    from app.services.billing.usage import seed_default_plans
+    seed_default_plans()
     yield
     # Clean shutdown
     logger.info("Shutting down SLA Analytics Platform")

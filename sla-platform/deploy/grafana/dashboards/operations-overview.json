@@ -1,0 +1,54 @@
+{
+  "__inputs": [],
+  "__requires": [],
+  "title": "SLA Operations Overview",
+  "uid": "sla-operations-overview",
+  "version": 1,
+  "panels": [
+    {
+      "title": "Active SLA Breaches",
+      "type": "stat",
+      "datasource": "Prometheus",
+      "targets": [{"expr": "sum(sla_breaches_total)", "legendFormat": "Breaches"}],
+      "gridPos": {"x": 0, "y": 0, "w": 4, "h": 4}
+    },
+    {
+      "title": "Avg Response Time (24h)",
+      "type": "gauge",
+      "datasource": "Prometheus",
+      "targets": [{"expr": "avg(sla_response_time_seconds)", "legendFormat": "Response"}],
+      "gridPos": {"x": 4, "y": 0, "w": 4, "h": 4}
+    },
+    {
+      "title": "Queue Depth",
+      "type": "stat",
+      "datasource": "Prometheus",
+      "targets": [{"expr": "sum(celery_queue_length)", "legendFormat": "Queue"}],
+      "gridPos": {"x": 8, "y": 0, "w": 4, "h": 4}
+    },
+    {
+      "title": "SLA Compliance Rate",
+      "type": "timeseries",
+      "datasource": "Prometheus",
+      "targets": [{"expr": "sla_compliance_rate", "legendFormat": "Compliance"}],
+      "gridPos": {"x": 0, "y": 4, "w": 12, "h": 8}
+    },
+    {
+      "title": "Imports by Status",
+      "type": "piechart",
+      "datasource": "Prometheus",
+      "targets": [{"expr": "sum by (status) (imports_total)", "legendFormat": "{{status}}"}],
+      "gridPos": {"x": 0, "y": 12, "w": 8, "h": 8}
+    },
+    {
+      "title": "Worker CPU / Memory",
+      "type": "timeseries",
+      "datasource": "Prometheus",
+      "targets": [
+        {"expr": "avg(process_cpu_usage)", "legendFormat": "CPU"},
+        {"expr": "avg(process_memory_bytes)", "legendFormat": "Memory"}
+      ],
+      "gridPos": {"x": 8, "y": 12, "w": 8, "h": 8}
+    }
+  ]
+}
