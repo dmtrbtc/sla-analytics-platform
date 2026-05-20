@@ -8,8 +8,10 @@ import Teams from "./pages/Teams";
 import SLAConfig from "./pages/SLAConfig";
 
 const Dashboard = lazy(() => import("./pages/Dashboard"));
+const DashboardExecutive = lazy(() => import("./pages/DashboardExecutive"));
 const DashboardTeam = lazy(() => import("./pages/DashboardTeam"));
 const DashboardOps = lazy(() => import("./pages/DashboardOps"));
+const Wallboard = lazy(() => import("./pages/Wallboard"));
 const Tickets = lazy(() => import("./pages/Tickets"));
 const TicketDetail = lazy(() => import("./pages/TicketDetail"));
 const Imports = lazy(() => import("./pages/Imports"));
@@ -35,8 +37,10 @@ export default function App() {
         <Route element={<AppLayout />}>
           <Route path="/" element={<Navigate to="/dashboard" replace />} />
           <Route path="/dashboard" element={<SuspenseWrapper><Dashboard /></SuspenseWrapper>} />
+          <Route path="/dashboard/executive" element={<SuspenseWrapper><DashboardExecutive /></SuspenseWrapper>} />
           <Route path="/dashboard/teams" element={<SuspenseWrapper><DashboardTeam /></SuspenseWrapper>} />
           <Route path="/dashboard/ops" element={<SuspenseWrapper><DashboardOps /></SuspenseWrapper>} />
+          <Route path="/wallboard" element={<SuspenseWrapper><Wallboard /></SuspenseWrapper>} />
           <Route path="/tickets" element={<SuspenseWrapper><Tickets /></SuspenseWrapper>} />
           <Route path="/tickets/:id" element={<SuspenseWrapper><TicketDetail /></SuspenseWrapper>} />
           <Route path="/imports" element={<SuspenseWrapper><Imports /></SuspenseWrapper>} />

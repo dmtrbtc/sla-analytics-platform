@@ -248,3 +248,7 @@ def configure_observability(app: FastAPI) -> None:
 
     # Request timing
     app.add_middleware(RequestTimingMiddleware)
+
+    # OpenTelemetry tracing
+    from app.core.tracing import TracingMiddleware
+    app.add_middleware(TracingMiddleware)

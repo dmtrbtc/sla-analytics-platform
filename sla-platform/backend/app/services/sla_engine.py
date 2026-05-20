@@ -19,6 +19,13 @@ from app.services.sla.rule_engine import match_sla
 from app.services.sla.metrics_engine import MetricsEngine
 from app.services.sla.timeline_engine import build_timeline, explain_ticket_timeline
 
+try:
+    from app.services.sla.batch_metrics_engine import batch_compute_for_import
+    _HAS_BATCH = True
+except ImportError:
+    _HAS_BATCH = False
+    batch_compute_for_import = None
+
 logger = logging.getLogger(__name__)
 
 
@@ -55,20 +62,39 @@ class SLAEngine:
         metrics_written = 0
         errors: list[dict] = []
 
-        for ticket in tickets:
-            try:
-                sla_def = match_sla(ticket, sla_defs)
-                if not sla_def:
+        if _HAS_BATCH and len(tickets) > 10:
+            for sla_def in sla_defs:
+                matched = []
+                for t in tickets:
+                    try:
+                        sd = match_sla(t, sla_defs)
+                        if sd and sd.id == sla_def.id:
+                            matched.append(t)
+                    except Exception:
+                        continue
+                if not matched:
                     continue
+                try:
+                    result = batch_compute_for_import(db, matched, sla_def, import_id)
+                    metrics_written += result.get("metrics_written", 0)
+                except Exception as exc:
+                    logger.exception("Batch SLA computation failed for sla_def %s", sla_def.name)
+                    errors.append({"sla_def": sla_def.name, "error": str(exc)})
+        else:
+            for ticket in tickets:
+                try:
+                    sla_def = match_sla(ticket, sla_defs)
+                    if not sla_def:
+                        continue
 
-                metrics = MetricsEngine.compute_all(db, ticket, sla_def, import_id)
-                if metrics:
-                    for m in metrics:
-                        db.add(m)
-                    metrics_written += len(metrics)
-            except Exception as exc:
-                logger.exception("SLA computation failed for ticket %s", ticket.ticket_id)
-                errors.append({"ticket_id": ticket.ticket_id, "error": str(exc)})
+                    metrics = MetricsEngine.compute_all(db, ticket, sla_def, import_id)
+                    if metrics:
+                        for m in metrics:
+                            db.add(m)
+                        metrics_written += len(metrics)
+                except Exception as exc:
+                    logger.exception("SLA computation failed for ticket %s", ticket.ticket_id)
+                    errors.append({"ticket_id": ticket.ticket_id, "error": str(exc)})
 
         if metrics_written > 0:
             db.commit()

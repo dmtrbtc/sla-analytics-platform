@@ -13,6 +13,10 @@ from app.api.v1 import (
     analytics,
     ai_ops,
     incidents,
+    diagnostics,
+    organizations,
+    operations,
+    security,
 )
 
 api_router = APIRouter()
@@ -33,5 +37,9 @@ protected_router.include_router(audit.router, prefix="/audit", tags=["audit"])
 protected_router.include_router(analytics.router, prefix="/analytics", tags=["analytics"])
 protected_router.include_router(ai_ops.router, prefix="/ai", tags=["ai"])
 protected_router.include_router(incidents.router, prefix="/ops", tags=["incidents"])
+protected_router.include_router(diagnostics.router, prefix="/system", tags=["system"])
+protected_router.include_router(organizations.router, prefix="/admin", tags=["admin"])
+protected_router.include_router(operations.router, prefix="/ops", tags=["operations"])
+protected_router.include_router(security.router, prefix="/security", tags=["security"])
 
 api_router.include_router(protected_router)

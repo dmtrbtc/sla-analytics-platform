@@ -27,6 +27,11 @@ celery_app.conf.update(
         "app.tasks.import_tasks",
         "app.tasks.report_tasks",
         "app.tasks.maintenance_tasks",
+        "app.tasks.analytics_tasks",
+        "app.tasks.export_tasks",
+        "app.tasks.notification_tasks",
+        "app.services.sla.compute_orchestrator",
+        "app.services.operations.self_healing",
     ],
     task_default_priority=5,
     task_queue_max_priority=10,
@@ -34,10 +39,40 @@ celery_app.conf.update(
     worker_max_memory_per_child=300000,
     task_soft_time_limit=3600,
     task_time_limit=3900,
+    beat_schedule={
+        "refresh-materialized-views-every-5min": {
+            "task": "app.tasks.maintenance_tasks.refresh_materialized_views",
+            "schedule": 300.0,
+        },
+        "stale-view-check-every-1h": {
+            "task": "app.tasks.analytics_tasks.stale_view_check",
+            "schedule": 3600.0,
+        },
+        "auto-refresh-extended-views-every-15min": {
+            "task": "app.tasks.analytics_tasks.auto_refresh_extended_views",
+            "schedule": 900.0,
+        },
+        "auto-heal-check-every-5min": {
+            "task": "app.services.operations.self_healing.auto_heal_check",
+            "schedule": 300.0,
+        },
+        "analytics-cache-warm-every-30min": {
+            "task": "app.tasks.analytics_tasks.warm_analytics_cache",
+            "schedule": 1800.0,
+        },
+        "purge-old-exports-daily": {
+            "task": "app.tasks.export_tasks.purge_old_exports",
+            "schedule": 86400.0,
+        },
+    },
     task_routes={
         "app.tasks.import_tasks.*": {"queue": "imports"},
         "app.tasks.report_tasks.*": {"queue": "reports"},
         "app.tasks.maintenance_tasks.*": {"queue": "maintenance"},
+        "app.tasks.analytics_tasks.*": {"queue": "analytics"},
+        "app.tasks.export_tasks.*": {"queue": "exports"},
+        "app.tasks.notification_tasks.*": {"queue": "notifications"},
+        "app.services.sla.compute_orchestrator.*": {"queue": "sla_compute"},
     },
     task_annotations={
         "app.tasks.import_tasks.run_import_pipeline": {
