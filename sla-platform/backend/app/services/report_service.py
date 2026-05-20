@@ -356,7 +356,7 @@ class ReportService:
         breach_pct = round(sla_breached / sla_total * 100, 1) if sla_total else 0.0
         avg_response = (
             db.query(func.avg(SLAMetric.metric_seconds))
-            .filter(SLAMetric.metric_name == "response_time", SLAMetric.metric_seconds.isnot(None))
+            .filter(SLAMetric.metric_name == "first_response_time", SLAMetric.metric_seconds.isnot(None))
             .scalar() or 0
         )
         avg_resolution = (

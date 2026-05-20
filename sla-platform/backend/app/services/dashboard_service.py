@@ -67,7 +67,9 @@ class DashboardService:
                 "p99": round(float(row.p99), 2) if row.p99 else 0.0,
             }
 
-        response_stats = await _metric_stats("response_time")
+        # V2 engine emits "first_response_time"; the older "response_time"
+        # name was never produced, so this dashboard tile was always empty.
+        response_stats = await _metric_stats("first_response_time")
         resolution_stats = await _metric_stats("resolution_time")
 
         # Completed imports
@@ -222,7 +224,10 @@ class DashboardService:
             ).all()
             return [{"period": str(r[0]), "count": r[1]} for r in rows]
 
-        elif metric in ("response_time", "resolution_time"):
+        elif metric in ("response_time", "resolution_time", "first_response_time"):
+            # The V2 engine emits "first_response_time", not "response_time".
+            # Accept both names from the API for backward compatibility.
+            actual_metric = "first_response_time" if metric == "response_time" else metric
             rows = (
                 await db.execute(
                     select(
@@ -230,7 +235,7 @@ class DashboardService:
                         func.avg(SLAMetric.metric_seconds),
                     )
                     .where(
-                        SLAMetric.metric_name == metric,
+                        SLAMetric.metric_name == actual_metric,
                         SLAMetric.metric_seconds.isnot(None),
                         SLAMetric.computed_at >= since,
                     )
@@ -238,7 +243,7 @@ class DashboardService:
                     .order_by(text("period"))
                 )
             ).all()
-            return [{"period": str(r[0]), "avg_seconds": round(float(r[1]), 2)} for r in rows]
+            return [{"period": str(r[0]), "avg_seconds": round(float(r[1] or 0), 2)} for r in rows]
 
         return []
 
@@ -293,7 +298,7 @@ class DashboardService:
                     ).label("sla_breached"),
                     func.sum(
                         case(
-                            (SLAMetric.metric_name.in_(["response_time"]), 1),
+                            (SLAMetric.metric_name.in_(["first_response_time", "response_time"]), 1),
                             else_=0,
                         )
                     ).label("resp_total"),
@@ -301,7 +306,7 @@ class DashboardService:
                         case(
                             (
                                 and_(
-                                    SLAMetric.metric_name.in_(["response_time"]),
+                                    SLAMetric.metric_name.in_(["first_response_time", "response_time"]),
                                     SLAMetric.sla_breached == True,
                                 ),
                                 1,

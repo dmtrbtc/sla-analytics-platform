@@ -37,7 +37,7 @@ ALLOWED_MIMES = {
 MAX_FILE_SIZE = 100 * 1024 * 1024
 
 
-@router.post("/attachments/upload")
+@router.post("/upload")
 async def upload_attachment(
     file: UploadFile = File(...),
     ticket_id: int = Form(None),
@@ -92,7 +92,7 @@ async def upload_attachment(
         db.close()
 
 
-@router.get("/attachments/{attachment_id}")
+@router.get("/{attachment_id}")
 async def get_attachment(attachment_id: str, _: User = Depends(get_current_user)):
     """Get attachment metadata and serve file."""
     db = sync_session_factory()
@@ -122,7 +122,7 @@ async def get_attachment(attachment_id: str, _: User = Depends(get_current_user)
         db.close()
 
 
-@router.get("/attachments")
+@router.get("")
 async def list_attachments(
     ticket_id: int = Query(None),
     import_id: str = Query(None),
@@ -150,7 +150,7 @@ async def list_attachments(
         db.close()
 
 
-@router.delete("/attachments/{attachment_id}")
+@router.delete("/{attachment_id}")
 async def delete_attachment(attachment_id: str, _: User = Depends(require_admin)):
     """Delete an attachment (file + metadata)."""
     db = sync_session_factory()

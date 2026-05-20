@@ -61,7 +61,14 @@ async def sla_trend(
     days: int = Query(30, ge=1, le=365),
     db: AsyncSession = Depends(get_db),
 ):
-    since = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
+    """Daily SLA breach trend over the requested window.
+
+    Previously this endpoint anchored ``since`` at today's midnight and
+    ignored ``days`` — yielding at most one data point and an empty
+    dashboard chart. We now honor ``days`` so the trend actually trends.
+    """
+    from datetime import timedelta
+    since = datetime.utcnow() - timedelta(days=days)
     rows = (
         await db.execute(
             select(
@@ -76,7 +83,7 @@ async def sla_trend(
     ).all()
     return {
         "trend": [
-            {"date": str(r[0].date()), "total": r[1], "breached": r[2]}
+            {"date": str(r[0].date()), "total": r[1] or 0, "breached": int(r[2] or 0)}
             for r in rows
         ]
     }
@@ -140,9 +147,11 @@ async def approaching_breach(
     limit: int = Query(20, le=100),
     db: AsyncSession = Depends(get_db),
 ):
+    # V2 engine emits "first_response_time"; the legacy "response_time"
+    # name was never produced, so old filter returned nothing.
     q = select(SLAMetric).where(
         SLAMetric.sla_breached == False,
-        SLAMetric.metric_name.in_(["response_time", "resolution_time"]),
+        SLAMetric.metric_name.in_(["first_response_time", "resolution_time"]),
     ).order_by(SLAMetric.metric_seconds.desc().nullslast()).limit(limit)
     rows = (await db.execute(q)).scalars().all()
     return {

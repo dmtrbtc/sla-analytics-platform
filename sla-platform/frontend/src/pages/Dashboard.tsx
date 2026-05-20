@@ -45,7 +45,7 @@ export default function Dashboard() {
   const { data: slaTrend } = useQuery({
     queryKey: ["sla-trend", days],
     queryFn: async () => {
-      const resp = await dashboardsApi.slaTrend();
+      const resp = await dashboardsApi.slaTrend({ days });
       return resp.data.trend;
     },
     refetchInterval: 60_000,

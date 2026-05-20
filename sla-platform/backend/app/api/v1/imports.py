@@ -140,6 +140,7 @@ async def start_processing(
 @router.post("/sessions/{session_id}/reprocess", response_model=PipelineStatusResponse)
 async def reprocess_session(
     session_id: UUID,
+    background_tasks: BackgroundTasks,
     db: AsyncSession = Depends(get_db),
     _: User = Depends(require_admin),
 ):
@@ -153,7 +154,10 @@ async def reprocess_session(
     db.add(session)
     await db.commit()
 
-    background_tasks.add_task(_sync_audit, "import_reprocessed", "import_session", str(session.id), {"status": "restarted"})
+    background_tasks.add_task(
+        _sync_audit, "import_reprocessed", "import_session", str(session.id),
+        {"status": "restarted"},
+    )
     try:
         await ImportService.start_processing(db, session_id)
     except ValueError as e:
@@ -222,6 +226,14 @@ def _detect_file_type(filename: str) -> Optional[str]:
 async def _stream_upload_to_disk(
     upload: UploadFile, session_id: UUID, file_type: str
 ) -> tuple[str, int]:
+    """Stream the upload to disk in fixed-size chunks.
+
+    Notes:
+    - Starlette's UploadFile has no public ``iter_chunks`` on this version
+      (0.37). Use ``await upload.read(CHUNK)`` in a loop instead.
+    - Row count = total newlines minus the header line (clamped to >= 0).
+    - Hard cap at 100MB to keep imports bounded.
+    """
     filename = upload.filename or f"{file_type}.csv"
     from app.utils.file_validator import validate_extension, validate_mime
     if not validate_extension(filename):
@@ -235,21 +247,21 @@ async def _stream_upload_to_disk(
     safe_name = sanitize_filename(filename)
     dest = import_dir / safe_name
 
+    CHUNK = 1024 * 1024  # 1 MiB
+    MAX_BYTES = 100 * 1024 * 1024
     h = hashlib.sha256()
-    row_count = 0
-    header_skipped = False
+    newlines = 0
     with open(dest, "wb") as f:
-        async for chunk in upload.iter_chunks():
-            data = chunk[0] if isinstance(chunk, tuple) else chunk
+        while True:
+            data = await upload.read(CHUNK)
             if not data:
                 break
             total_size += len(data)
-            if total_size > 100 * 1024 * 1024:
+            if total_size > MAX_BYTES:
                 raise HTTPException(status_code=413, detail="File exceeds maximum size of 100MB")
             f.write(data)
             h.update(data)
-            if not header_skipped:
-                header_skipped = True
-            else:
-                row_count += data.count(b"\n")
+            newlines += data.count(b"\n")
+    # Subtract 1 for the header row; clamp to 0 in case file is empty or unterminated.
+    row_count = max(newlines - 1, 0)
     return h.hexdigest(), row_count

@@ -9,7 +9,8 @@ export const dashboardsApi = {
     client.get("/dashboards/teams", { params }),
   ticketFlow: (params?: Record<string, unknown>) =>
     client.get("/dashboards/ticket-flow", { params }),
-  slaTrend: () => client.get("/dashboards/sla-trend"),
+  slaTrend: (params?: Record<string, unknown>) =>
+    client.get("/dashboards/sla-trend", { params }),
   byQueue: () => client.get("/dashboards/by-queue"),
   reassignments: () => client.get("/dashboards/reassignments"),
   approachingBreach: () => client.get("/dashboards/approaching-breach"),

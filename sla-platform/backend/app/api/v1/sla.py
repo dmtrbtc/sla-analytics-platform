@@ -258,7 +258,7 @@ async def sla_summary(
                 func.count(SLAMetric.id).label("total"),
                 func.sum(case((SLAMetric.sla_breached == True, 1), else_=0)).label("breached"),
                 func.sum(
-                    case((SLAMetric.metric_name.in_(["response", "response_time"]), 1), else_=0)
+                    case((SLAMetric.metric_name.in_(["first_response_time", "response", "response_time"]), 1), else_=0)
                 ).label("response_count"),
                 func.sum(
                     case((SLAMetric.metric_name.in_(["resolution", "resolution_time"]), 1), else_=0)
@@ -400,7 +400,7 @@ async def list_queue_breaches(
                     case(
                         (
                             and_(
-                                SLAMetric.metric_name.in_(["response_time", "response"]),
+                                SLAMetric.metric_name.in_(["first_response_time", "response_time", "response"]),
                                 SLAMetric.sla_breached == True,
                             ),
                             1,
@@ -423,7 +423,7 @@ async def list_queue_breaches(
                 func.avg(
                     case(
                         (
-                            SLAMetric.metric_name.in_(["response_time", "response"]),
+                            SLAMetric.metric_name.in_(["first_response_time", "response_time", "response"]),
                             SLAMetric.metric_seconds,
                         ),
                     )
@@ -444,7 +444,7 @@ async def list_queue_breaches(
                     case(
                         (
                             and_(
-                                SLAMetric.metric_name.in_(["response_time", "resolution_time", "response", "resolution"]),
+                                SLAMetric.metric_name.in_(["first_response_time", "response_time", "resolution_time", "response", "resolution"]),
                                 SLAMetric.sla_breached == True,
                             ),
                             1,

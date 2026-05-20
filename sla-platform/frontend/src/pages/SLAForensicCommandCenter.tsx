@@ -104,8 +104,8 @@ export default function SLAForensicCommandCenter() {
   }, [s.queues_top_blackholes, colors]);
 
   return (
-    <div style={{ padding: spacing.lg }}>
-      <Title level={3} style={{ marginBottom: spacing.xs }}>
+    <div style={{ padding: spacing[6], maxWidth: 1500, margin: "0 auto" }}>
+      <Title level={3} style={{ marginBottom: spacing[2] }}>
         <RadarChartOutlined /> Командный центр форензики SLA
       </Title>
       <Text type="secondary">
@@ -114,9 +114,9 @@ export default function SLAForensicCommandCenter() {
       </Text>
 
       {/* ── KPI strip ────────────────────────────────────────────── */}
-      <Row gutter={[16, 16]} style={{ marginTop: spacing.md }}>
+      <Row gutter={[16, 16]} style={{ marginTop: spacing[4] }}>
         <Col xs={24} md={6}>
-          <Card style={cardStyle(colors)} bordered={false}>
+          <Card style={cardStyle} bordered={false}>
             <Statistic
               title="Wall-clock SLA нарушено"
               value={k.wall_breached || 0}
@@ -129,7 +129,7 @@ export default function SLAForensicCommandCenter() {
           </Card>
         </Col>
         <Col xs={24} md={6}>
-          <Card style={cardStyle(colors)} bordered={false}>
+          <Card style={cardStyle} bordered={false}>
             <Statistic
               title="Без owner'а (часов)"
               value={Math.round((k.no_owner_total || 0) / 3600)}
@@ -142,7 +142,7 @@ export default function SLAForensicCommandCenter() {
           </Card>
         </Col>
         <Col xs={24} md={6}>
-          <Card style={cardStyle(colors)} bordered={false}>
+          <Card style={cardStyle} bordered={false}>
             <Statistic
               title="Тихих нарушений"
               value={s.silent_breaches?.length || 0}
@@ -155,7 +155,7 @@ export default function SLAForensicCommandCenter() {
           </Card>
         </Col>
         <Col xs={24} md={6}>
-          <Card style={cardStyle(colors)} bordered={false}>
+          <Card style={cardStyle} bordered={false}>
             <Statistic
               title="Hot-potato тикетов"
               value={s.hot_potato?.length || 0}
@@ -170,15 +170,15 @@ export default function SLAForensicCommandCenter() {
       </Row>
 
       {/* ── Top blame queues + loss pie ──────────────────────────── */}
-      <Row gutter={[16, 16]} style={{ marginTop: spacing.md }}>
+      <Row gutter={[16, 16]} style={{ marginTop: spacing[4] }}>
         <Col xs={24} lg={14}>
-          <Card style={cardStyle(colors)} bordered={false}
+          <Card style={cardStyle} bordered={false}
                 title={<><AlertOutlined /> Топ очередей чёрных дыр (black-hole score)</>}>
             <ReactEChartsCore option={bhBar} style={{ height: 360 }} />
           </Card>
         </Col>
         <Col xs={24} lg={10}>
-          <Card style={cardStyle(colors)} bordered={false}
+          <Card style={cardStyle} bordered={false}
                 title={<><FireOutlined /> Где теряется время</>}>
             <ReactEChartsCore option={lossPie} style={{ height: 360 }} />
           </Card>
@@ -186,13 +186,13 @@ export default function SLAForensicCommandCenter() {
       </Row>
 
       {/* ── Routing chaos sankey ─────────────────────────────────── */}
-      <Card style={{ ...cardStyle(colors), marginTop: spacing.md }} bordered={false}
+      <Card style={{ ...cardStyle, marginTop: spacing[4] }} bordered={false}
             title={<><NodeIndexOutlined /> Карта маршрутов (transition graph)</>}>
         <ReactEChartsCore option={sankey} style={{ height: 460 }} />
       </Card>
 
       {/* ── Detail tables ─────────────────────────────────────────── */}
-      <Card style={{ ...cardStyle(colors), marginTop: spacing.md }} bordered={false}>
+      <Card style={{ ...cardStyle, marginTop: spacing[4] }} bordered={false}>
         <Tabs
           items={[
             {

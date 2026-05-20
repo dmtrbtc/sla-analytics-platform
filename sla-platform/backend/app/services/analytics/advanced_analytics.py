@@ -274,7 +274,9 @@ class AdvancedAnalytics:
             }
 
         return {
-            "mtta": await _stat("response_time"),
+            # SLA engine emits "first_response_time" — the old "response_time"
+            # name was never produced and gave permanently zero MTTA.
+            "mtta": await _stat("first_response_time"),
             "mttr": await _stat("resolution_time"),
             "period_days": days,
             "queue_filter": by_queue,
