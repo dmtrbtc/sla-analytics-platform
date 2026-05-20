@@ -1,0 +1,32 @@
+{
+  "closed_sample": 49,
+  "closed_breach_rate": 0.10204081632653061,
+  "open_total": 14764,
+  "open_solution_breached_now": 0,
+  "open_solution_breach_rate": 0.0,
+  "open_response_breached_now": 0,
+  "open_worst_breach_hours": 0.0,
+  "state_hours_top": {
+    "pending auto close+": 16874.988333333335,
+    "open": 14490.605277777779,
+    "pending reminder": 12917.123611111112,
+    "new": 2617.537222222222,
+    "pending auto close-": 433.0522222222222,
+    "closed successful": 25.43611111111111,
+    "merged": 0.13666666666666666,
+    "closed unsuccessful": 0.005555555555555556
+  },
+  "pending_share_of_lifecycle": 0.6382152824473519,
+  "no_owner_share": 0.6868507473424587,
+  "tickets_never_locked": 623,
+  "history_observed_tickets": 776,
+  "escalation_breakdown": {
+    "EscalationSolutionTimeStart": 316,
+    "EscalationResponseTimeNotifyBefore": 64,
+    "EscalationResponseTimeStart": 53,
+    "EscalationSolutionTimeNotifyBefore": 28,
+    "EscalationSolutionTimeStop": 8,
+    "EscalationResponseTimeStop": 2
+  },
+  "first_response_warned_then_never_responded": 2
+}

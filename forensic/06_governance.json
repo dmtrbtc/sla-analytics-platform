@@ -1,0 +1,270 @@
+{
+  "queue_breach_top10": [
+    {
+      "Очередь": "MBR-137-ServiceDesk",
+      "closed_n": 3674,
+      "breaches": 180,
+      "breach_rate": 0.04899292324442025
+    },
+    {
+      "Очередь": "MBR-137-OfficeAutomation",
+      "closed_n": 671,
+      "breaches": 80,
+      "breach_rate": 0.11922503725782414
+    },
+    {
+      "Очередь": "MBR-137-DC-WintelOperations",
+      "closed_n": 202,
+      "breaches": 80,
+      "breach_rate": 0.39603960396039606
+    },
+    {
+      "Очередь": "MBR-137-DC-LinuxOperations",
+      "closed_n": 162,
+      "breaches": 45,
+      "breach_rate": 0.2777777777777778
+    },
+    {
+      "Очередь": "MBR-137-AssetManagement-Plaza",
+      "closed_n": 250,
+      "breaches": 44,
+      "breach_rate": 0.176
+    },
+    {
+      "Очередь": "MBR-137-Workplace-Plaza",
+      "closed_n": 459,
+      "breaches": 44,
+      "breach_rate": 0.09586056644880174
+    },
+    {
+      "Очередь": "MBR-137-DC-StorageOperations",
+      "closed_n": 133,
+      "breaches": 32,
+      "breach_rate": 0.24060150375939848
+    },
+    {
+      "Очередь": "MBR-137-DC-MonitoringSupport",
+      "closed_n": 71,
+      "breaches": 30,
+      "breach_rate": 0.4225352112676056
+    },
+    {
+      "Очередь": "MBR-137-Workplace-Veshki",
+      "closed_n": 366,
+      "breaches": 28,
+      "breach_rate": 0.07650273224043716
+    },
+    {
+      "Очередь": "MBR-137-Network",
+      "closed_n": 253,
+      "breaches": 26,
+      "breach_rate": 0.10276679841897234
+    }
+  ],
+  "sla_worst_breach_rate_top10": [
+    {
+      "SLA": "!DC Incident Bronze Prio3",
+      "n": 451,
+      "breaches": 216,
+      "breach_rate": 0.4789356984478936
+    },
+    {
+      "SLA": "!DC LinuxOperations General request",
+      "n": 39,
+      "breaches": 18,
+      "breach_rate": 0.46153846153846156
+    },
+    {
+      "SLA": "DC Request General Silver",
+      "n": 321,
+      "breaches": 74,
+      "breach_rate": 0.23052959501557632
+    },
+    {
+      "SLA": "Desktop Services Incident Plaza Prio1",
+      "n": 158,
+      "breaches": 26,
+      "breach_rate": 0.16455696202531644
+    },
+    {
+      "SLA": "Network Service Incident Prio3",
+      "n": 285,
+      "breaches": 45,
+      "breach_rate": 0.15789473684210525
+    },
+    {
+      "SLA": "Desktop Services request Plaza Prio2",
+      "n": 536,
+      "breaches": 75,
+      "breach_rate": 0.13992537313432835
+    },
+    {
+      "SLA": "Desktop Services request Veshki Prio2",
+      "n": 631,
+      "breaches": 72,
+      "breach_rate": 0.11410459587955626
+    },
+    {
+      "SLA": "Desktop Services Incident Veshki Prio2",
+      "n": 131,
+      "breaches": 12,
+      "breach_rate": 0.0916030534351145
+    },
+    {
+      "SLA": "ServiceDesk Request Prio2",
+      "n": 1521,
+      "breaches": 129,
+      "breach_rate": 0.08481262327416174
+    },
+    {
+      "SLA": "ServiceDesk Incident Prio3",
+      "n": 1190,
+      "breaches": 80,
+      "breach_rate": 0.06722689075630252
+    }
+  ],
+  "queue_entropy_top10": [
+    {
+      "prev_q": "MBR-137-ServiceDesk",
+      "out_n": 590,
+      "unique_targets": 36,
+      "entropy": 4.137200982165878
+    },
+    {
+      "prev_q": "MBR-137-Zabbix-Alerts",
+      "out_n": 62,
+      "unique_targets": 11,
+      "entropy": 2.667567652563076
+    },
+    {
+      "prev_q": "MBR-137-DC-LinuxOperations",
+      "out_n": 5,
+      "unique_targets": 5,
+      "entropy": 2.321928094887362
+    },
+    {
+      "prev_q": "MBR-137-Workplace-Plaza",
+      "out_n": 30,
+      "unique_targets": 8,
+      "entropy": 2.2746276985842497
+    },
+    {
+      "prev_q": "MBR-137-DC-StorageOperations",
+      "out_n": 6,
+      "unique_targets": 5,
+      "entropy": 2.2516291673878226
+    },
+    {
+      "prev_q": "MBR-137-DC-Virtualization",
+      "out_n": 5,
+      "unique_targets": 4,
+      "entropy": 1.9219280948873623
+    },
+    {
+      "prev_q": "MBR-137-OfficeAutomation",
+      "out_n": 27,
+      "unique_targets": 7,
+      "entropy": 1.7527152789797047
+    },
+    {
+      "prev_q": "MBR-137-AssetManagement-Plaza",
+      "out_n": 3,
+      "unique_targets": 3,
+      "entropy": 1.584962500721156
+    },
+    {
+      "prev_q": "MBR-137-DC-MonitoringSupport",
+      "out_n": 3,
+      "unique_targets": 3,
+      "entropy": 1.584962500721156
+    },
+    {
+      "prev_q": "MBR-137-AssetManagement_L2",
+      "out_n": 24,
+      "unique_targets": 5,
+      "entropy": 1.5760875253642985
+    }
+  ],
+  "blackhole_top10": [
+    {
+      "queue": "AZM-717-INFRASTRUCTURE",
+      "seg_count": 1,
+      "mean_h": 145.38694444444445,
+      "out_n": 0.0,
+      "no_owner_pct": 1.0,
+      "bh_index": 145.38694444444445
+    },
+    {
+      "queue": "Junk",
+      "seg_count": 1,
+      "mean_h": 145.38305555555556,
+      "out_n": 0.0,
+      "no_owner_pct": 1.0,
+      "bh_index": 145.38305555555556
+    },
+    {
+      "queue": "MBR-137-Non_Customer_Facing_Web_Support",
+      "seg_count": 1,
+      "mean_h": 145.38305555555556,
+      "out_n": 0.0,
+      "no_owner_pct": 1.0,
+      "bh_index": 145.38305555555556
+    },
+    {
+      "queue": "MBR-137-Cloud",
+      "seg_count": 2,
+      "mean_h": 121.41333333333334,
+      "out_n": 0.0,
+      "no_owner_pct": 1.0,
+      "bh_index": 121.41333333333334
+    },
+    {
+      "queue": "MBR-137-SAP_BI_Support",
+      "seg_count": 1,
+      "mean_h": 96.48333333333332,
+      "out_n": 0.0,
+      "no_owner_pct": 1.0,
+      "bh_index": 96.48333333333332
+    },
+    {
+      "queue": "MBM_RU_ Factoring",
+      "seg_count": 4,
+      "mean_h": 133.14895833333333,
+      "out_n": 0.0,
+      "no_owner_pct": 0.5459403498066336,
+      "bh_index": 72.69138888888888
+    },
+    {
+      "queue": "AZM-717-PRINT_ATOS",
+      "seg_count": 1,
+      "mean_h": 71.99416666666667,
+      "out_n": 0.0,
+      "no_owner_pct": 1.0,
+      "bh_index": 71.99416666666667
+    },
+    {
+      "queue": "MBR-137-SAP_Basis_support",
+      "seg_count": 26,
+      "mean_h": 62.29123931623931,
+      "out_n": 5.0,
+      "no_owner_pct": 0.9891454533604552,
+      "bh_index": 49.76603920118343
+    },
+    {
+      "queue": "MBM_RU_ODM",
+      "seg_count": 8,
+      "mean_h": 72.78298611111111,
+      "out_n": 0.0,
+      "no_owner_pct": 0.5003797438160439,
+      "bh_index": 36.41913194444446
+    },
+    {
+      "queue": "MBR_Customer_L3",
+      "seg_count": 20,
+      "mean_h": 41.42923611111111,
+      "out_n": 6.0,
+      "no_owner_pct": 1.0,
+      "bh_index": 29.000465277777774
+    }
+  ]
+}

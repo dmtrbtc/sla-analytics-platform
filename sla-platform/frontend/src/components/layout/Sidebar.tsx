@@ -31,6 +31,7 @@ export default function Sidebar() {
     { key: "/command-center", icon: <RadarChartOutlined />, label: "OTRS Command Center" },
     { key: "/queue-forensics", icon: <HeatMapOutlined />, label: "Queue Forensics" },
     { key: "/servicedesk", icon: <ApartmentOutlined />, label: "ServiceDesk Intel" },
+    { key: "/forensics", icon: <RadarChartOutlined />, label: "Форензика SLA V3" },
   ];
 
   const opsItems = [

@@ -1,0 +1,122 @@
+{
+  "owners_total": 49,
+  "owners_with_zero_actions": 4,
+  "tickets_only_root_owner": 0,
+  "tickets_with_history": 776,
+  "no_real_owner_pct": 0.0,
+  "reassignment_storms_gte3": 45,
+  "hot_potato_top": {
+    "144844": 24,
+    "145460": 9,
+    "145818": 9,
+    "145503": 9,
+    "145358": 9,
+    "145596": 9,
+    "144660": 9,
+    "145782": 8,
+    "145590": 8,
+    "145824": 8,
+    "145441": 8,
+    "145360": 7,
+    "145295": 7,
+    "145989": 7,
+    "145755": 7,
+    "145805": 7,
+    "145130": 6,
+    "145623": 6,
+    "145798": 6,
+    "145987": 6
+  },
+  "queue_accountability_top10": [
+    {
+      "queue_name": "MBR-137-ServiceDesk",
+      "hours_total": 15394.355277777779,
+      "hours_no_owner": 12826.145277777778,
+      "tickets": 517.0,
+      "no_owner_pct": 0.8331719676687409
+    },
+    {
+      "queue_name": "MBR-137-1C-Alfa-Auto",
+      "hours_total": 4252.894444444444,
+      "hours_no_owner": 4236.2011111111115,
+      "tickets": 100.0,
+      "no_owner_pct": 0.9960748300830417
+    },
+    {
+      "queue_name": "MBR-137-Network",
+      "hours_total": 2333.780277777778,
+      "hours_no_owner": 2307.9913888888887,
+      "tickets": 67.0,
+      "no_owner_pct": 0.9889497356994356
+    },
+    {
+      "queue_name": "MBM_RU_AppSupport",
+      "hours_total": 3517.1475,
+      "hours_no_owner": 1610.5130555555556,
+      "tickets": 52.0,
+      "no_owner_pct": 0.4579031887504165
+    },
+    {
+      "queue_name": "MBR-137-SAP_Basis_support",
+      "hours_total": 1619.572222222222,
+      "hours_no_owner": 1601.9925,
+      "tickets": 21.0,
+      "no_owner_pct": 0.9891454533604553
+    },
+    {
+      "queue_name": "MBR-137-Security",
+      "hours_total": 1262.1627777777778,
+      "hours_no_owner": 850.6841666666668,
+      "tickets": 29.0,
+      "no_owner_pct": 0.6739892679804903
+    },
+    {
+      "queue_name": "MBR_Customer_L3",
+      "hours_total": 828.9977777777779,
+      "hours_no_owner": 828.9977777777779,
+      "tickets": 13.0,
+      "no_owner_pct": 1.0
+    },
+    {
+      "queue_name": "MBR-137-Telecom",
+      "hours_total": 762.2930555555555,
+      "hours_no_owner": 761.866111111111,
+      "tickets": 10.0,
+      "no_owner_pct": 0.9994399208528361
+    },
+    {
+      "queue_name": "MBR-137-DC-LinuxOperations",
+      "hours_total": 912.6247222222223,
+      "hours_no_owner": 747.3077777777778,
+      "tickets": 18.0,
+      "no_owner_pct": 0.8188555049857721
+    },
+    {
+      "queue_name": "MBR-137-AssetManagement_L2",
+      "hours_total": 730.3347222222222,
+      "hours_no_owner": 730.3333333333334,
+      "tickets": 23.0,
+      "no_owner_pct": 0.9999980982844624
+    }
+  ],
+  "closed_breach_by_owner": [
+    {
+      "Агент (владелец)": "Grigoriev Konstantin (KGRIGOR)",
+      "n": 19,
+      "breaches": 2,
+      "breach_rate": 0.10526315789473684
+    },
+    {
+      "Агент (владелец)": "Yurkov Maxim (MYURKOV)",
+      "n": 24,
+      "breaches": 2,
+      "breach_rate": 0.08333333333333333
+    },
+    {
+      "Агент (владелец)": "OTRS Admin (root@localhost)",
+      "n": 6,
+      "breaches": 1,
+      "breach_rate": 0.16666666666666666
+    }
+  ]
+}

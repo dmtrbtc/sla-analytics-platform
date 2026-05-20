@@ -1,0 +1,201 @@
+{
+  "queue_transitions": 1105,
+  "transition_unique_pairs": 155,
+  "top_transitions": [
+    {
+      "prev_queue": "MBR-137-ServiceDesk",
+      "queue_name": "MBR-137-1C-Alfa-Auto",
+      "n": 157
+    },
+    {
+      "prev_queue": "MBR-137-1C-Alfa-Auto",
+      "queue_name": "MBR-137-ServiceDesk",
+      "n": 74
+    },
+    {
+      "prev_queue": "MBR-137-ServiceDesk",
+      "queue_name": "MBR-137-Network",
+      "n": 50
+    },
+    {
+      "prev_queue": "MBR-137-ServiceDesk",
+      "queue_name": "MBR-137-Workplace-Veshki",
+      "n": 42
+    },
+    {
+      "prev_queue": "MBR-137-Security",
+      "queue_name": "MBR-137-ServiceDesk",
+      "n": 36
+    },
+    {
+      "prev_queue": "MBR-137-ServiceDesk",
+      "queue_name": "MBM_RU_AppSupport",
+      "n": 35
+    },
+    {
+      "prev_queue": "MBR-137-ServiceDesk",
+      "queue_name": "MBR-137-Workplace-Plaza",
+      "n": 34
+    },
+    {
+      "prev_queue": "MBR-137-ServiceDesk",
+      "queue_name": "MBR-137-Security",
+      "n": 32
+    },
+    {
+      "prev_queue": "MBR-137-Network",
+      "queue_name": "MBR-137-ServiceDesk",
+      "n": 28
+    },
+    {
+      "prev_queue": "MBR-137-ServiceDesk",
+      "queue_name": "MBR-137-AssetManagement_L2",
+      "n": 28
+    },
+    {
+      "prev_queue": "MBR-137-ServiceDesk",
+      "queue_name": "MBR-137-OfficeAutomation",
+      "n": 28
+    },
+    {
+      "prev_queue": "MBM_RU_AppSupport",
+      "queue_name": "MBR-137-ServiceDesk",
+      "n": 20
+    },
+    {
+      "prev_queue": "MBR-137-Zabbix-Alerts",
+      "queue_name": "MBR-137-Network",
+      "n": 20
+    },
+    {
+      "prev_queue": "MBR-137-Workplace-Veshki",
+      "queue_name": "MBR-137-ServiceDesk",
+      "n": 19
+    },
+    {
+      "prev_queue": "MBR-137-ServiceDesk",
+      "queue_name": "MBR-137-Security-SupportL1",
+      "n": 19
+    },
+    {
+      "prev_queue": "MBR-137-OfficeAutomation",
+      "queue_name": "MBR-137-ServiceDesk",
+      "n": 18
+    },
+    {
+      "prev_queue": "MBR-137-ServiceDesk",
+      "queue_name": "MBR-137-Telecom",
+      "n": 15
+    },
+    {
+      "prev_queue": "MBR-137-AssetManagement_L2",
+      "queue_name": "MBR-137-ServiceDesk",
+      "n": 15
+    },
+    {
+      "prev_queue": "MBR-137-Workplace-Plaza",
+      "queue_name": "MBR-137-ServiceDesk",
+      "n": 15
+    },
+    {
+      "prev_queue": "MBR-137-ServiceDesk",
+      "queue_name": "MBR-137-SAP_Parts_logistics",
+      "n": 15
+    }
+  ],
+  "queues_by_residence_h_top10": [
+    {
+      "queue": "MBR-137-ServiceDesk",
+      "total_h": 15445.183333333332,
+      "mean_h": 17.81451364859669,
+      "median_h": 0.14527777777777778,
+      "p90_h": 73.20022222222222,
+      "n_segments": 867,
+      "n_tickets": 517
+    },
+    {
+      "queue": "MBR-137-1C-Alfa-Auto",
+      "total_h": 4268.0675,
+      "mean_h": 24.250383522727272,
+      "median_h": 0.0002777777777777778,
+      "p90_h": 73.99472222222222,
+      "n_segments": 176,
+      "n_tickets": 100
+    },
+    {
+      "queue": "MBM_RU_AppSupport",
+      "total_h": 3535.032222222222,
+      "mean_h": 50.500460317460316,
+      "median_h": 5.888055555555555,
+      "p90_h": 145.38419444444443,
+      "n_segments": 70,
+      "n_tickets": 52
+    },
+    {
+      "queue": "MBR-137-Network",
+      "total_h": 2333.78,
+      "mean_h": 22.880196078431375,
+      "median_h": 0.9847222222222223,
+      "p90_h": 74.82311111111112,
+      "n_segments": 102,
+      "n_tickets": 67
+    },
+    {
+      "queue": "MBR-137-SAP_Basis_support",
+      "total_h": 1619.5722222222223,
+      "mean_h": 62.29123931623932,
+      "median_h": 72.61125,
+      "p90_h": 88.78777777777778,
+      "n_segments": 26,
+      "n_tickets": 21
+    },
+    {
+      "queue": "MBR-137-Workplace-Veshki",
+      "total_h": 1601.9002777777778,
+      "mean_h": 34.823919082125606,
+      "median_h": 4.3163888888888895,
+      "p90_h": 95.98541666666668,
+      "n_segments": 46,
+      "n_tickets": 27
+    },
+    {
+      "queue": "MBR-137-DC-StorageOperations",
+      "total_h": 1569.3830555555555,
+      "mean_h": 52.31276851851852,
+      "median_h": 72.02236111111111,
+      "p90_h": 102.00430555555562,
+      "n_segments": 30,
+      "n_tickets": 25
+    },
+    {
+      "queue": "MBR-137-OfficeAutomation",
+      "total_h": 1462.3466666666666,
+      "mean_h": 25.655204678362573,
+      "median_h": 3.2794444444444446,
+      "p90_h": 73.25016666666667,
+      "n_segments": 57,
+      "n_tickets": 38
+    },
+    {
+      "queue": "MBR-137-Security",
+      "total_h": 1230.4841666666666,
+      "mean_h": 24.609683333333333,
+      "median_h": 0.49236111111111114,
+      "p90_h": 97.45308333333332,
+      "n_segments": 50,
+      "n_tickets": 29
+    },
+    {
+      "queue": "MBR-137-Workplace-Plaza",
+      "total_h": 1222.1077777777778,
+      "mean_h": 23.50207264957265,
+      "median_h": 0.5326388888888889,
+      "p90_h": 73.80055555555555,
+      "n_segments": 52,
+      "n_tickets": 37
+    }
+  ],
+  "bounce_tickets": 249,
+  "owner_reassignment_storms_gte3": 45,
+  "routing_storms_gte3moves": 237
+}

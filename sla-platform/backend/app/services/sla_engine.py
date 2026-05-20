@@ -14,10 +14,11 @@ from typing import Any
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
-from app.domain.models import SLADefinition, TicketSnapshot
+from app.domain.models import SLADefinition, SLAMetric, TicketSnapshot
 from app.services.sla.rule_engine import match_sla
 from app.services.sla.metrics_engine import MetricsEngine
 from app.services.sla.timeline_engine import build_timeline, explain_ticket_timeline
+from app.services.forensics import ForensicAttributionEngine
 
 try:
     from app.services.sla.batch_metrics_engine import batch_compute_for_import
@@ -92,6 +93,17 @@ class SLAEngine:
                         for m in metrics:
                             db.add(m)
                         metrics_written += len(metrics)
+
+                    # V3 additive: wall-clock + loss-bucket metrics
+                    try:
+                        forensic_metrics = ForensicAttributionEngine.compute_wall_clock_metrics(
+                            db, ticket, sla_def, import_id,
+                        )
+                        for m in forensic_metrics:
+                            db.add(m)
+                        metrics_written += len(forensic_metrics)
+                    except Exception:
+                        logger.exception("V3 forensic metrics failed for ticket %s", ticket.ticket_id)
                 except Exception as exc:
                     logger.exception("SLA computation failed for ticket %s", ticket.ticket_id)
                     errors.append({"ticket_id": ticket.ticket_id, "error": str(exc)})
@@ -126,6 +138,15 @@ class SLAEngine:
         metrics = MetricsEngine.compute_all(db, ticket, sla_def, import_id)
         for m in metrics:
             db.add(m)
+        try:
+            forensic_metrics = ForensicAttributionEngine.compute_wall_clock_metrics(
+                db, ticket, sla_def, import_id,
+            )
+            for m in forensic_metrics:
+                db.add(m)
+            metrics.extend(forensic_metrics)
+        except Exception:
+            logger.exception("V3 forensic metrics failed for ticket %s", ticket.ticket_id)
         db.commit()
 
         return {"metrics_written": len(metrics), "errors": []}

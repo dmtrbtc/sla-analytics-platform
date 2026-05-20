@@ -1,0 +1,209 @@
+{
+  "breached_open_total": 772,
+  "top_breach_queues": [
+    {
+      "Очередь": "MBR-137-ServiceDesk",
+      "n": 180,
+      "median_sec": -97919.0,
+      "p10_sec": -262603.59999999986,
+      "sum_sec": -29506528.0,
+      "median_h": -27.19972222222222,
+      "worst_h": -72.9454444444444,
+      "total_loss_days": 341.51074074074074
+    },
+    {
+      "Очередь": "MBR-137-DC-WintelOperations",
+      "n": 80,
+      "median_sec": -27783.5,
+      "p10_sec": -190404.0,
+      "sum_sec": -8011348.0,
+      "median_h": -7.717638888888889,
+      "worst_h": -52.89,
+      "total_loss_days": 92.72393518518518
+    },
+    {
+      "Очередь": "MBR-137-OfficeAutomation",
+      "n": 80,
+      "median_sec": -18891.0,
+      "p10_sec": -149580.19999999998,
+      "sum_sec": -4577311.0,
+      "median_h": -5.2475,
+      "worst_h": -41.55005555555555,
+      "total_loss_days": 52.97813657407407
+    },
+    {
+      "Очередь": "MBR-137-DC-LinuxOperations",
+      "n": 45,
+      "median_sec": -45586.0,
+      "p10_sec": -261728.8,
+      "sum_sec": -5161262.0,
+      "median_h": -12.662777777777778,
+      "worst_h": -72.70244444444444,
+      "total_loss_days": 59.7368287037037
+    },
+    {
+      "Очередь": "MBR-137-AssetManagement-Plaza",
+      "n": 44,
+      "median_sec": -89051.5,
+      "p10_sec": -269158.1,
+      "sum_sec": -7693750.0,
+      "median_h": -24.736527777777777,
+      "worst_h": -74.76613888888889,
+      "total_loss_days": 89.0480324074074
+    },
+    {
+      "Очередь": "MBR-137-Workplace-Plaza",
+      "n": 44,
+      "median_sec": -136678.0,
+      "p10_sec": -816479.6,
+      "sum_sec": -12442724.0,
+      "median_h": -37.96611111111111,
+      "worst_h": -226.7998888888889,
+      "total_loss_days": 144.01300925925926
+    },
+    {
+      "Очередь": "MBR-137-DC-StorageOperations",
+      "n": 32,
+      "median_sec": -56370.5,
+      "p10_sec": -174537.9,
+      "sum_sec": -2165567.0,
+      "median_h": -15.658472222222223,
+      "worst_h": -48.482749999999996,
+      "total_loss_days": 25.06443287037037
+    },
+    {
+      "Очередь": "MBR-137-DC-MonitoringSupport",
+      "n": 30,
+      "median_sec": -41278.5,
+      "p10_sec": -225505.0,
+      "sum_sec": -2759883.0,
+      "median_h": -11.46625,
+      "worst_h": -62.640277777777776,
+      "total_loss_days": 31.943090277777777
+    },
+    {
+      "Очередь": "MBR-137-Workplace-Veshki",
+      "n": 28,
+      "median_sec": -69714.0,
+      "p10_sec": -185846.6,
+      "sum_sec": -2863420.0,
+      "median_h": -19.365,
+      "worst_h": -51.62405555555556,
+      "total_loss_days": 33.14143518518519
+    },
+    {
+      "Очередь": "MBR-137-Network",
+      "n": 26,
+      "median_sec": -49060.5,
+      "p10_sec": -268320.5,
+      "sum_sec": -3148995.0,
+      "median_h": -13.627916666666666,
+      "worst_h": -74.53347222222222,
+      "total_loss_days": 36.44670138888889
+    },
+    {
+      "Очередь": "MBR-137-DC-DatabaseOperations",
+      "n": 22,
+      "median_sec": -10736.5,
+      "p10_sec": -117410.6,
+      "sum_sec": -1036698.0,
+      "median_h": -2.982361111111111,
+      "worst_h": -32.61405555555556,
+      "total_loss_days": 11.998819444444445
+    },
+    {
+      "Очередь": "MBR-137-AssetManagement-Veshki",
+      "n": 22,
+      "median_sec": -37507.0,
+      "p10_sec": -329053.8,
+      "sum_sec": -2611836.0,
+      "median_h": -10.418611111111112,
+      "worst_h": -91.40383333333332,
+      "total_loss_days": 30.229583333333334
+    },
+    {
+      "Очередь": "MBR-137-DC-Virtualization",
+      "n": 20,
+      "median_sec": -52765.0,
+      "p10_sec": -307417.6,
+      "sum_sec": -1995779.0,
+      "median_h": -14.656944444444445,
+      "worst_h": -85.39377777777777,
+      "total_loss_days": 23.09929398148148
+    },
+    {
+      "Очередь": "MBR-137-1C-Alfa-Auto",
+      "n": 18,
+      "median_sec": -76264.5,
+      "p10_sec": -233123.09999999998,
+      "sum_sec": -1847619.0,
+      "median_h": -21.184583333333332,
+      "worst_h": -64.75641666666667,
+      "total_loss_days": 21.384479166666665
+    },
+    {
+      "Очередь": "MBR-137-AssetManagement_L2",
+      "n": 16,
+      "median_sec": -104475.5,
+      "p10_sec": -345691.0,
+      "sum_sec": -2638377.0,
+      "median_h": -29.020972222222223,
+      "worst_h": -96.02527777777777,
+      "total_loss_days": 30.536770833333332
+    },
+    {
+      "Очередь": "AZM-717-Workplace-Esipovo",
+      "n": 10,
+      "median_sec": -110108.0,
+      "p10_sec": -403639.89999999997,
+      "sum_sec": -2023610.0,
+      "median_h": -30.585555555555555,
+      "worst_h": -112.12219444444443,
+      "total_loss_days": 23.421412037037037
+    },
+    {
+      "Очередь": "MBR_Customer_L3",
+      "n": 10,
+      "median_sec": -609086.0,
+      "p10_sec": -2755997.6,
+      "sum_sec": -12301175.0,
+      "median_h": -169.19055555555556,
+      "worst_h": -765.554888888889,
+      "total_loss_days": 142.37471064814815
+    },
+    {
+      "Очередь": "MBM_RU_AppSupport",
+      "n": 10,
+      "median_sec": -115696.0,
+      "p10_sec": -745474.4,
+      "sum_sec": -3392170.0,
+      "median_h": -32.13777777777778,
+      "worst_h": -207.07622222222224,
+      "total_loss_days": 39.26122685185185
+    },
+    {
+      "Очередь": "MBR-137-Security",
+      "n": 9,
+      "median_sec": -103570.0,
+      "p10_sec": -808288.7999999999,
+      "sum_sec": -2802042.0,
+      "median_h": -28.769444444444446,
+      "worst_h": -224.52466666666666,
+      "total_loss_days": 32.431041666666665
+    },
+    {
+      "Очередь": "MBR-137-Security-SupportL1",
+      "n": 6,
+      "median_sec": -219103.5,
+      "p10_sec": -773950.0,
+      "sum_sec": -2083660.0,
+      "median_h": -60.86208333333333,
+      "worst_h": -214.98611111111111,
+      "total_loss_days": 24.116435185185185
+    }
+  ],
+  "breached_in_history_window": 0,
+  "breached_state_hours": {},
+  "breached_queue_hours_top10": {},
+  "breached_no_owner_share": NaN
+}
