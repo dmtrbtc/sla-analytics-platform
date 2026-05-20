@@ -5,6 +5,7 @@ import {
   ClockCircleOutlined, SettingOutlined, FundOutlined, ExclamationCircleOutlined,
   BugOutlined, AimOutlined, ControlOutlined, RadarChartOutlined, ThunderboltOutlined,
   UserOutlined, BarChartOutlined, SafetyOutlined, PaperClipOutlined,
+  ApartmentOutlined, HeatMapOutlined, NodeIndexOutlined,
 } from "@ant-design/icons";
 import { useTranslation } from "react-i18next";
 import { useAuthStore } from "../../stores/authStore";
@@ -20,11 +21,16 @@ export default function Sidebar() {
   const isAdmin = user?.role === "admin";
 
   const mainItems = [
-    { key: "/command-center", icon: <RadarChartOutlined />, label: t("nav.commandCenter", "Командный центр") },
     { key: "/dashboard", icon: <DashboardOutlined />, label: t("nav.dashboard") },
     { key: "/dashboard/executive", icon: <FundOutlined />, label: t("nav.executive", "Executive") },
     { key: "/dashboard/ops", icon: <ThunderboltOutlined />, label: t("nav.analytics") },
     { key: "/dashboard/teams", icon: <BarChartOutlined />, label: t("nav.teamDashboard") },
+  ];
+
+  const queueIntelItems = [
+    { key: "/command-center", icon: <RadarChartOutlined />, label: "OTRS Command Center" },
+    { key: "/queue-forensics", icon: <HeatMapOutlined />, label: "Queue Forensics" },
+    { key: "/servicedesk", icon: <ApartmentOutlined />, label: "ServiceDesk Intel" },
   ];
 
   const opsItems = [
@@ -48,6 +54,7 @@ export default function Sidebar() {
 
   const menuItems = [
     { type: "group" as const, label: <Text style={{ color: "rgba(255,255,255,0.45)", fontSize: 10, textTransform: "uppercase", letterSpacing: "0.08em" }}>Навигация</Text>, children: mainItems },
+    { type: "group" as const, label: <Text style={{ color: "rgba(255,255,255,0.45)", fontSize: 10, textTransform: "uppercase", letterSpacing: "0.08em" }}>Queue Intelligence</Text>, children: queueIntelItems },
     { type: "group" as const, label: <Text style={{ color: "rgba(255,255,255,0.45)", fontSize: 10, textTransform: "uppercase", letterSpacing: "0.08em" }}>Операции</Text>, children: opsItems },
     ...adminItems,
   ];

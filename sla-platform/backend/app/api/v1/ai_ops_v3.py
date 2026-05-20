@@ -37,7 +37,8 @@ async def ai_natural_language_analytics(data: dict[str, str], _: User = Depends(
                 GROUP BY t.queue ORDER BY cnt DESC LIMIT 5
             """)).all()
             queues = [{"queue": r.queue, "breaches": r.cnt} for r in row]
-            answer = f"За последние 7 дней наибольшее количество нарушений SLA в очередях: {', '.join(f'{q[\"queue\"]} ({q[\"breaches\"]} нарушений)' for q in queues)}. " if queues else "За последние 7 дней нарушений SLA не обнаружено."
+            breach_list = [f"{q['queue']} ({q['breaches']} нарушений)" for q in queues]
+            answer = f"За последние 7 дней наибольшее количество нарушений SLA в очередях: {', '.join(breach_list)}. " if queues else "За последние 7 дней нарушений SLA не обнаружено."
             if queues:
                 answer += f"Основная причина: перегрузка очереди '{queues[0]['queue']}' — {queues[0]['breaches']} нарушений."
 

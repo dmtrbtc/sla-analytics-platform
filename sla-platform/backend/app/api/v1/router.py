@@ -28,6 +28,7 @@ from app.api.v1 import (
     enterprise_reports,
     operations_admin,
     attachments,
+    queue_intelligence,
 )
 
 api_router = APIRouter()
@@ -61,5 +62,6 @@ protected_router.include_router(ai_ops_v3.router, prefix="/ai", tags=["ai-v3"])
 protected_router.include_router(enterprise_reports.router, prefix="/enterprise-reports", tags=["enterprise-reports"])
 protected_router.include_router(operations_admin.router, prefix="/operations", tags=["operations-admin"])
 protected_router.include_router(attachments.router, prefix="/attachments", tags=["attachments"])
+protected_router.include_router(queue_intelligence.router, prefix="/queue-intelligence", tags=["queue-intelligence"])
 
 api_router.include_router(protected_router)
