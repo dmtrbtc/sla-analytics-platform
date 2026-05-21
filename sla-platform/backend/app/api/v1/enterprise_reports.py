@@ -23,7 +23,7 @@ REPORT_DIR = os.path.join(settings.DATA_DIR, "reports")
 os.makedirs(REPORT_DIR, exist_ok=True)
 
 
-@router.post("/enterprise-reports/xlsx/generate")
+@router.post("/xlsx/generate")
 async def generate_branded_xlsx(data: dict[str, Any], _: User = Depends(require_admin)):
     """Generate branded XLSX report with cover page, charts, conditional formatting."""
     report_type = data.get("type", "sla_breaches")
@@ -105,7 +105,7 @@ async def generate_branded_xlsx(data: dict[str, Any], _: User = Depends(require_
         raise HTTPException(500, f"XLSX generation failed: {str(e)}")
 
 
-@router.get("/enterprise-reports/xlsx/{filename}")
+@router.get("/xlsx/{filename}")
 async def download_branded_xlsx(filename: str, _: User = Depends(get_current_user)):
     """Download a generated branded XLSX report."""
     filepath = os.path.join(REPORT_DIR, os.path.basename(filename))
@@ -114,7 +114,7 @@ async def download_branded_xlsx(filename: str, _: User = Depends(get_current_use
     return FileResponse(filepath, media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", filename=filename)
 
 
-@router.post("/enterprise-reports/pdf/generate")
+@router.post("/pdf/generate")
 async def generate_pdf_report(data: dict[str, Any], _: User = Depends(require_admin)):
     """Generate PDF executive report."""
     report_type = data.get("type", "executive_summary")
@@ -173,7 +173,7 @@ async def generate_pdf_report(data: dict[str, Any], _: User = Depends(require_ad
         raise HTTPException(500, f"PDF generation failed: {str(e)}")
 
 
-@router.get("/enterprise-reports/pdf/{filename}")
+@router.get("/pdf/{filename}")
 async def download_pdf(filename: str, _: User = Depends(get_current_user)):
     """Download a generated PDF report."""
     filepath = os.path.join(REPORT_DIR, os.path.basename(filename))
@@ -182,7 +182,7 @@ async def download_pdf(filename: str, _: User = Depends(get_current_user)):
     return FileResponse(filepath, media_type="application/pdf", filename=filename)
 
 
-@router.get("/enterprise-reports/list")
+@router.get("/list")
 async def list_enterprise_reports(_: User = Depends(get_current_user)):
     """List all generated enterprise reports."""
     files = []

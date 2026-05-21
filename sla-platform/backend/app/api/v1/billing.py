@@ -93,6 +93,6 @@ async def record_usage_event(org_id: UUID, data: dict[str, Any], _: User = Depen
     return {"recorded": True}
 
 
-@router.get("/billing/analytics")
+@router.get("/analytics")
 async def billing_analytics(_: User = Depends(require_admin)):
     return get_billing_analytics()

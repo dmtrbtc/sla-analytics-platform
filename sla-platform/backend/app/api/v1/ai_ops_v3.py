@@ -18,7 +18,7 @@ router = APIRouter(dependencies=[Depends(get_current_user)])
 CONVERSATIONS: dict[str, list[dict]] = {}
 
 
-@router.post("/ai/v3/analytics")
+@router.post("/v3/analytics")
 async def ai_natural_language_analytics(data: dict[str, str], _: User = Depends(get_current_user)):
     """Natural language analytics — answers operational questions."""
     question = data.get("question", "").lower()
@@ -78,7 +78,7 @@ async def ai_natural_language_analytics(data: dict[str, str], _: User = Depends(
         db.close()
 
 
-@router.post("/ai/v3/incident-commander")
+@router.post("/v3/incident-commander")
 async def ai_incident_commander(data: dict[str, Any], _: User = Depends(require_admin)):
     """AI Incident Commander — root cause, timeline, impacted queues, recommendations."""
     incident_id = data.get("incident_id", "")
@@ -113,7 +113,7 @@ async def ai_incident_commander(data: dict[str, Any], _: User = Depends(require_
         db.close()
 
 
-@router.get("/ai/v3/anomalies")
+@router.get("/v3/anomalies")
 async def ai_anomaly_detection(days: int = Query(7, ge=1, le=90), _: User = Depends(get_current_user)):
     """AI anomaly detection — queues, assignments, bottlenecks, staffing."""
     db = sync_session_factory()
@@ -137,7 +137,7 @@ async def ai_anomaly_detection(days: int = Query(7, ge=1, le=90), _: User = Depe
         db.close()
 
 
-@router.post("/ai/v3/reports/generate")
+@router.post("/v3/reports/generate")
 async def ai_generate_report(data: dict[str, str], _: User = Depends(get_current_user)):
     """AI-generated reports — executive summary, operations summary, weekly digest."""
     report_type = data.get("type", "executive_summary")

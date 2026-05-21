@@ -246,7 +246,9 @@ class AdvancedAnalytics:
         if by_queue:
             base = base.where(SLAMetric.queue_name == by_queue)
 
-        async def _stat(name: str):
+        async def _stat(names):
+            if isinstance(names, str):
+                names = [names]
             q = (
                 select(
                     func.avg(SLAMetric.metric_seconds).label("avg"),
@@ -256,7 +258,7 @@ class AdvancedAnalytics:
                     func.count(SLAMetric.id).label("count"),
                 )
                 .where(
-                    SLAMetric.metric_name == name,
+                    SLAMetric.metric_name.in_(names),
                     SLAMetric.metric_seconds.isnot(None),
                     SLAMetric.computed_at >= since,
                 )
@@ -274,10 +276,10 @@ class AdvancedAnalytics:
             }
 
         return {
-            # SLA engine emits "first_response_time" — the old "response_time"
-            # name was never produced and gave permanently zero MTTA.
-            "mtta": await _stat("first_response_time"),
-            "mttr": await _stat("resolution_time"),
+            # Accept BOTH names: historical DB has "response_time"; new
+            # imports get "first_response_time".
+            "mtta": await _stat(["first_response_time", "response_time"]),
+            "mttr": await _stat(["resolution_time"]),
             "period_days": days,
             "queue_filter": by_queue,
         }

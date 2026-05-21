@@ -249,9 +249,11 @@ def _update_stats(db, import_id: str, stats: dict) -> None:
         rows = stats.get("events_parsed") or stats.get("normalized") or stats.get("backlog_loaded") or 0
         if elapsed > 0 and rows > 0:
             current["rows_per_second"] = round(rows / elapsed, 1)
-        import os
-        import psutil
+        # psutil is optional — not in requirements.txt; if absent we just
+        # skip the memory_mb metric instead of crashing the whole step.
         try:
+            import os
+            import psutil  # type: ignore
             proc = psutil.Process(os.getpid())
             current["memory_mb"] = round(proc.memory_info().rss / (1024 * 1024), 1)
         except Exception:
@@ -261,6 +263,17 @@ def _update_stats(db, import_id: str, stats: dict) -> None:
 
 
 def _record_error(db, import_id: str, step: str) -> None:
+    # Capture the live exception so the import diagnostic actually
+    # contains the real failure (previously it just said "Task failed").
+    import sys
+    import traceback
+    exc_type, exc, tb = sys.exc_info()
+    err_text = ""
+    if exc is not None:
+        err_text = f"{exc_type.__name__}: {exc}"
+        # Log the full traceback to worker stdout for forensic debugging.
+        logger.error("Import step %s failed: %s\n%s", step, err_text,
+                     "".join(traceback.format_exception(exc_type, exc, tb)))
     try:
         db.rollback()
     except Exception:
@@ -270,7 +283,7 @@ def _record_error(db, import_id: str, step: str) -> None:
         errs = list(imp.error_details or [])
         errs.append({
             "step": step,
-            "message": f"Task failed (retry {db.info.get('retry_count', 0)})",
+            "message": err_text or f"Task failed (retry {db.info.get('retry_count', 0)})",
             "timestamp": datetime.now(timezone.utc).isoformat(),
         })
         imp.error_details = errs

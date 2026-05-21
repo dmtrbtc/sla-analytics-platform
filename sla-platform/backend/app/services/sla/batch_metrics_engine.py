@@ -72,10 +72,16 @@ def _count_event_type(events: list[dict], etype: str) -> int:
 
 
 def _active_seconds(pauses: list[PauseSegment], start: datetime, end: datetime) -> int:
+    """Total active (non-paused) seconds between start and end.
+
+    PauseSegment uses .pause_start / .pause_end (not start_time/end_time).
+    Previous code accessed .start_time which raised AttributeError on every
+    ticket and silently produced zero SLA metrics for every production import.
+    """
     total_pause = 0
     for p in pauses:
-        ps = p.start_time if isinstance(p.start_time, datetime) else p.start_time
-        pe = p.end_time if p.end_time and isinstance(p.end_time, datetime) else end
+        ps = getattr(p, "pause_start", None) or getattr(p, "start_time", None)
+        pe = getattr(p, "pause_end", None) or getattr(p, "end_time", None) or end
         if pe and ps and pe > ps:
             clamped_start = max(ps, start)
             clamped_end = min(pe, end)
@@ -113,11 +119,19 @@ def compute_metrics_batch(
     for r in rows:
         events_by_ticket.setdefault(r["ticket_id"], []).append(dict(r))
 
-    # 2 query: preload pause segments per ticket
+    # 2 query: preload pause segments per ticket.
+    # NOTE: compute_pause_segments_v2 has signature (db, ticket_id, import_id)
+    # — previous code passed (import_id_str, events) which crashed
+    # batch_compute_for_import with TypeError every single time and meant
+    # NO SLA metrics were ever written by the batch path (the path used for
+    # any import >10 tickets). This made every production import silently
+    # skip SLA computation. Now we call with the correct signature.
     pause_by_ticket: dict[int, list[PauseSegment]] = {}
     for tid in ticket_ids:
-        evs = events_by_ticket.get(tid, [])
-        pause_by_ticket[tid] = compute_pause_segments_v2(str(import_id), evs)
+        try:
+            pause_by_ticket[tid] = compute_pause_segments_v2(db, tid, import_id_str)
+        except Exception:
+            pause_by_ticket[tid] = []
 
     response_target, resolution_target = _resolve_targets(sla_def, tickets[0].current_queue)
 
@@ -183,9 +197,26 @@ def compute_metrics_batch(
     return results
 
 
+_REQUIRED_METRIC_KEYS = (
+    "ticket_id", "metric_name", "metric_seconds", "sla_breached",
+    "sla_risk_score", "risk_level", "risk_reason",
+    "queue_name", "owner", "team_prefix",
+    "sla_definition_id", "import_id", "confidence",
+)
+
+
 def _bulk_insert_metrics(db: Session, metrics: list[dict]) -> int:
     if not metrics:
         return 0
+    # Some metric dicts (active_work_time, paused_time) intentionally omit
+    # sla_breached + risk fields; without these defaults the bulk INSERT
+    # raises StatementError("A value is required for bind parameter
+    # 'sla_breached'") and writes ZERO metrics for the entire import.
+    for m in metrics:
+        for k in _REQUIRED_METRIC_KEYS:
+            m.setdefault(k, None)
+        if m.get("sla_breached") is None:
+            m["sla_breached"] = False
     for offset in range(0, len(metrics), BATCH_SIZE):
         batch = metrics[offset:offset + BATCH_SIZE]
         db.execute(
@@ -225,4 +256,37 @@ def batch_compute_for_import(
 ) -> dict:
     metrics = compute_metrics_batch(db, tickets, sla_def, import_id)
     written = _bulk_insert_metrics(db, metrics)
-    return {"metrics_written": written, "errors": []}
+
+    # V3 forensic metrics (wall-clock + loss buckets) — wired into the batch
+    # path so they actually run on real production imports (>10 tickets).
+    # The per-ticket path in sla_engine.compute_for_import already calls this
+    # for tiny imports; without this hook here the V3 endpoints stay empty
+    # forever in production.
+    v3_written = 0
+    v3_errors: list[dict] = []
+    try:
+        from app.services.forensics import ForensicAttributionEngine
+        v3_models = []
+        for ticket in tickets:
+            try:
+                v3_models.extend(
+                    ForensicAttributionEngine.compute_wall_clock_metrics(
+                        db, ticket, sla_def, import_id,
+                    )
+                )
+            except Exception as exc:
+                v3_errors.append({"ticket_id": ticket.ticket_id, "error": str(exc)})
+        for m in v3_models:
+            db.add(m)
+        if v3_models:
+            db.commit()
+            v3_written = len(v3_models)
+    except Exception as exc:
+        v3_errors.append({"stage": "v3_init", "error": str(exc)})
+
+    return {
+        "metrics_written": written + v3_written,
+        "v2_metrics": written,
+        "v3_metrics": v3_written,
+        "errors": v3_errors[:10],  # cap to keep response payload bounded
+    }

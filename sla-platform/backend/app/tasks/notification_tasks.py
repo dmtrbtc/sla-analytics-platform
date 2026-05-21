@@ -1,9 +1,15 @@
-"""Notification Celery tasks — email, webhook, telegram alerts."""
+"""Notification Celery tasks — email, webhook, telegram alerts.
+
+NOTE: previously imported `requests`, which is NOT in requirements.txt — that
+caused the Celery worker to crash on boot (`ModuleNotFoundError: No module
+named 'requests'`) and left every import in the queue unprocessed. Migrated
+to httpx (already a dependency).
+"""
 import json
 import logging
 from datetime import datetime, timezone
 
-import requests
+import httpx
 
 from app.core.celery_app import celery_app, exponential_backoff
 from app.core.config import settings
@@ -30,9 +36,10 @@ def send_email_notification(self, to: str, subject: str, body: str) -> dict:
 def send_webhook_notification(self, url: str, payload: dict) -> dict:
     """Send webhook notification."""
     try:
-        resp = requests.post(url, json=payload, timeout=15)
-        resp.raise_for_status()
-        return {"url": url, "status": resp.status_code}
+        with httpx.Client(timeout=15.0) as client:
+            resp = client.post(url, json=payload)
+            resp.raise_for_status()
+            return {"url": url, "status": resp.status_code}
     except Exception:
         try:
             self.retry(countdown=exponential_backoff(self))
@@ -49,9 +56,10 @@ def send_telegram_notification(self, chat_id: str, message: str) -> dict:
             logger.warning("TELEGRAM_BOT_TOKEN not configured")
             return {"sent": False, "error": "not configured"}
         url = f"https://api.telegram.org/bot{token}/sendMessage"
-        resp = requests.post(url, json={"chat_id": chat_id, "text": message}, timeout=15)
-        resp.raise_for_status()
-        return {"chat_id": chat_id, "sent": True}
+        with httpx.Client(timeout=15.0) as client:
+            resp = client.post(url, json={"chat_id": chat_id, "text": message})
+            resp.raise_for_status()
+            return {"chat_id": chat_id, "sent": True}
     except Exception:
         try:
             self.retry(countdown=exponential_backoff(self))

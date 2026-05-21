@@ -17,6 +17,13 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
+    # NOTE: previous version referenced a `tickets(id)` FK with Integer type.
+    # No such table exists — the real ticket table is `ticket_snapshots` keyed
+    # on a BigInteger `ticket_id`. The original FK definition caused alembic
+    # to fail with UndefinedTableError on every container start, blocking the
+    # entire backend boot. We drop the strict FK (attachments must outlive
+    # ticket deletion anyway) and store ticket_id as a nullable BigInteger
+    # the API filters on.
     op.create_table(
         "attachments",
         sa.Column("id", sa.String(36), primary_key=True),
@@ -25,7 +32,7 @@ def upgrade() -> None:
         sa.Column("mime_type", sa.String(100)),
         sa.Column("size_bytes", sa.BigInteger(), default=0),
         sa.Column("file_hash", sa.String(64)),
-        sa.Column("ticket_id", sa.Integer(), sa.ForeignKey("tickets.id", ondelete="SET NULL"), nullable=True),
+        sa.Column("ticket_id", sa.BigInteger(), nullable=True),
         sa.Column("import_id", sa.String(36), nullable=True),
         sa.Column("description", sa.Text()),
         sa.Column("uploaded_by", sa.String(36), nullable=False),

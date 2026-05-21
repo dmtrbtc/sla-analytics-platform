@@ -25,8 +25,16 @@ async def lifespan(app: FastAPI):
     from app.seeds import seed_admin_user, seed_sla_definitions
     seed_sla_definitions()
     seed_admin_user()
-    from app.services.billing.usage import seed_default_plans
-    seed_default_plans()
+    # seed_default_plans takes a Session; previous call passed no args and
+    # crashed lifespan with TypeError, blocking the whole app startup.
+    try:
+        from app.core.database import sync_session_factory
+        from app.services.billing.usage import seed_default_plans
+        with sync_session_factory() as db:
+            seed_default_plans(db)
+            db.commit()
+    except Exception:
+        logger.exception("Billing-plan seed failed; continuing startup")
     yield
     # Clean shutdown
     logger.info("Shutting down SLA Analytics Platform")

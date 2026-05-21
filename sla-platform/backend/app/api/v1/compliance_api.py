@@ -21,7 +21,7 @@ from app.services.compliance.security_v2 import (
 router = APIRouter(dependencies=[Depends(get_current_user)])
 
 
-@router.get("/compliance/dashboard")
+@router.get("/dashboard")
 async def compliance_dashboard(_: User = Depends(require_admin)):
     return get_compliance_dashboard()
 

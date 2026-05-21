@@ -47,8 +47,11 @@ class DashboardService:
         ).scalar() or 0
         breach_pct = round(sla_breached / sla_total * 100, 2) if sla_total else 0.0
 
-        # Avg response/resolution + percentiles (P50/P90/P95/P99)
-        async def _metric_stats(name: str):
+        # Avg response/resolution + percentiles (P50/P90/P95/P99).
+        # Historical imports stored metrics as "response_time"; current V2
+        # engine emits "first_response_time". Accept BOTH so dashboards work
+        # against pre-1.3.1 data and new imports.
+        async def _metric_stats(names: list[str]):
             q = select(
                 func.avg(SLAMetric.metric_seconds).label("avg"),
                 func.percentile_cont(0.5).within_group(SLAMetric.metric_seconds).label("p50"),
@@ -56,7 +59,7 @@ class DashboardService:
                 func.percentile_cont(0.95).within_group(SLAMetric.metric_seconds).label("p95"),
                 func.percentile_cont(0.99).within_group(SLAMetric.metric_seconds).label("p99"),
             ).where(
-                SLAMetric.metric_name == name, SLAMetric.metric_seconds.isnot(None)
+                SLAMetric.metric_name.in_(names), SLAMetric.metric_seconds.isnot(None)
             )
             row = (await db.execute(q)).one()
             return {
@@ -67,10 +70,8 @@ class DashboardService:
                 "p99": round(float(row.p99), 2) if row.p99 else 0.0,
             }
 
-        # V2 engine emits "first_response_time"; the older "response_time"
-        # name was never produced, so this dashboard tile was always empty.
-        response_stats = await _metric_stats("first_response_time")
-        resolution_stats = await _metric_stats("resolution_time")
+        response_stats = await _metric_stats(["first_response_time", "response_time"])
+        resolution_stats = await _metric_stats(["resolution_time"])
 
         # Completed imports
         imports_done = (
@@ -225,9 +226,12 @@ class DashboardService:
             return [{"period": str(r[0]), "count": r[1]} for r in rows]
 
         elif metric in ("response_time", "resolution_time", "first_response_time"):
-            # The V2 engine emits "first_response_time", not "response_time".
-            # Accept both names from the API for backward compatibility.
-            actual_metric = "first_response_time" if metric == "response_time" else metric
+            # Historical DB rows use "response_time"; current engine emits
+            # "first_response_time". Accept both so this works on legacy AND new data.
+            if metric in ("response_time", "first_response_time"):
+                metric_names = ["first_response_time", "response_time"]
+            else:
+                metric_names = ["resolution_time"]
             rows = (
                 await db.execute(
                     select(
@@ -235,7 +239,7 @@ class DashboardService:
                         func.avg(SLAMetric.metric_seconds),
                     )
                     .where(
-                        SLAMetric.metric_name == actual_metric,
+                        SLAMetric.metric_name.in_(metric_names),
                         SLAMetric.metric_seconds.isnot(None),
                         SLAMetric.computed_at >= since,
                     )

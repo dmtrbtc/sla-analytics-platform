@@ -14,7 +14,7 @@ from app.domain.models import User
 router = APIRouter(dependencies=[Depends(get_current_user)])
 
 
-@router.get("/operations/tenant-diagnostics")
+@router.get("/tenant-diagnostics")
 async def tenant_diagnostics(_: User = Depends(require_admin)):
     """Comprehensive tenant diagnostics."""
     db = sync_session_factory()
@@ -76,7 +76,7 @@ def _sla_profiler(db) -> dict:
         return {"total_metrics_24h": 0, "avg_age_seconds": 0}
 
 
-@router.get("/operations/queue-lag-monitor")
+@router.get("/queue-lag-monitor")
 async def queue_lag_monitor(_: User = Depends(require_admin)):
     """Real-time queue lag monitoring."""
     db = sync_session_factory()
@@ -97,7 +97,7 @@ async def queue_lag_monitor(_: User = Depends(require_admin)):
         db.close()
 
 
-@router.get("/operations/sla-profiler")
+@router.get("/sla-profiler")
 async def sla_compute_profiler(_: User = Depends(require_admin)):
     """SLA computation profiler — performance metrics."""
     db = sync_session_factory()
@@ -117,7 +117,7 @@ async def sla_compute_profiler(_: User = Depends(require_admin)):
         db.close()
 
 
-@router.get("/operations/live-logs")
+@router.get("/live-logs")
 async def live_logs(limit: int = Query(50, ge=1, le=500), _: User = Depends(require_admin)):
     """Recent audit log for operations monitoring."""
     db = sync_session_factory()
@@ -128,7 +128,7 @@ async def live_logs(limit: int = Query(50, ge=1, le=500), _: User = Depends(requ
         db.close()
 
 
-@router.get("/operations/tracing-explorer")
+@router.get("/tracing-explorer")
 async def tracing_explorer(limit: int = Query(50, ge=1, le=500), _: User = Depends(require_admin)):
     """Recent OpenTelemetry traces."""
     db = sync_session_factory()

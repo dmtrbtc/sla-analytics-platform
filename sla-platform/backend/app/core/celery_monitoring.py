@@ -38,11 +38,14 @@ class MonitoredTask(Task):
         )
 
     def on_success(self, retval, task_id, args, kwargs):
-        elapsed = time.monotonic() - self._start_time
+        # on_before_task is not auto-invoked by Celery's standard lifecycle
+        # — _start_time may not be set, so fall back gracefully.
+        start = getattr(self, "_start_time", None)
+        elapsed = (time.monotonic() - start) if start is not None else 0.0
         logger.info(
             "Task completed",
             extra={
-                "correlation_id": self._correlation_id,
+                "correlation_id": getattr(self, "_correlation_id", ""),
                 "task_name": self.name,
                 "task_id": task_id,
                 "duration_ms": round(elapsed * 1000, 1),
@@ -51,18 +54,25 @@ class MonitoredTask(Task):
         self._record_task_execution(task_id, "completed", elapsed)
 
     def on_failure(self, exc, task_id, args, kwargs, einfo):
-        elapsed = time.monotonic() - self._start_time
+        # Same guard: never let the failure handler itself raise — that
+        # masks the real exception and makes tasks look like they retry
+        # forever without ever surfacing the underlying error.
+        start = getattr(self, "_start_time", None)
+        elapsed = (time.monotonic() - start) if start is not None else 0.0
         logger.error(
             "Task failed",
             extra={
-                "correlation_id": self._correlation_id,
+                "correlation_id": getattr(self, "_correlation_id", ""),
                 "task_name": self.name,
                 "task_id": task_id,
                 "duration_ms": round(elapsed * 1000, 1),
                 "error": str(exc),
             },
         )
-        self._record_task_execution(task_id, "failed", elapsed, str(exc))
+        try:
+            self._record_task_execution(task_id, "failed", elapsed, str(exc))
+        except Exception:
+            logger.exception("task_audit record failed")
 
     def _record_task_execution(self, task_id: str, status: str, duration_ms: float, error: str = ""):
         try:

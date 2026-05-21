@@ -14,7 +14,7 @@ from app.domain.models import User
 router = APIRouter(dependencies=[Depends(get_current_user)])
 
 
-@router.get("/executive/health-score")
+@router.get("/health-score")
 async def sla_health_score(days: int = Query(30, ge=1, le=365), _: User = Depends(get_current_user)):
     """Overall SLA health score (0-100)."""
     db = sync_session_factory()
@@ -38,7 +38,7 @@ async def sla_health_score(days: int = Query(30, ge=1, le=365), _: User = Depend
         db.close()
 
 
-@router.get("/executive/financial-impact")
+@router.get("/financial-impact")
 async def financial_impact(days: int = Query(90, ge=1, le=365), _: User = Depends(require_admin)):
     """Financial impact estimate of SLA breaches."""
     db = sync_session_factory()
@@ -64,7 +64,7 @@ async def financial_impact(days: int = Query(90, ge=1, le=365), _: User = Depend
         db.close()
 
 
-@router.get("/executive/cost-per-queue")
+@router.get("/cost-per-queue")
 async def cost_per_queue(days: int = Query(90, ge=1, le=365), _: User = Depends(require_admin)):
     """Cost per queue based on SLA breaches."""
     db = sync_session_factory()
@@ -84,7 +84,7 @@ async def cost_per_queue(days: int = Query(90, ge=1, le=365), _: User = Depends(
         db.close()
 
 
-@router.get("/executive/forecast")
+@router.get("/forecast")
 async def executive_forecast(days_ahead: int = Query(14, ge=1, le=90), _: User = Depends(get_current_user)):
     """Forecast SLA trends, overload, and risk."""
     db = sync_session_factory()
@@ -103,7 +103,7 @@ async def executive_forecast(days_ahead: int = Query(14, ge=1, le=90), _: User =
         db.close()
 
 
-@router.get("/executive/mttr")
+@router.get("/mttr")
 async def mttr_analytics(days: int = Query(90, ge=1, le=365), queue: str | None = None, _: User = Depends(get_current_user)):
     """MTTR / MTTA analytics with trend."""
     db = sync_session_factory()
@@ -122,7 +122,7 @@ async def mttr_analytics(days: int = Query(90, ge=1, le=365), queue: str | None 
         db.close()
 
 
-@router.get("/executive/efficiency-score")
+@router.get("/efficiency-score")
 async def operational_efficiency(days: int = Query(90, ge=1, le=365), _: User = Depends(get_current_user)):
     """Operational efficiency score (0-100)."""
     db = sync_session_factory()
@@ -139,7 +139,7 @@ async def operational_efficiency(days: int = Query(90, ge=1, le=365), _: User = 
         db.close()
 
 
-@router.get("/executive/compliance-trend")
+@router.get("/compliance-trend")
 async def compliance_trend(days: int = Query(90, ge=7, le=365), _: User = Depends(get_current_user)):
     """Daily compliance rate trend."""
     db = sync_session_factory()

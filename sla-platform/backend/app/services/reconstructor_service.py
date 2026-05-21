@@ -29,14 +29,20 @@ class ReconstructorService:
         COMMIT_EVERY = 50
 
         for idx, tid in enumerate(ticket_ids):
+            # ticket_events has no `title` column — it lives on raw_events.
+            # Previously the rebuild step queried `title` directly here and
+            # crashed every import in the rebuild stage with
+            # ProgrammingError(UndefinedColumn). Now we LEFT JOIN raw_events
+            # for the title and tolerate it being NULL.
             events = db.execute(
                 text(
-                    "SELECT ticket_number, title, event_time, event_type, "
-                    "queue_name, state_name, owner_name, "
-                    "dest_queue, new_owner, new_state "
-                    "FROM ticket_events "
-                    "WHERE import_id = :import_id AND ticket_id = :tid "
-                    "ORDER BY event_seq"
+                    "SELECT te.ticket_number, re.title, te.event_time, "
+                    "te.event_type, te.queue_name, te.state_name, "
+                    "te.owner_name, te.dest_queue, te.new_owner, te.new_state "
+                    "FROM ticket_events te "
+                    "LEFT JOIN raw_events re ON re.id = te.raw_event_id "
+                    "WHERE te.import_id = :import_id AND te.ticket_id = :tid "
+                    "ORDER BY te.event_seq"
                 ),
                 {"import_id": import_id, "tid": tid},
             ).mappings().all()

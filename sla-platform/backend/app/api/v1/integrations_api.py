@@ -83,13 +83,13 @@ async def test_teams(data: dict[str, str], _: User = Depends(require_admin)):
     return result
 
 
-@router.post("/integrations/jira/issue")
+@router.post("/jira/issue")
 async def create_jira(data: dict[str, Any], _: User = Depends(require_admin)):
     result = create_jira_issue(data["base_url"], data["token"], data["project"], data["summary"], data.get("description", ""), data.get("issue_type", "Bug"))
     return result
 
 
-@router.get("/integrations/otrs/ticket/{ticket_id}")
+@router.get("/otrs/ticket/{ticket_id}")
 async def query_otrs(ticket_id: int, base_url: str = Query(...), token: str = Query(...), _: User = Depends(require_admin)):
     result = query_otrs_ticket(base_url, token, ticket_id)
     return {"ticket": result}
