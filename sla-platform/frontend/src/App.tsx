@@ -1,10 +1,11 @@
 import { lazy, Suspense } from "react";
-import { Routes, Route, Navigate } from "react-router-dom";
+import { Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { Spin } from "antd";
 import AppLayout from "./components/layout/AppLayout";
 import ProtectedRoute from "./components/auth/ProtectedRoute";
 import RoleGuard from "./components/auth/RoleGuard";
 import SLAConfig from "./pages/SLAConfig";
+import RuntimeErrorBoundary from "./components/safety/RuntimeErrorBoundary";
 
 const Dashboard = lazy(() => import("./pages/Dashboard"));
 const DashboardExecutive = lazy(() => import("./pages/DashboardExecutive"));
@@ -33,8 +34,26 @@ const SLAForensicCommandCenter = lazy(() => import("./pages/SLAForensicCommandCe
 const FavoritesPage = lazy(() => import("./pages/Favorites"));
 const SLALossCenter = lazy(() => import("./pages/SLALossCenter"));
 
+/**
+ * Wraps a route element in:
+ *   1. RuntimeErrorBoundary — so a crash inside the page doesn't blank
+ *      the entire SPA. The boundary is keyed by pathname so each route
+ *      navigation resets a previous error state automatically.
+ *   2. Suspense — so lazy chunk loading shows a spinner instead of
+ *      flicker.
+ *
+ * Order matters: ErrorBoundary OUTSIDE Suspense — if the chunk itself
+ * fails to load, the boundary catches the thrown promise.
+ */
 function SuspenseWrapper({ children }: { children: React.ReactNode }) {
-  return <Suspense fallback={<Spin size="large" style={{ display: "block", margin: "100px auto" }} />}>{children}</Suspense>;
+  const { pathname } = useLocation();
+  return (
+    <RuntimeErrorBoundary label="страница" resetKey={pathname}>
+      <Suspense fallback={<Spin size="large" style={{ display: "block", margin: "100px auto" }} />}>
+        {children}
+      </Suspense>
+    </RuntimeErrorBoundary>
+  );
 }
 
 export default function App() {

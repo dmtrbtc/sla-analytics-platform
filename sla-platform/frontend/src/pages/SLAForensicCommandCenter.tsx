@@ -25,15 +25,13 @@ export default function SLAForensicCommandCenter() {
     refetchInterval: 60_000,
   });
 
-  if (summaryQ.isLoading) {
-    return <Spin size="large" style={{ display: "block", margin: "120px auto" }} />;
-  }
-  if (summaryQ.isError || !summaryQ.data) {
-    return <Empty description="Нет данных по форензике SLA" style={{ marginTop: 80 }} />;
-  }
+  // CRITICAL: ALL hooks must be called BEFORE any conditional return.
+  // Previous version returned <Spin/> / <Empty/> early and then called
+  // useMemo three times — same hooks-order violation that crashed
+  // /sla-loss. eslint-plugin-react-hooks now enforces this; v1.8.1 fix.
   const s = summaryQ.data;
-  const k = s.kpis;
-  const total = (k.pause_total || 0) + (k.idle_total || 0) + (k.no_owner_total || 0);
+  const k = s?.kpis;
+  const total = (k?.pause_total || 0) + (k?.idle_total || 0) + (k?.no_owner_total || 0);
 
   // Pie of "where time was lost"
   const lossPie = useMemo(() => ({
@@ -47,18 +45,18 @@ export default function SLAForensicCommandCenter() {
       itemStyle: { borderColor: colors.surface, borderWidth: 2 },
       label: { color: colors.text.primary, fontSize: 11 },
       data: [
-        { name: "Pause", value: k.pause_total, itemStyle: { color: "#b65709" } },
-        { name: "Idle", value: k.idle_total, itemStyle: { color: "#b98a1f" } },
-        { name: "No owner", value: k.no_owner_total, itemStyle: { color: "#b42333" } },
-        { name: "Transfer wait", value: k.xfer_total, itemStyle: { color: "#1a7f3b" } },
-        { name: "Stagnation", value: k.stag_total, itemStyle: { color: "#5a3eb0" } },
+        { name: "Pause", value: k?.pause_total ?? 0, itemStyle: { color: "#b65709" } },
+        { name: "Idle", value: k?.idle_total ?? 0, itemStyle: { color: "#b98a1f" } },
+        { name: "No owner", value: k?.no_owner_total ?? 0, itemStyle: { color: "#b42333" } },
+        { name: "Transfer wait", value: k?.xfer_total ?? 0, itemStyle: { color: "#1a7f3b" } },
+        { name: "Stagnation", value: k?.stag_total ?? 0, itemStyle: { color: "#5a3eb0" } },
       ].filter(d => d.value > 0),
     }],
   }), [k, colors]);
 
   // Sankey of transitions (top routing chaos)
   const sankey = useMemo(() => {
-    const txs = (s.transitions || []).slice(0, 30);
+    const txs = (s?.transitions || []).slice(0, 30);
     const nodeSet = new Set<string>();
     txs.forEach(t => { nodeSet.add(t.src); nodeSet.add(t.dst); });
     const nodes = Array.from(nodeSet).map(n => ({ name: n }));
@@ -76,11 +74,11 @@ export default function SLAForensicCommandCenter() {
         label: { color: colors.text.primary, fontSize: 10 },
       }],
     };
-  }, [s.transitions, colors]);
+  }, [s?.transitions, colors]);
 
   // Black-hole heatmap (bar chart)
   const bhBar = useMemo(() => {
-    const data = (s.queues_top_blackholes || []).slice(0, 12).reverse();
+    const data = (s?.queues_top_blackholes || []).slice(0, 12).reverse();
     return {
       backgroundColor: "transparent",
       grid: { left: 200, right: 60, top: 10, bottom: 30 },
@@ -103,7 +101,15 @@ export default function SLAForensicCommandCenter() {
         },
       ],
     };
-  }, [s.queues_top_blackholes, colors]);
+  }, [s?.queues_top_blackholes, colors]);
+
+  // Branching only AFTER all hooks have been called.
+  if (summaryQ.isLoading) {
+    return <Spin size="large" style={{ display: "block", margin: "120px auto" }} />;
+  }
+  if (summaryQ.isError || !s || !k) {
+    return <Empty description="Нет данных по форензике SLA" style={{ marginTop: 80 }} />;
+  }
 
   return (
     <div style={{ padding: spacing[6], maxWidth: 1500, margin: "0 auto" }}>
