@@ -1,0 +1,131 @@
+/* Design V1 — clean light enterprise palette.
+ *
+ * Extracted from D:\Otrs_SLA\SLA_Otrs\SLA Executive\exec.css after the
+ * design-review pass. This file defines CSS variables that any component
+ * may opt into. It does NOT override Ant Design globals — applying these
+ * to every existing page is a multi-PR refactor and is explicitly NOT
+ * verified in this release. The token file is the foundation; rollout
+ * to individual pages happens incrementally.
+ *
+ * To opt a component in:
+ *   import "@/design/v1-tokens.css";
+ *   <div className="v1">…</div>
+ *
+ * All variables are scoped under .v1 to avoid touching Ant Design's tokens.
+ */
+
+.v1 {
+  /* Brand */
+  --v1-brand:         #2563eb;
+  --v1-brand-hover:   #1d4ed8;
+  --v1-brand-bg:      #eff6ff;
+  --v1-brand-border:  #bfdbfe;
+
+  /* Semantic */
+  --v1-success:        #16a34a;
+  --v1-success-bg:     #f0fdf4;
+  --v1-success-border: #bbf7d0;
+
+  --v1-warning:        #d97706;
+  --v1-warning-bg:     #fffbeb;
+  --v1-warning-border: #fcd34d;
+
+  --v1-danger:         #dc2626;
+  --v1-danger-bg:      #fef2f2;
+  --v1-danger-border:  #fecaca;
+
+  /* Surfaces */
+  --v1-bg:        #f5f7fa;
+  --v1-surface:   #ffffff;
+  --v1-surface-2: #f9fafb;     /* subtle row alt / hover */
+  --v1-surface-3: #f3f4f6;
+
+  /* Borders */
+  --v1-border:        #e5e7eb;
+  --v1-border-strong: #d1d5db;
+
+  /* Text */
+  --v1-text:    #111827;
+  --v1-text-2:  #4b5563;
+  --v1-text-3:  #6b7280;
+  --v1-text-4:  #9ca3af;
+
+  /* Layout */
+  --v1-radius-sm: 4px;
+  --v1-radius:    6px;
+  --v1-radius-lg: 8px;
+  --v1-radius-xl: 12px;
+
+  --v1-shadow-1: 0 1px 2px rgba(16, 24, 40, 0.04);
+  --v1-shadow-2: 0 1px 3px rgba(16, 24, 40, 0.06),
+                 0 1px 2px rgba(16, 24, 40, 0.04);
+
+  /* Typography */
+  --v1-font:      "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --v1-font-mono: "JetBrains Mono", "SF Mono", "IBM Plex Mono", Menlo, monospace;
+}
+
+/* Number columns get tabular-nums for clean alignment in tables. */
+.v1 .num,
+.v1 td.num,
+.v1 .figure {
+  font-variant-numeric: tabular-nums;
+}
+.v1 .mono { font-family: var(--v1-font-mono); }
+
+/* Calm KPI card recipe — usable in any page that opts in. */
+.v1-kpi {
+  background: var(--v1-surface);
+  border: 1px solid var(--v1-border);
+  border-radius: var(--v1-radius-lg);
+  box-shadow: var(--v1-shadow-1);
+  padding: 16px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.v1-kpi .label {
+  color: var(--v1-text-3);
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.v1-kpi .value {
+  color: var(--v1-text);
+  font-size: 28px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.1;
+}
+.v1-kpi .sub {
+  color: var(--v1-text-3);
+  font-size: 12px;
+}
+
+/* Forensic timeline strip — a horizontal series of queue segments. */
+.v1-timeline {
+  display: flex;
+  height: 32px;
+  background: var(--v1-surface-3);
+  border-radius: var(--v1-radius);
+  overflow: hidden;
+  border: 1px solid var(--v1-border);
+}
+.v1-timeline .seg {
+  border-right: 1px solid var(--v1-border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 500;
+  overflow: hidden;
+  white-space: nowrap;
+  padding: 0 6px;
+  cursor: default;
+}
+.v1-timeline .seg:last-child { border-right: 0; }
+.v1-timeline .seg.breach { background: var(--v1-danger); }
+.v1-timeline .seg.no-owner { background: #8a8a8a; }
+.v1-timeline .seg.paused { background: var(--v1-warning); color: #1f2937; }
+.v1-timeline .seg.ok { background: var(--v1-brand); }
