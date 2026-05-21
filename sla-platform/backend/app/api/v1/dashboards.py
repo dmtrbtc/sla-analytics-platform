@@ -24,9 +24,12 @@ router = APIRouter()
 @router.get("/overview", response_model=dict)
 async def dashboard_overview(
     days: int = Query(30, ge=1, le=365),
+    queue: list[str] = Query(default=[],
+        description="One or more queue names to scope all KPIs to (e.g. favorite queues)."),
     db: AsyncSession = Depends(get_db),
 ):
-    return await DashboardService.get_overview(db, days=days)
+    # Support multi-value ?queue=A&queue=B&queue=C from URL (List/Sidebar).
+    return await DashboardService.get_overview(db, days=days, queues=queue or None)
 
 
 @router.get("/time-series", response_model=dict)

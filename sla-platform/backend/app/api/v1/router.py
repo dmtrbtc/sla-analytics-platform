@@ -30,6 +30,8 @@ from app.api.v1 import (
     attachments,
     queue_intelligence,
     forensics,
+    favorites,
+    queue_details,
 )
 
 api_router = APIRouter()
@@ -65,5 +67,7 @@ protected_router.include_router(operations_admin.router, prefix="/operations", t
 protected_router.include_router(attachments.router, prefix="/attachments", tags=["attachments"])
 protected_router.include_router(queue_intelligence.router, prefix="/queue-intelligence", tags=["queue-intelligence"])
 protected_router.include_router(forensics.router, prefix="/analytics/forensics", tags=["forensics-v3"])
+protected_router.include_router(favorites.router, prefix="/favorites", tags=["favorites-v14"])
+protected_router.include_router(queue_details.router, prefix="/queues", tags=["queue-detail-v14"])
 
 api_router.include_router(protected_router)

@@ -188,6 +188,13 @@ class Team(Base):
     description = Column(Text)
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime(timezone=True), default=datetime.utcnow)
+    # v1.4 operational fields (optional — old rows survive nullable)
+    lead_user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=True)
+    color = Column(String(20), nullable=True)
+    response_target_seconds = Column(Integer, nullable=True)
+    resolution_target_seconds = Column(Integer, nullable=True)
+    escalation_chain = Column(JSONB, default=list, nullable=True)
+    queues = Column(JSONB, default=list, nullable=True)   # extra queues beyond queue_prefix
 
 
 class AuditLog(Base):
@@ -268,3 +275,72 @@ class UserTeam(Base):
 
     user_id = Column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), primary_key=True)
     team_id = Column(Integer, ForeignKey("teams.id", ondelete="CASCADE"), primary_key=True)
+
+
+# --- v1.4 Favorite Queues / Queue Groups / Dashboard Presets ----------------
+
+
+class FavoriteQueue(Base):
+    """Per-user starred queues. Composite PK (user_id, queue_name)."""
+    __tablename__ = "favorite_queues"
+
+    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"),
+                     primary_key=True)
+    queue_name = Column(String(200), primary_key=True)
+    position = Column(Integer, default=0, nullable=False)
+    starred_at = Column(DateTime(timezone=True), default=datetime.utcnow)
+
+
+class QueueGroup(Base):
+    """User-defined group of queues (e.g. 'Critical Infra', 'SAP Support').
+
+    is_shared=True groups are visible to every user (admin-defined presets).
+    is_shared=False groups are owned by `user_id` and private to that user.
+    """
+    __tablename__ = "queue_groups"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"),
+                     nullable=True, index=True)
+    name = Column(String(200), nullable=False)
+    description = Column(Text)
+    color = Column(String(20))
+    is_shared = Column(Boolean, default=False, nullable=False)
+    created_at = Column(DateTime(timezone=True), default=datetime.utcnow)
+    updated_at = Column(DateTime(timezone=True), default=datetime.utcnow,
+                        onupdate=datetime.utcnow)
+
+
+class QueueGroupItem(Base):
+    """Queues that belong to a QueueGroup. Composite PK to dedupe."""
+    __tablename__ = "queue_group_items"
+
+    group_id = Column(UUID(as_uuid=True),
+                      ForeignKey("queue_groups.id", ondelete="CASCADE"),
+                      primary_key=True)
+    queue_name = Column(String(200), primary_key=True)
+    position = Column(Integer, default=0, nullable=False)
+
+
+class DashboardPreset(Base):
+    """Operational workspace: a named view that pins a queue_group + layout.
+
+    workspace_kind values:
+      'noc' | 'servicedesk' | 'infra' | 'sap' | 'executive' | 'custom'
+    """
+    __tablename__ = "dashboard_presets"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"),
+                     nullable=True, index=True)
+    name = Column(String(200), nullable=False)
+    workspace_kind = Column(String(50), nullable=False, default="custom")
+    queue_group_id = Column(UUID(as_uuid=True),
+                            ForeignKey("queue_groups.id", ondelete="SET NULL"),
+                            nullable=True)
+    layout = Column(JSONB, default=dict)
+    is_default = Column(Boolean, default=False, nullable=False)
+    is_shared = Column(Boolean, default=False, nullable=False)
+    created_at = Column(DateTime(timezone=True), default=datetime.utcnow)
+    updated_at = Column(DateTime(timezone=True), default=datetime.utcnow,
+                        onupdate=datetime.utcnow)

@@ -1,6 +1,7 @@
 """Dashboard overview aggregation service — SQL aggregate queries only, no loading all rows."""
 
 from datetime import datetime, timedelta
+from typing import Optional
 from uuid import UUID
 
 from sqlalchemy import and_, case, select, func, text
@@ -25,26 +26,46 @@ class DashboardService:
 
     @staticmethod
     @cached(ttl=120, key_prefix="dash", skip_args=1)
-    async def get_overview(db: AsyncSession, days: int = 30) -> dict:
+    async def get_overview(
+        db: AsyncSession,
+        days: int = 30,
+        queues: Optional[list[str]] = None,
+    ) -> dict:
+        """Overview KPIs. If `queues` provided, scope every aggregation to
+        those queue_names (used by the favorite-queues-only dashboard mode)."""
         now = datetime.utcnow()
         since = now - timedelta(days=days)
 
-        # Total tickets
-        total_tickets = (await db.execute(select(func.count(TicketSnapshot.ticket_id)))).scalar() or 0
+        # Helper: add queue filter if provided
+        def _scope_snap(q):
+            return q.where(TicketSnapshot.current_queue.in_(queues)) if queues else q
+        def _scope_metric(q):
+            return q.where(SLAMetric.queue_name.in_(queues)) if queues else q
 
-        open_tickets = (
-            await db.execute(
-                select(func.count(TicketSnapshot.ticket_id)).where(TicketSnapshot.is_closed == False)
+        # Total tickets
+        total_tickets = (await db.execute(
+            _scope_snap(select(func.count(TicketSnapshot.ticket_id)))
+        )).scalar() or 0
+
+        open_tickets = (await db.execute(
+            _scope_snap(
+                select(func.count(TicketSnapshot.ticket_id))
+                .where(TicketSnapshot.is_closed == False)
             )
-        ).scalar() or 0
+        )).scalar() or 0
 
         closed_tickets = total_tickets - open_tickets
 
         # SLA summary
-        sla_total = (await db.execute(select(func.count(SLAMetric.id)))).scalar() or 0
-        sla_breached = (
-            await db.execute(select(func.count(SLAMetric.id)).where(SLAMetric.sla_breached == True))
-        ).scalar() or 0
+        sla_total = (await db.execute(
+            _scope_metric(select(func.count(SLAMetric.id)))
+        )).scalar() or 0
+        sla_breached = (await db.execute(
+            _scope_metric(
+                select(func.count(SLAMetric.id))
+                .where(SLAMetric.sla_breached == True)
+            )
+        )).scalar() or 0
         breach_pct = round(sla_breached / sla_total * 100, 2) if sla_total else 0.0
 
         # Avg response/resolution + percentiles (P50/P90/P95/P99).
@@ -61,6 +82,8 @@ class DashboardService:
             ).where(
                 SLAMetric.metric_name.in_(names), SLAMetric.metric_seconds.isnot(None)
             )
+            if queues:
+                q = q.where(SLAMetric.queue_name.in_(queues))
             row = (await db.execute(q)).one()
             return {
                 "avg": round(float(row.avg), 2) if row.avg else 0.0,
@@ -80,14 +103,15 @@ class DashboardService:
             )
         ).scalar() or 0
 
-        # Tickets by queue
-        queue_rows = (
-            await db.execute(
-                select(TicketSnapshot.current_queue, func.count(TicketSnapshot.ticket_id))
-                .group_by(TicketSnapshot.current_queue)
-                .order_by(func.count(TicketSnapshot.ticket_id).desc())
-            )
-        ).all()
+        # Tickets by queue (scoped if `queues` provided)
+        _q_by_q = (
+            select(TicketSnapshot.current_queue, func.count(TicketSnapshot.ticket_id))
+            .group_by(TicketSnapshot.current_queue)
+            .order_by(func.count(TicketSnapshot.ticket_id).desc())
+        )
+        if queues:
+            _q_by_q = _q_by_q.where(TicketSnapshot.current_queue.in_(queues))
+        queue_rows = (await db.execute(_q_by_q)).all()
         tickets_by_queue = {r[0] or "Unknown": r[1] for r in queue_rows}
 
         # Tickets by state

@@ -137,7 +137,7 @@ class ErrorResponse(BaseModel):
     errors: list[dict] = []
 
 
-# === Team schemas ===
+# === Team schemas (v1.4 operational fields are additive + nullable) ===
 class TeamResponse(BaseModel):
     id: int
     name: str
@@ -145,6 +145,13 @@ class TeamResponse(BaseModel):
     queue_prefix: Optional[str] = None
     is_active: bool = True
     created_at: datetime
+    # v1.4 operational
+    lead_user_id: Optional[UUID] = None
+    color: Optional[str] = None
+    response_target_seconds: Optional[int] = None
+    resolution_target_seconds: Optional[int] = None
+    escalation_chain: Optional[list] = None
+    queues: Optional[list] = None
     model_config = ConfigDict(from_attributes=True)
 
 
@@ -153,6 +160,12 @@ class TeamCreate(BaseModel):
     description: Optional[str] = None
     queue_prefix: Optional[str] = None
     is_active: bool = True
+    lead_user_id: Optional[UUID] = None
+    color: Optional[str] = Field(default=None, max_length=20)
+    response_target_seconds: Optional[int] = None
+    resolution_target_seconds: Optional[int] = None
+    escalation_chain: Optional[list] = None
+    queues: Optional[list] = None
 
 
 class TeamUpdate(BaseModel):
@@ -160,6 +173,12 @@ class TeamUpdate(BaseModel):
     description: Optional[str] = None
     queue_prefix: Optional[str] = None
     is_active: Optional[bool] = None
+    lead_user_id: Optional[UUID] = None
+    color: Optional[str] = Field(default=None, max_length=20)
+    response_target_seconds: Optional[int] = None
+    resolution_target_seconds: Optional[int] = None
+    escalation_chain: Optional[list] = None
+    queues: Optional[list] = None
 
 
 # === SLA schemas ===

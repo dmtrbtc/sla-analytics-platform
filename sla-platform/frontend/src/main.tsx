@@ -6,6 +6,7 @@ import { ConfigProvider } from "antd";
 import ruRU from "antd/locale/ru_RU";
 import App from "./App";
 import { ThemeProvider } from "./design/ThemeContext";
+import { FavoritesProvider } from "./contexts/FavoritesContext";
 import "./i18n";
 
 const queryClient = new QueryClient({
@@ -23,7 +24,9 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
       <QueryClientProvider client={queryClient}>
         <ConfigProvider locale={ruRU} theme={{ token: { colorPrimary: "#0969da" } }}>
           <BrowserRouter>
-            <App />
+            <FavoritesProvider>
+              <App />
+            </FavoritesProvider>
           </BrowserRouter>
         </ConfigProvider>
       </QueryClientProvider>

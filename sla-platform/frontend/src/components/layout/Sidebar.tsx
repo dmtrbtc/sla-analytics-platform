@@ -6,6 +6,7 @@ import {
   BugOutlined, AimOutlined, ControlOutlined, RadarChartOutlined, ThunderboltOutlined,
   UserOutlined, BarChartOutlined, SafetyOutlined, PaperClipOutlined,
   ApartmentOutlined, HeatMapOutlined, NodeIndexOutlined,
+  StarFilled,
 } from "@ant-design/icons";
 import { useTranslation } from "react-i18next";
 import { useAuthStore } from "../../stores/authStore";
@@ -22,6 +23,7 @@ export default function Sidebar() {
 
   const mainItems = [
     { key: "/dashboard", icon: <DashboardOutlined />, label: t("nav.dashboard") },
+    { key: "/favorites", icon: <StarFilled style={{ color: "#f5c518" }} />, label: "Избранное" },
     { key: "/dashboard/executive", icon: <FundOutlined />, label: t("nav.executive", "Executive") },
     { key: "/dashboard/ops", icon: <ThunderboltOutlined />, label: t("nav.analytics") },
     { key: "/dashboard/teams", icon: <BarChartOutlined />, label: t("nav.teamDashboard") },

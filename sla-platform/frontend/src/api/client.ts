@@ -5,6 +5,22 @@ const client = axios.create({
   headers: {
     "Content-Type": "application/json",
   },
+  // FastAPI expects `?queue=A&queue=B` for List[str] query params.
+  // Axios default serialization (`queue[]=A`) breaks server-side parsing.
+  paramsSerializer: {
+    serialize: (params) => {
+      const usp = new URLSearchParams();
+      for (const [k, v] of Object.entries(params)) {
+        if (v === undefined || v === null) continue;
+        if (Array.isArray(v)) {
+          v.forEach((item) => usp.append(k, String(item)));
+        } else {
+          usp.append(k, String(v));
+        }
+      }
+      return usp.toString();
+    },
+  },
 });
 
 let isRefreshing = false;

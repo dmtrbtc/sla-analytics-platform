@@ -13,15 +13,31 @@ import { useQuery } from "@tanstack/react-query";
 import { dashboardsApi } from "../api/dashboards";
 import { slaApi } from "../api/sla";
 import { formatDuration } from "../utils/format";
+import { useFavorites } from "../contexts/FavoritesContext";
+import { Tag } from "antd";
 
 export default function Dashboard() {
   const { t } = useTranslation();
   const [days, setDays] = useState(30);
+  const { activeFilter, enableFavoritesOnly } = useFavorites();
+
+  // Build params with multi-value ?queue= when filter active
+  const queueParams = (() => {
+    if (!activeFilter.length) return {};
+    const p = new URLSearchParams();
+    activeFilter.forEach(q => p.append("queue", q));
+    // pass through axios `params` as object — but URLSearchParams serializer
+    // is set per-axios-call below using paramsSerializer.
+    return p;
+  })();
 
   const { data: overview, isLoading } = useQuery({
-    queryKey: ["dashboard-overview", days],
+    queryKey: ["dashboard-overview", days, activeFilter.join(",")],
     queryFn: async () => {
-      const resp = await dashboardsApi.overview({ days });
+      const resp = await dashboardsApi.overview({
+        days,
+        queue: activeFilter.length ? activeFilter : undefined,
+      });
       return resp.data;
     },
     refetchInterval: 30_000,

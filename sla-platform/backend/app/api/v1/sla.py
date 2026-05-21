@@ -112,7 +112,7 @@ async def get_sla_definition(
     }
 
 
-@router.put("/definitions/{definition_id}", response_model=SLADefinitionResponse)
+@router.api_route("/definitions/{definition_id}", methods=["PUT", "PATCH"], response_model=SLADefinitionResponse)
 async def update_sla_definition(
     definition_id: int,
     payload: SLADefinitionUpdate,
@@ -335,7 +335,10 @@ async def get_queue_rule(
     return {"queue_rule": _queue_rule_to_dict(rule)}
 
 
-@router.put("/queue-rules/{rule_id}", response_model=dict)
+# Accept both PUT and PATCH — frontends differ on which verb they send for
+# partial updates. SLAQueueRuleUpdate uses optional fields with a sentinel,
+# so semantically PATCH behavior is identical to PUT here.
+@router.api_route("/queue-rules/{rule_id}", methods=["PUT", "PATCH"], response_model=dict)
 async def update_queue_rule(
     rule_id: UUID,
     payload: SLAQueueRuleUpdate,
