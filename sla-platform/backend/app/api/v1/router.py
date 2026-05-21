@@ -33,6 +33,7 @@ from app.api.v1 import (
     favorites,
     queue_details,
     sla_governance,
+    operations_intelligence,
 )
 
 api_router = APIRouter()
@@ -75,5 +76,6 @@ protected_router.include_router(sla_governance.contribution_router, prefix="/ana
 # and /sla/simulate handlers in sla.py. These are the v1.5 governance additions.
 protected_router.include_router(sla_governance.sla_governance_router, prefix="/sla/v15", tags=["sla-governance-v15"])
 protected_router.include_router(sla_governance.team_dash_router, prefix="/teams", tags=["teams-v15"])
+protected_router.include_router(operations_intelligence.router, prefix="/operations/intelligence", tags=["operations-intelligence-v16"])
 
 api_router.include_router(protected_router)

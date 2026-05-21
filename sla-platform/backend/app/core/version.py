@@ -1,3 +1,3 @@
 """Centralized version constant for SLA Analytics Platform."""
 
-VERSION = "1.5.0"
+VERSION = "1.6.0"
