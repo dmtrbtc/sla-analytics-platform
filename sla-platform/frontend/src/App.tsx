@@ -31,6 +31,7 @@ const QueueForensicsPage = lazy(() => import("./pages/QueueForensics"));
 const ServiceDeskIntelligencePage = lazy(() => import("./pages/ServiceDeskIntelligence"));
 const SLAForensicCommandCenter = lazy(() => import("./pages/SLAForensicCommandCenter"));
 const FavoritesPage = lazy(() => import("./pages/Favorites"));
+const SLALossCenter = lazy(() => import("./pages/SLALossCenter"));
 
 function SuspenseWrapper({ children }: { children: React.ReactNode }) {
   return <Suspense fallback={<Spin size="large" style={{ display: "block", margin: "100px auto" }} />}>{children}</Suspense>;
@@ -65,6 +66,7 @@ export default function App() {
           <Route path="/servicedesk" element={<SuspenseWrapper><ServiceDeskIntelligencePage /></SuspenseWrapper>} />
           <Route path="/forensics" element={<SuspenseWrapper><SLAForensicCommandCenter /></SuspenseWrapper>} />
           <Route path="/favorites" element={<SuspenseWrapper><FavoritesPage /></SuspenseWrapper>} />
+          <Route path="/sla-loss" element={<SuspenseWrapper><SLALossCenter /></SuspenseWrapper>} />
           <Route path="/admin/users" element={<RoleGuard roles={["admin"]}><SuspenseWrapper><AdminUsers /></SuspenseWrapper></RoleGuard>} />
           <Route path="/admin/diagnostics" element={<RoleGuard roles={["admin"]}><SuspenseWrapper><AdminDiagnostics /></SuspenseWrapper></RoleGuard>} />
           <Route path="/admin/operations" element={<RoleGuard roles={["admin"]}><SuspenseWrapper><OperationsAdmin /></SuspenseWrapper></RoleGuard>} />

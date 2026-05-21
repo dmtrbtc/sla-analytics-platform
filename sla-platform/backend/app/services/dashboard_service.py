@@ -202,48 +202,55 @@ class DashboardService:
         metric: str = "tickets_created",
         granularity: str = "day",
         days: int = 30,
+        queues: Optional[list[str]] = None,
     ) -> list:
+        """When `queues` is supplied, every metric branch scopes its SELECT
+        to TicketSnapshot.current_queue (for ticket-level metrics) or
+        SLAMetric.queue_name (for SLA metrics)."""
         now = datetime.utcnow()
         since = now - timedelta(days=days)
         trunc = "day" if granularity == "daily" else ("week" if granularity == "weekly" else "month")
 
         if metric == "tickets_created":
-            rows = (
-                await db.execute(
-                    select(
-                        func.date_trunc(trunc, TicketSnapshot.created_at).label("period"),
-                        func.count(TicketSnapshot.ticket_id),
-                    )
-                    .where(TicketSnapshot.created_at >= since)
-                    .group_by(text("period"))
-                    .order_by(text("period"))
+            q = (
+                select(
+                    func.date_trunc(trunc, TicketSnapshot.created_at).label("period"),
+                    func.count(TicketSnapshot.ticket_id),
                 )
-            ).all()
+                .where(TicketSnapshot.created_at >= since)
+            )
+            if queues:
+                q = q.where(TicketSnapshot.current_queue.in_(queues))
+            q = q.group_by(text("period")).order_by(text("period"))
+            rows = (await db.execute(q)).all()
             return [{"period": str(r[0]), "count": r[1]} for r in rows]
 
         elif metric == "tickets_closed":
-            rows = (
-                await db.execute(
-                    select(
-                        func.date_trunc(trunc, TicketSnapshot.updated_at).label("period"),
-                        func.count(TicketSnapshot.ticket_id),
-                    )
-                    .where(TicketSnapshot.is_closed == True, TicketSnapshot.updated_at >= since)
-                    .group_by(text("period"))
-                    .order_by(text("period"))
+            q = (
+                select(
+                    func.date_trunc(trunc, TicketSnapshot.updated_at).label("period"),
+                    func.count(TicketSnapshot.ticket_id),
                 )
-            ).all()
+                .where(TicketSnapshot.is_closed == True, TicketSnapshot.updated_at >= since)
+            )
+            if queues:
+                q = q.where(TicketSnapshot.current_queue.in_(queues))
+            q = q.group_by(text("period")).order_by(text("period"))
+            rows = (await db.execute(q)).all()
             return [{"period": str(r[0]), "count": r[1]} for r in rows]
 
         elif metric == "sla_breaches":
-            rows = (
-                await db.execute(
-                    select(
-                        func.date_trunc(trunc, SLAMetric.computed_at).label("period"),
-                        func.count(SLAMetric.id),
-                    )
-                    .where(SLAMetric.sla_breached == True, SLAMetric.computed_at >= since)
-                    .group_by(text("period"))
+            q = (
+                select(
+                    func.date_trunc(trunc, SLAMetric.computed_at).label("period"),
+                    func.count(SLAMetric.id),
+                )
+                .where(SLAMetric.sla_breached == True, SLAMetric.computed_at >= since)
+            )
+            if queues:
+                q = q.where(SLAMetric.queue_name.in_(queues))
+            rows = (await db.execute(
+                q.group_by(text("period"))
                     .order_by(text("period"))
                 )
             ).all()
@@ -256,21 +263,22 @@ class DashboardService:
                 metric_names = ["first_response_time", "response_time"]
             else:
                 metric_names = ["resolution_time"]
-            rows = (
-                await db.execute(
-                    select(
-                        func.date_trunc(trunc, SLAMetric.computed_at).label("period"),
-                        func.avg(SLAMetric.metric_seconds),
-                    )
-                    .where(
-                        SLAMetric.metric_name.in_(metric_names),
-                        SLAMetric.metric_seconds.isnot(None),
-                        SLAMetric.computed_at >= since,
-                    )
-                    .group_by(text("period"))
-                    .order_by(text("period"))
+            q = (
+                select(
+                    func.date_trunc(trunc, SLAMetric.computed_at).label("period"),
+                    func.avg(SLAMetric.metric_seconds),
                 )
-            ).all()
+                .where(
+                    SLAMetric.metric_name.in_(metric_names),
+                    SLAMetric.metric_seconds.isnot(None),
+                    SLAMetric.computed_at >= since,
+                )
+            )
+            if queues:
+                q = q.where(SLAMetric.queue_name.in_(queues))
+            rows = (await db.execute(
+                q.group_by(text("period")).order_by(text("period"))
+            )).all()
             return [{"period": str(r[0]), "avg_seconds": round(float(r[1] or 0), 2)} for r in rows]
 
         return []

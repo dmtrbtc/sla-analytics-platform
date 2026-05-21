@@ -147,6 +147,78 @@ A grounded backlog of operational, governance, AI, and automation extensions tha
 
 ---
 
+## 7.5. Phase-6 grounded additions (added in v1.8)
+
+Each item below is grounded in a real signal that already exists in the
+v1.5–v1.8 endpoints. No new data collection required.
+
+### 7.5.1 Predictive SLA collapse (real signal: routing_instability_score)
+**Trigger:** `routing_instability_score ≥ 60` AND ticket is still open AND
+`hours_open / resolution_target ≥ 0.5`.
+**Action:** Daily job posts to Slack/webhook with the top-N tickets predicted
+to breach in next 24 h. Confidence band based on historical match.
+**Effort:** ½ day backend job + tracking table.
+
+### 7.5.2 Queue staffing imbalance scorecard
+**Signal:** `domain_intelligence.workplace.engineers` already returns
+overload_ratio per engineer. Per-queue: aggregate (engineer_count_active ÷
+overloaded_count). When the ratio crosses 0.5 (half the team overloaded),
+flag.
+**Effort:** ½ day.
+
+### 7.5.3 Auto-routing recommender for ServiceDesk
+**Signal:** `domain_intelligence.servicedesk.outbound_transitions` shows
+ServiceDesk → 1C-Alfa-Auto: 516 transitions on only 86 tickets. A high
+n/tickets ratio (>5) means the destination is wrong or there's a loop.
+**Action:** Generate `sla_queue_rules` proposals to skip ServiceDesk for
+the most-channelled patterns.
+**Effort:** 1 day backend + 1 day UI.
+
+### 7.5.4 AI queue diagnosis (1-paragraph summary per queue)
+**Signal:** Combine `/queues/{name}` + `/operations/intelligence/{domain}`
+into a prompt. Output: "MBR-137-Network: 99% no-owner, 67 tickets,
+no human stewardship. Recommendation: assign owner."
+**Effort:** ½ day prompt template; needs LLM cost approval.
+
+### 7.5.5 Ticket aging prediction
+**Signal:** Tickets with `bounce_count ≥ 3` in their first 24h have
+near-certain breach in our dataset. Build a simple logistic regression
+on first-24h features → breach in 7-day window.
+**Effort:** 2 days; needs sample size beyond current 776 tickets.
+
+### 7.5.6 Silent breach detection (already shipped — strengthen)
+**Status:** `InactivityEngine.detect_silent_breaches` ships in v1.4.
+**Enhancement:** Auto-create a low-priority incident when a silent
+breach passes 7 days (already 5 examples ≥ 900 days in the dataset).
+**Effort:** ½ day.
+
+### 7.5.7 Queue toxicity scoring
+**Definition:** `toxicity = 0.4·no_owner_ratio + 0.3·breach_rate +
+0.2·avg_dormancy + 0.1·routing_chaos`.
+**Effort:** ½ day. Combines existing per-queue forensics into one
+ranking number for executive reports.
+
+### 7.5.8 Engineer overload forecasting
+**Signal:** `domain_intelligence.workplace.engineers.overload_ratio`.
+**Action:** 7-day moving average to predict when an engineer will cross
+2.0× — fire alert at 1.5× rising-trend.
+**Effort:** 1 day.
+
+### 7.5.9 Routing-loop prevention
+**Signal:** `hot_potato_tickets` returns tickets with `moves ≥ 3`.
+**Action:** When `bounces[i].visits ≥ 3` AND ticket is open AND
+target_seconds_remaining > 0, auto-escalate via team escalation_chain.
+**Effort:** 1 day backend; needs OTRS write API for the escalation
+write-back.
+
+### 7.5.10 SLA-loss leaderboard for monthly customer review
+**Signal:** `/analytics/sla-loss/top-queues?days=30` returns the
+monthly version directly. Wrap into a printable monthly XLSX with
+the v1 palette for executive review.
+**Effort:** ½ day.
+
+---
+
 ## 8. What this backlog deliberately omits
 
 - "AI command center" / "AI chat for operations" — not grounded in real data signals; deferred until the smaller AI ideas (3.1-3.3) prove value.

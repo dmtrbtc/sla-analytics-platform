@@ -35,6 +35,7 @@ from app.api.v1 import (
     sla_governance,
     operations_intelligence,
     forensic_timeline,
+    sla_loss,
 )
 
 api_router = APIRouter()
@@ -79,5 +80,6 @@ protected_router.include_router(sla_governance.sla_governance_router, prefix="/s
 protected_router.include_router(sla_governance.team_dash_router, prefix="/teams", tags=["teams-v15"])
 protected_router.include_router(operations_intelligence.router, prefix="/operations/intelligence", tags=["operations-intelligence-v16"])
 protected_router.include_router(forensic_timeline.router, prefix="/analytics/forensics/timeline", tags=["forensic-timeline-v17"])
+protected_router.include_router(sla_loss.router, prefix="/analytics/sla-loss", tags=["sla-loss-v18"])
 
 api_router.include_router(protected_router)

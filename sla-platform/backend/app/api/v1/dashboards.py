@@ -37,9 +37,12 @@ async def time_series(
     metric: str = Query("tickets_created"),
     granularity: str = Query("daily"),
     days: int = Query(30, ge=1, le=365),
+    queue: list[str] = Query(default=[]),
     db: AsyncSession = Depends(get_db),
 ):
-    data = await DashboardService.get_time_series(db, metric, granularity, days)
+    data = await DashboardService.get_time_series(
+        db, metric, granularity, days, queues=queue or None,
+    )
     return {"metric": metric, "granularity": granularity, "data": data}
 
 
@@ -62,6 +65,7 @@ async def ticket_flow(
 @router.get("/sla-trend", response_model=dict)
 async def sla_trend(
     days: int = Query(30, ge=1, le=365),
+    queue: list[str] = Query(default=[]),
     db: AsyncSession = Depends(get_db),
 ):
     """Daily SLA breach trend over the requested window.
@@ -72,18 +76,18 @@ async def sla_trend(
     """
     from datetime import timedelta
     since = datetime.utcnow() - timedelta(days=days)
-    rows = (
-        await db.execute(
-            select(
-                func.date_trunc("day", SLAMetric.computed_at).label("day"),
-                func.count(SLAMetric.id),
-                func.sum(case((SLAMetric.sla_breached == True, 1), else_=0)).label("breached"),
-            )
-            .where(SLAMetric.computed_at >= since)
-            .group_by(text("day"))
-            .order_by(text("day"))
+    q = (
+        select(
+            func.date_trunc("day", SLAMetric.computed_at).label("day"),
+            func.count(SLAMetric.id),
+            func.sum(case((SLAMetric.sla_breached == True, 1), else_=0)).label("breached"),
         )
-    ).all()
+        .where(SLAMetric.computed_at >= since)
+    )
+    if queue:
+        q = q.where(SLAMetric.queue_name.in_(queue))
+    q = q.group_by(text("day")).order_by(text("day"))
+    rows = (await db.execute(q)).all()
     return {
         "trend": [
             {"date": str(r[0].date()), "total": r[1] or 0, "breached": int(r[2] or 0)}
@@ -148,6 +152,7 @@ async def reassignments(
 @router.get("/approaching-breach", response_model=dict)
 async def approaching_breach(
     limit: int = Query(20, le=100),
+    queue: list[str] = Query(default=[]),
     db: AsyncSession = Depends(get_db),
 ):
     # V2 engine emits "first_response_time"; the legacy "response_time"
@@ -155,7 +160,10 @@ async def approaching_breach(
     q = select(SLAMetric).where(
         SLAMetric.sla_breached == False,
         SLAMetric.metric_name.in_(["first_response_time", "resolution_time"]),
-    ).order_by(SLAMetric.metric_seconds.desc().nullslast()).limit(limit)
+    )
+    if queue:
+        q = q.where(SLAMetric.queue_name.in_(queue))
+    q = q.order_by(SLAMetric.metric_seconds.desc().nullslast()).limit(limit)
     rows = (await db.execute(q)).scalars().all()
     return {
         "tickets": [

@@ -34,6 +34,7 @@ export default function Sidebar() {
     { key: "/queue-forensics", icon: <HeatMapOutlined />, label: "Queue Forensics" },
     { key: "/servicedesk", icon: <ApartmentOutlined />, label: "ServiceDesk Intel" },
     { key: "/forensics", icon: <RadarChartOutlined />, label: "Форензика SLA V3" },
+    { key: "/sla-loss", icon: <HeatMapOutlined />, label: "Где теряется SLA" },
   ];
 
   const opsItems = [
