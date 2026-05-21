@@ -35,6 +35,8 @@ export default function Sidebar() {
     { key: "/servicedesk", icon: <ApartmentOutlined />, label: "ServiceDesk Intel" },
     { key: "/forensics", icon: <RadarChartOutlined />, label: "Форензика SLA V3" },
     { key: "/sla-loss", icon: <HeatMapOutlined />, label: "Где теряется SLA" },
+    { key: "/ops/workplace", icon: <TeamOutlined />, label: "Workplace Operations" },
+    { key: "/ops/asset", icon: <ApartmentOutlined />, label: "Asset Management" },
   ];
 
   const opsItems = [

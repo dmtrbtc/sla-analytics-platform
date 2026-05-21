@@ -33,6 +33,8 @@ const ServiceDeskIntelligencePage = lazy(() => import("./pages/ServiceDeskIntell
 const SLAForensicCommandCenter = lazy(() => import("./pages/SLAForensicCommandCenter"));
 const FavoritesPage = lazy(() => import("./pages/Favorites"));
 const SLALossCenter = lazy(() => import("./pages/SLALossCenter"));
+const WorkplaceCommandCenter = lazy(() => import("./pages/WorkplaceCommandCenter"));
+const AssetCommandCenter = lazy(() => import("./pages/AssetCommandCenter"));
 
 /**
  * Wraps a route element in:
@@ -86,6 +88,8 @@ export default function App() {
           <Route path="/forensics" element={<SuspenseWrapper><SLAForensicCommandCenter /></SuspenseWrapper>} />
           <Route path="/favorites" element={<SuspenseWrapper><FavoritesPage /></SuspenseWrapper>} />
           <Route path="/sla-loss" element={<SuspenseWrapper><SLALossCenter /></SuspenseWrapper>} />
+          <Route path="/ops/workplace" element={<SuspenseWrapper><WorkplaceCommandCenter /></SuspenseWrapper>} />
+          <Route path="/ops/asset" element={<SuspenseWrapper><AssetCommandCenter /></SuspenseWrapper>} />
           <Route path="/admin/users" element={<RoleGuard roles={["admin"]}><SuspenseWrapper><AdminUsers /></SuspenseWrapper></RoleGuard>} />
           <Route path="/admin/diagnostics" element={<RoleGuard roles={["admin"]}><SuspenseWrapper><AdminDiagnostics /></SuspenseWrapper></RoleGuard>} />
           <Route path="/admin/operations" element={<RoleGuard roles={["admin"]}><SuspenseWrapper><OperationsAdmin /></SuspenseWrapper></RoleGuard>} />
