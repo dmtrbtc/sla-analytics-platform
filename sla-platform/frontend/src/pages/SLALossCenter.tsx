@@ -25,22 +25,30 @@ export default function SLALossCenter() {
     refetchInterval: 60_000,
   });
 
+  // CRITICAL: every hook below must run on EVERY render, regardless of
+  // loading / error / data state. The previous version returned early
+  // (Spin / Empty) and then called useMemo — that violates React's hooks
+  // rules and produced a runtime crash ("Rendered more hooks than during
+  // the previous render"), which blanked the whole page. Hooks first,
+  // branching second.
+  const d: LossOverview | undefined = overviewQ.data;
+
+  const totalLossHours = useMemo(
+    () => (d?.top_loss_queues ?? []).reduce((a, q) => a + (q.total_wall_hours || 0), 0),
+    [d?.top_loss_queues],
+  );
+  const totalNoOwnerHours = useMemo(
+    () => (d?.parking_lots ?? []).reduce((a, q) => a + (q.no_owner_hours || 0), 0),
+    [d?.parking_lots],
+  );
+
   if (overviewQ.isLoading) {
     return <Spin size="large" style={{ display: "block", margin: "120px auto" }} />;
   }
-  if (overviewQ.isError || !overviewQ.data) {
+  if (overviewQ.isError || !d) {
     return <Empty description="Нет данных по потерям SLA" style={{ marginTop: 80 }} />;
   }
-  const d: LossOverview = overviewQ.data;
 
-  const totalLossHours = useMemo(
-    () => d.top_loss_queues.reduce((a, q) => a + (q.total_wall_hours || 0), 0),
-    [d.top_loss_queues],
-  );
-  const totalNoOwnerHours = useMemo(
-    () => d.parking_lots.reduce((a, q) => a + (q.no_owner_hours || 0), 0),
-    [d.parking_lots],
-  );
   const dyingCount = d.dying_in_queue.length;
   const mostExp = d.most_expensive[0];
 
