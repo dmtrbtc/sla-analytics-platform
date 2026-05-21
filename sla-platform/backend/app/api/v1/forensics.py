@@ -48,30 +48,35 @@ def list_queue_forensics(
         pattern="^(black_hole_score|parking_lot_score|routing_chaos_score|"
                 "stagnation_score|breach_rate|pressure_score|total_wall_hours)$",
     ),
+    queue: list[str] = Query(default=[],
+        description="Filter to one or more queue_names (favorite-queues mode)."),
 ):
-    """Per-queue forensic fingerprints."""
+    """Per-queue forensic fingerprints. Optional queue filter scopes the list."""
     with sync_session_factory() as db:
-        rows = QueueForensicsService.compute_all(db, limit=limit)
+        rows = QueueForensicsService.compute_all(db, limit=limit, queues=queue or None)
     data = [asdict(r) for r in rows]
     data.sort(key=lambda d: d.get(sort_by, 0) or 0, reverse=True)
     return {"count": len(data), "queues": data}
 
 
 @router.get("/blackholes")
-def list_blackholes(min_score: float = Query(0.3, ge=0.0, le=1.0)):
+def list_blackholes(
+    min_score: float = Query(0.3, ge=0.0, le=1.0),
+    queue: list[str] = Query(default=[]),
+):
     """Queues identified as black holes (parked + breach + low exit)."""
     with sync_session_factory() as db:
-        rows = QueueForensicsService.compute_all(db, limit=200)
+        rows = QueueForensicsService.compute_all(db, limit=200, queues=queue or None)
     out = [asdict(r) for r in rows if r.black_hole_score >= min_score]
     out.sort(key=lambda d: d["black_hole_score"], reverse=True)
     return {"threshold": min_score, "count": len(out), "queues": out}
 
 
 @router.get("/stagnation")
-def list_stagnation_queues():
+def list_stagnation_queues(queue: list[str] = Query(default=[])):
     """Queues by stagnation score (low touch density per hour held)."""
     with sync_session_factory() as db:
-        rows = QueueForensicsService.compute_all(db, limit=200)
+        rows = QueueForensicsService.compute_all(db, limit=200, queues=queue or None)
     out = sorted(
         [asdict(r) for r in rows],
         key=lambda d: d["stagnation_score"],
@@ -84,9 +89,12 @@ def list_stagnation_queues():
 
 
 @router.get("/owners")
-def list_owner_forensics(limit: int = Query(100, ge=1, le=500)):
+def list_owner_forensics(
+    limit: int = Query(100, ge=1, le=500),
+    queue: list[str] = Query(default=[]),
+):
     with sync_session_factory() as db:
-        rows = OwnerForensicsService.compute_all(db, limit=limit)
+        rows = OwnerForensicsService.compute_all(db, limit=limit, queues=queue or None)
         gaps = OwnerForensicsService.ownership_gaps(db, limit=50)
     return {
         "count": len(rows),
@@ -99,9 +107,12 @@ def list_owner_forensics(limit: int = Query(100, ge=1, le=500)):
 
 
 @router.get("/transitions")
-def list_transitions(limit: int = Query(200, ge=10, le=2000)):
+def list_transitions(
+    limit: int = Query(200, ge=10, le=2000),
+    queue: list[str] = Query(default=[]),
+):
     with sync_session_factory() as db:
-        rows = QueueForensicsService.transitions(db, limit=limit)
+        rows = QueueForensicsService.transitions(db, limit=limit, queues=queue or None)
     return {"count": len(rows), "transitions": rows}
 
 
@@ -109,9 +120,12 @@ def list_transitions(limit: int = Query(200, ge=10, le=2000)):
 def list_hot_potato(
     min_moves: int = Query(3, ge=1, le=50),
     limit: int = Query(50, ge=1, le=500),
+    queue: list[str] = Query(default=[]),
 ):
     with sync_session_factory() as db:
-        rows = QueueForensicsService.hot_potato_tickets(db, min_moves=min_moves, limit=limit)
+        rows = QueueForensicsService.hot_potato_tickets(
+            db, min_moves=min_moves, limit=limit, queues=queue or None,
+        )
     return {"count": len(rows), "tickets": rows}
 
 
@@ -161,10 +175,13 @@ def list_breach_attributions(
 def list_silent_breaches(
     min_ratio: float = Query(0.5, ge=0.1, le=5.0),
     limit: int = Query(200, ge=1, le=1000),
+    queue: list[str] = Query(default=[]),
 ):
     """Open tickets aging silently past min_ratio × SLA target."""
     with sync_session_factory() as db:
-        rows = InactivityEngine.detect_silent_breaches(db, min_inactivity_ratio=min_ratio, limit=limit)
+        rows = InactivityEngine.detect_silent_breaches(
+            db, min_inactivity_ratio=min_ratio, limit=limit, queues=queue or None,
+        )
         queue_silence = InactivityEngine.compute_queue_silence(db)
     return {
         "count": len(rows),
@@ -211,18 +228,20 @@ def ticket_attribution(
 
 
 @router.get("/summary")
-def forensic_summary():
+def forensic_summary(queue: list[str] = Query(default=[])):
     """Single endpoint for the Forensic Command Center dashboard.
 
     Returns a compact bundle of the top signals across all forensics
-    services so the UI can render with one HTTP call.
+    services so the UI can render with one HTTP call. Optional ?queue=
+    filter scopes every component to the selected queue list.
     """
+    q = queue or None
     with sync_session_factory() as db:
-        queues = QueueForensicsService.compute_all(db, limit=50)
-        owners = OwnerForensicsService.compute_all(db, limit=25)
-        transitions = QueueForensicsService.transitions(db, limit=30)
-        hot_potato = QueueForensicsService.hot_potato_tickets(db, min_moves=3, limit=20)
-        silent = InactivityEngine.detect_silent_breaches(db, min_inactivity_ratio=0.5, limit=20)
+        queues = QueueForensicsService.compute_all(db, limit=50, queues=q)
+        owners = OwnerForensicsService.compute_all(db, limit=25, queues=q)
+        transitions = QueueForensicsService.transitions(db, limit=30, queues=q)
+        hot_potato = QueueForensicsService.hot_potato_tickets(db, min_moves=3, limit=20, queues=q)
+        silent = InactivityEngine.detect_silent_breaches(db, min_inactivity_ratio=0.5, limit=20, queues=q)
         queue_silence = InactivityEngine.compute_queue_silence(db)
 
         # Aggregate KPIs from sla_metrics

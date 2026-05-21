@@ -50,6 +50,7 @@ class InactivityEngine:
         db: Session,
         min_inactivity_ratio: float = 0.5,
         limit: int = 200,
+        queues: list[str] | None = None,
     ) -> list[SilentBreachRow]:
         """Find open tickets whose age-since-last-activity exceeds
         min_inactivity_ratio * SLA target.
@@ -84,11 +85,16 @@ class InactivityEngine:
                 LEFT JOIN sla_definitions d ON d.id = m.sla_definition_id
                 WHERE s.is_closed IS NOT TRUE
                   AND s.is_merged IS NOT TRUE
+                  AND ((:has_queues IS FALSE) OR s.current_queue = ANY(:queue_list))
                 GROUP BY s.ticket_id, le.last_event_time, d.resolution_target_seconds
                 ORDER BY last_activity_age_seconds DESC
                 LIMIT :lim
             """),
-            {"lim": limit * 4},  # over-fetch then filter in Python (small set)
+            {
+                "lim": limit * 4,
+                "has_queues": bool(queues),
+                "queue_list": queues or [],
+            },  # over-fetch then filter in Python (small set)
         ).mappings().all()
 
         out: list[SilentBreachRow] = []

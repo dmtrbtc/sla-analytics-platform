@@ -86,8 +86,10 @@ export interface ForensicSummary {
 }
 
 export const forensicsApi = {
-  summary: () =>
-    client.get<ForensicSummary>('/analytics/forensics/summary').then(r => r.data),
+  summary: (queues?: string[]) =>
+    client.get<ForensicSummary>('/analytics/forensics/summary', {
+      params: queues && queues.length ? { queue: queues } : {},
+    }).then(r => r.data),
 
   queues: (sortBy = 'black_hole_score', limit = 100) =>
     client.get('/analytics/forensics/queues', { params: { sort_by: sortBy, limit } })

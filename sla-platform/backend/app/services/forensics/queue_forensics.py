@@ -55,7 +55,14 @@ class QueueForensicRow:
 
 class QueueForensicsService:
     @staticmethod
-    def compute_all(db: Session, limit: int = 100) -> list[QueueForensicRow]:
+    def compute_all(
+        db: Session,
+        limit: int = 100,
+        queues: list[str] | None = None,
+    ) -> list[QueueForensicRow]:
+        """Per-queue forensic scores. If `queues` is given, restrict output
+        to that set (and bump the SQL `LIMIT` so we don't lose them before
+        filtering)."""
         base = db.execute(
             text("""
                 WITH qp_agg AS (
@@ -143,8 +150,14 @@ class QueueForensicsService:
                 ORDER BY q.wall_seconds DESC NULLS LAST
                 LIMIT :lim
             """),
-            {"lim": limit},
+            # When filtering is requested, fetch more rows so we don't lose
+            # smaller queues that happen to fall below the global cap.
+            {"lim": max(limit, 500) if queues else limit},
         ).mappings().all()
+        # Restrict to the user's selected queues if a list was passed in.
+        if queues:
+            wanted = set(queues)
+            base = [r for r in base if r["queue"] in wanted]
 
         # Fanout (entropy) — separate, sized by queue
         fanout_rows = db.execute(
@@ -228,7 +241,12 @@ class QueueForensicsService:
     # ----- Routing transition graph -------------------------------------
 
     @staticmethod
-    def transitions(db: Session, limit: int = 200) -> list[dict[str, Any]]:
+    def transitions(
+        db: Session, limit: int = 200, queues: list[str] | None = None,
+    ) -> list[dict[str, Any]]:
+        """Routing edges. If `queues` is given, only edges that touch one of
+        the selected queues (either as source or destination) are returned —
+        useful for "focus on my favorite queues" mode."""
         rows = db.execute(
             text("""
                 SELECT src_queue, dest_queue, COUNT(*) AS n,
@@ -240,18 +258,25 @@ class QueueForensicsService:
                 ORDER BY n DESC
                 LIMIT :lim
             """),
-            {"lim": limit},
+            {"lim": max(limit, 1000) if queues else limit},
         ).mappings().all()
-        return [
+        out = [
             {"src": r["src_queue"], "dst": r["dest_queue"],
              "count": int(r["n"]), "tickets": int(r["tickets"])}
             for r in rows
         ]
+        if queues:
+            qs = set(queues)
+            out = [e for e in out if e["src"] in qs or e["dst"] in qs][:limit]
+        return out
 
     # ----- Hot-potato detector ------------------------------------------
 
     @staticmethod
-    def hot_potato_tickets(db: Session, min_moves: int = 3, limit: int = 50) -> list[dict[str, Any]]:
+    def hot_potato_tickets(
+        db: Session, min_moves: int = 3, limit: int = 50,
+        queues: list[str] | None = None,
+    ) -> list[dict[str, Any]]:
         rows = db.execute(
             text("""
                 SELECT te.ticket_id,
@@ -277,9 +302,21 @@ class QueueForensicsService:
                     AND te.dest_queue IS NOT NULL
                     AND te.src_queue != te.dest_queue
                 ) >= :mn
+                AND (
+                  (:has_queues IS FALSE)
+                  OR EXISTS (
+                    SELECT 1 FROM ticket_events te2
+                    WHERE te2.ticket_id = te.ticket_id
+                      AND te2.queue_name = ANY(:queue_list)
+                  )
+                )
                 ORDER BY moves DESC
                 LIMIT :lim
             """),
-            {"mn": min_moves, "lim": limit},
+            {
+                "mn": min_moves, "lim": limit,
+                "has_queues": bool(queues),
+                "queue_list": queues or [],
+            },
         ).mappings().all()
         return [dict(r) for r in rows]

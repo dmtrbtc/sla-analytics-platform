@@ -47,7 +47,13 @@ class OwnerForensicRow:
 
 class OwnerForensicsService:
     @staticmethod
-    def compute_all(db: Session, limit: int = 100) -> list[OwnerForensicRow]:
+    def compute_all(
+        db: Session,
+        limit: int = 100,
+        queues: list[str] | None = None,
+    ) -> list[OwnerForensicRow]:
+        """Aggregate owner forensic scores. If `queues` is provided, only
+        ownership periods inside those queues count toward the totals."""
         rows = db.execute(
             text(f"""
                 WITH own AS (
@@ -58,6 +64,7 @@ class OwnerForensicsService:
                   FROM ownership_periods op
                   WHERE op.owner IS NOT NULL
                     AND NOT ({SYSTEM_OWNERS_SQL})
+                    AND ((:has_queues IS FALSE) OR op.queue_name = ANY(:queue_list))
                   GROUP BY op.owner, op.ticket_id
                 ),
                 per_owner AS (
@@ -117,7 +124,11 @@ class OwnerForensicsService:
                 ORDER BY p.load_tickets DESC
                 LIMIT :lim
             """),
-            {"lim": limit},
+            {
+                "lim": limit,
+                "has_queues": bool(queues),
+                "queue_list": queues or [],
+            },
         ).mappings().all()
 
         out: list[OwnerForensicRow] = []

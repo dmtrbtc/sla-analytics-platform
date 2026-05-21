@@ -32,6 +32,7 @@ from app.api.v1 import (
     forensics,
     favorites,
     queue_details,
+    sla_governance,
 )
 
 api_router = APIRouter()
@@ -69,5 +70,10 @@ protected_router.include_router(queue_intelligence.router, prefix="/queue-intell
 protected_router.include_router(forensics.router, prefix="/analytics/forensics", tags=["forensics-v3"])
 protected_router.include_router(favorites.router, prefix="/favorites", tags=["favorites-v14"])
 protected_router.include_router(queue_details.router, prefix="/queues", tags=["queue-detail-v14"])
+protected_router.include_router(sla_governance.contribution_router, prefix="/analytics/forensics", tags=["forensics-v3"])
+# Mounted under /sla/v15 to avoid colliding with the older /sla/queue-rules/{rule_id}
+# and /sla/simulate handlers in sla.py. These are the v1.5 governance additions.
+protected_router.include_router(sla_governance.sla_governance_router, prefix="/sla/v15", tags=["sla-governance-v15"])
+protected_router.include_router(sla_governance.team_dash_router, prefix="/teams", tags=["teams-v15"])
 
 api_router.include_router(protected_router)
