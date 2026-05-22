@@ -52,13 +52,18 @@ class QueueIntelligenceEngine:
         flow_breaches: dict[tuple, int] = Counter()
         flow_delays: dict[tuple, list[float]] = defaultdict(list)
 
-        # Track which queues are breached for each ticket
+        # Track which queues are breached for each ticket.
+        # SCHEMA NOTE: this module was written against an earlier denormalized
+        # sla_metrics layout (`is_breach`, `created_at`, `*_min` columns).
+        # The current schema (v1.3+) uses `sla_breached` and `computed_at`
+        # with a `metric_name` discriminator + `metric_seconds` row per metric.
+        # We use the correct names here.
         ticket_breach_queues: dict[int, set] = defaultdict(set)
         breach_rows = db.execute(text("""
             SELECT DISTINCT sm.ticket_id, sm.queue_name
             FROM sla_metrics sm
-            WHERE sm.is_breach = TRUE
-              AND sm.created_at >= :cutoff
+            WHERE sm.sla_breached = TRUE
+              AND sm.computed_at >= :cutoff
         """), {"cutoff": cutoff})
         for r in breach_rows:
             ticket_breach_queues[r[0]].add(r[1])
@@ -117,26 +122,89 @@ class QueueIntelligenceEngine:
 
     @staticmethod
     def get_queue_forensics(db: Session, days: int = 30) -> dict:
-        """Deep queue forensic analysis — per-queue SLA death location."""
+        """Deep queue forensic analysis — per-queue SLA death location.
+
+        Re-pointed at the real v1.3+ sla_metrics schema:
+          - `sla_breached` (bool) replaces `is_breach`
+          - `computed_at`          replaces `created_at`
+          - per-row `metric_name` discriminator + `metric_seconds`
+            replaces the imagined `*_min` columns.
+        Reassignment counts come from `ticket_events` (the real source).
+        Pause/active/wait times come from sla_metrics rows with the
+        matching metric_name (V3 forensic engine emits them).
+        """
         cutoff = datetime.utcnow() - timedelta(days=days)
 
-        # Per-queue aggregate metrics
+        # Per-queue aggregate metrics. We aggregate the long form by FILTERing
+        # on metric_name. The resolution_time / first_response_time metric_seconds
+        # are stored in SECONDS — convert to minutes in Python below.
         rows = db.execute(text("""
-            SELECT
+            WITH per_q AS (
+              SELECT
                 sm.queue_name,
                 COUNT(DISTINCT sm.ticket_id) AS ticket_count,
-                COUNT(*) FILTER (WHERE sm.is_breach = TRUE) AS breach_count,
-                AVG(sm.resolution_time_min) FILTER (WHERE sm.resolution_time_min IS NOT NULL) AS avg_resolution,
-                AVG(sm.response_time_min) FILTER (WHERE sm.response_time_min IS NOT NULL) AS avg_response,
-                AVG(sm.total_pause_min) FILTER (WHERE sm.total_pause_min IS NOT NULL) AS avg_pause,
-                AVG(sm.active_work_min) FILTER (WHERE sm.active_work_min IS NOT NULL) AS avg_active,
-                AVG(sm.waiting_time_min) FILTER (WHERE sm.waiting_time_min IS NOT NULL) AS avg_wait,
-                COUNT(*) FILTER (WHERE sm.reassignments > 2) AS high_reassign,
-                AVG(sm.reassignments) FILTER (WHERE sm.reassignments IS NOT NULL) AS avg_reassign
-            FROM sla_metrics sm
-            WHERE sm.created_at >= :cutoff
-            GROUP BY sm.queue_name
-            ORDER BY breach_count DESC
+                -- "breach_count" historically meant "tickets with at least one
+                -- breached metric in this queue". Use DISTINCT to stay consistent.
+                COUNT(DISTINCT sm.ticket_id) FILTER (WHERE sm.sla_breached = TRUE) AS breach_tickets,
+                COUNT(*) FILTER (WHERE sm.sla_breached = TRUE) AS breach_metric_rows,
+                AVG(sm.metric_seconds) FILTER (
+                  WHERE sm.metric_name = 'resolution_time' AND sm.metric_seconds IS NOT NULL
+                ) AS avg_resolution_sec,
+                AVG(sm.metric_seconds) FILTER (
+                  WHERE sm.metric_name IN ('first_response_time','response_time')
+                  AND sm.metric_seconds IS NOT NULL
+                ) AS avg_response_sec,
+                AVG(sm.metric_seconds) FILTER (
+                  WHERE sm.metric_name = 'pause_seconds' AND sm.metric_seconds IS NOT NULL
+                ) AS avg_pause_sec,
+                AVG(sm.metric_seconds) FILTER (
+                  WHERE sm.metric_name = 'active_work_time' AND sm.metric_seconds IS NOT NULL
+                ) AS avg_active_sec,
+                AVG(sm.metric_seconds) FILTER (
+                  WHERE sm.metric_name = 'idle_seconds' AND sm.metric_seconds IS NOT NULL
+                ) AS avg_wait_sec
+              FROM sla_metrics sm
+              WHERE sm.computed_at >= :cutoff
+              GROUP BY sm.queue_name
+            ),
+            reassign_per_q AS (
+              -- Reassignments live in ticket_events, not sla_metrics.
+              SELECT
+                te.queue_name,
+                COUNT(DISTINCT te.ticket_id) FILTER (
+                  WHERE te.new_owner IS NOT NULL AND te.old_owner IS NOT NULL
+                    AND te.new_owner != te.old_owner
+                ) AS reassigned_tickets,
+                COUNT(*) FILTER (
+                  WHERE te.new_owner IS NOT NULL AND te.old_owner IS NOT NULL
+                    AND te.new_owner != te.old_owner
+                ) AS reassign_events
+              FROM ticket_events te
+              WHERE te.event_time >= :cutoff
+                AND te.queue_name IS NOT NULL
+              GROUP BY te.queue_name
+            )
+            SELECT
+              per_q.queue_name,
+              per_q.ticket_count,
+              per_q.breach_tickets AS breach_count,
+              -- convert seconds → minutes here so the rest of the code
+              -- can keep its existing minute-based heuristics.
+              COALESCE(per_q.avg_resolution_sec, 0) / 60.0 AS avg_resolution,
+              COALESCE(per_q.avg_response_sec,   0) / 60.0 AS avg_response,
+              COALESCE(per_q.avg_pause_sec,      0) / 60.0 AS avg_pause,
+              COALESCE(per_q.avg_active_sec,     0) / 60.0 AS avg_active,
+              COALESCE(per_q.avg_wait_sec,       0) / 60.0 AS avg_wait,
+              COALESCE(reassign_per_q.reassigned_tickets, 0) AS high_reassign,
+              CASE
+                WHEN COALESCE(reassign_per_q.reassigned_tickets, 0) = 0 THEN 0
+                ELSE COALESCE(reassign_per_q.reassign_events, 0)::float
+                     / NULLIF(reassign_per_q.reassigned_tickets, 0)
+              END AS avg_reassign
+            FROM per_q
+            LEFT JOIN reassign_per_q USING (queue_name)
+            WHERE per_q.queue_name IS NOT NULL
+            ORDER BY per_q.breach_tickets DESC NULLS LAST
         """), {"cutoff": cutoff})
 
         queue_analysis = []
@@ -201,19 +269,30 @@ class QueueIntelligenceEngine:
         """Analyze transfer storms, loops, and routing inefficiency."""
         cutoff = datetime.utcnow() - timedelta(days=days)
 
-        # Count transitions per ticket
+        # Count transitions per ticket.
+        # Postgres rejects window functions inside FILTER (WindowingError),
+        # so LAG() must be lifted into a CTE first.
         rows = db.execute(text("""
+            WITH labelled AS (
+                SELECT
+                    te.ticket_id,
+                    te.event_type,
+                    te.queue_name,
+                    LAG(te.queue_name) OVER (
+                        PARTITION BY te.ticket_id ORDER BY te.event_seq
+                    ) AS prev_queue
+                FROM ticket_events te
+                WHERE te.event_time >= :cutoff
+            )
             SELECT
-                te.ticket_id,
+                ticket_id,
                 COUNT(*) AS transition_count,
                 COUNT(*) FILTER (
-                    WHERE te.event_type LIKE '%Queue%'
-                       OR te.queue_name IS DISTINCT FROM
-                          LAG(te.queue_name) OVER (PARTITION BY te.ticket_id ORDER BY te.event_seq)
+                    WHERE event_type LIKE '%Queue%'
+                       OR queue_name IS DISTINCT FROM prev_queue
                 ) AS queue_transitions
-            FROM ticket_events te
-            WHERE te.event_time >= :cutoff
-            GROUP BY te.ticket_id
+            FROM labelled
+            GROUP BY ticket_id
             ORDER BY queue_transitions DESC
             LIMIT 200
         """), {"cutoff": cutoff})
@@ -429,20 +508,28 @@ class QueueIntelligenceEngine:
             if queue_entry_owner:
                 queue_entries[current_queue]["owners"].add(queue_entry_owner)
 
-        # Check SLA metrics for this ticket
+        # Check SLA metrics for this ticket — pivot the long form
+        # (one row per metric_name) into per-queue dicts.
         sla_metrics = db.execute(text("""
-            SELECT queue_name, is_breach, resolution_time_min, response_time_min
+            SELECT queue_name, metric_name, metric_seconds, sla_breached
             FROM sla_metrics
             WHERE ticket_id = :tid
         """), {"tid": ticket_id}).all()
 
-        breach_info = {}
+        breach_info: dict[str, dict] = {}
         for sm in sla_metrics:
-            breach_info[sm.queue_name] = {
-                "is_breach": sm.is_breach,
-                "resolution_min": sm.resolution_time_min,
-                "response_min": sm.response_time_min,
-            }
+            q = breach_info.setdefault(sm.queue_name, {
+                "is_breach": False,
+                "resolution_min": None,
+                "response_min": None,
+            })
+            if sm.sla_breached:
+                q["is_breach"] = True
+            if sm.metric_name == "resolution_time" and sm.metric_seconds is not None:
+                q["resolution_min"] = round(sm.metric_seconds / 60.0)
+            elif sm.metric_name in ("first_response_time", "response_time") \
+                    and sm.metric_seconds is not None:
+                q["response_min"] = round(sm.metric_seconds / 60.0)
 
         # Enhance queue entries with SLA data
         for qname, qdata in queue_entries.items():

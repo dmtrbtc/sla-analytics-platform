@@ -14,6 +14,7 @@ import { useTheme } from "../design/ThemeContext";
 import { cardStyle, cardHeaderStyle, kpiCardStyle, kpiValueStyle, kpiLabelStyle } from "../design/tokens";
 import { spacing } from "../design/spacing";
 import { queueIntelligenceApi } from "../api/queueIntelligence";
+import { useTimeScope } from "../contexts/TimeScopeContext";
 
 const { Text, Title } = Typography;
 
@@ -54,17 +55,24 @@ const severityColor: Record<string, string> = {
 export default function SLACommandCenter() {
   const { colors } = useTheme();
   const [now] = useState(new Date());
+  const { toParams } = useTimeScope();
+  const scopeParams = toParams();
+  // Cache-bust queries when scope changes; include scopeParams in queryKey.
+  const scopeKey = JSON.stringify(scopeParams);
 
   const overviewQ = useQuery({
-    queryKey: ["qi-overview"], queryFn: () => queueIntelligenceApi.getOverview(30),
+    queryKey: ["qi-overview", scopeKey],
+    queryFn: () => queueIntelligenceApi.getOverview(30, scopeParams),
     refetchInterval: 30000,
   });
   const flowMapQ = useQuery({
-    queryKey: ["qi-flowmap"], queryFn: () => queueIntelligenceApi.getQueueFlowMap(30),
+    queryKey: ["qi-flowmap", scopeKey],
+    queryFn: () => queueIntelligenceApi.getQueueFlowMap(30, scopeParams),
     refetchInterval: 60000,
   });
   const forensicsQ = useQuery({
-    queryKey: ["qi-forensics"], queryFn: () => queueIntelligenceApi.getQueueForensics(30),
+    queryKey: ["qi-forensics", scopeKey],
+    queryFn: () => queueIntelligenceApi.getQueueForensics(30, scopeParams),
     refetchInterval: 60000,
   });
 
