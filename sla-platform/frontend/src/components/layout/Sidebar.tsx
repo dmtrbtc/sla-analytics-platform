@@ -37,6 +37,7 @@ export default function Sidebar() {
     { key: "/sla-loss", icon: <HeatMapOutlined />, label: "Где теряется SLA" },
     { key: "/ops/workplace", icon: <TeamOutlined />, label: "Workplace Operations" },
     { key: "/ops/asset", icon: <ApartmentOutlined />, label: "Asset Management" },
+    { key: "/review", icon: <AimOutlined />, label: "SLA Review Mode" },
   ];
 
   const opsItems = [

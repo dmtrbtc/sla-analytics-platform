@@ -35,6 +35,9 @@ const FavoritesPage = lazy(() => import("./pages/Favorites"));
 const SLALossCenter = lazy(() => import("./pages/SLALossCenter"));
 const WorkplaceCommandCenter = lazy(() => import("./pages/WorkplaceCommandCenter"));
 const AssetCommandCenter = lazy(() => import("./pages/AssetCommandCenter"));
+const SLAReviewMode = lazy(() => import("./pages/SLAReviewMode"));
+const WallboardOps = lazy(() => import("./pages/WallboardOps"));
+const TicketTimelinePage = lazy(() => import("./pages/TicketTimelinePage"));
 
 /**
  * Wraps a route element in:
@@ -90,6 +93,9 @@ export default function App() {
           <Route path="/sla-loss" element={<SuspenseWrapper><SLALossCenter /></SuspenseWrapper>} />
           <Route path="/ops/workplace" element={<SuspenseWrapper><WorkplaceCommandCenter /></SuspenseWrapper>} />
           <Route path="/ops/asset" element={<SuspenseWrapper><AssetCommandCenter /></SuspenseWrapper>} />
+          <Route path="/review" element={<SuspenseWrapper><SLAReviewMode /></SuspenseWrapper>} />
+          <Route path="/wallboard-ops/:domain" element={<SuspenseWrapper><WallboardOps /></SuspenseWrapper>} />
+          <Route path="/tickets/:id/timeline" element={<SuspenseWrapper><TicketTimelinePage /></SuspenseWrapper>} />
           <Route path="/admin/users" element={<RoleGuard roles={["admin"]}><SuspenseWrapper><AdminUsers /></SuspenseWrapper></RoleGuard>} />
           <Route path="/admin/diagnostics" element={<RoleGuard roles={["admin"]}><SuspenseWrapper><AdminDiagnostics /></SuspenseWrapper></RoleGuard>} />
           <Route path="/admin/operations" element={<RoleGuard roles={["admin"]}><SuspenseWrapper><OperationsAdmin /></SuspenseWrapper></RoleGuard>} />

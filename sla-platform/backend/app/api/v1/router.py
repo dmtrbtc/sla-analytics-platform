@@ -37,6 +37,7 @@ from app.api.v1 import (
     forensic_timeline,
     sla_loss,
     queue_command_center,
+    operations_review,
 )
 
 api_router = APIRouter()
@@ -83,5 +84,6 @@ protected_router.include_router(operations_intelligence.router, prefix="/operati
 protected_router.include_router(forensic_timeline.router, prefix="/analytics/forensics/timeline", tags=["forensic-timeline-v17"])
 protected_router.include_router(sla_loss.router, prefix="/analytics/sla-loss", tags=["sla-loss-v18"])
 protected_router.include_router(queue_command_center.router, prefix="/operations/queue-command-center", tags=["queue-command-center-v19"])
+protected_router.include_router(operations_review.router, prefix="/operations", tags=["operations-review-v20"])
 
 api_router.include_router(protected_router)
