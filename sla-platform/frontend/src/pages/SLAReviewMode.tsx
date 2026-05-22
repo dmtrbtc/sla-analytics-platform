@@ -6,6 +6,7 @@ import {
 import { AlertOutlined, EyeInvisibleOutlined, FireOutlined, ThunderboltOutlined } from "@ant-design/icons";
 import { operationsReviewApi, type ReviewOverviewResponse } from "../api/operationsReview";
 import { useFavorites } from "../contexts/FavoritesContext";
+import { useTimeScope } from "../contexts/TimeScopeContext";
 import RuntimeErrorBoundary from "../components/safety/RuntimeErrorBoundary";
 import "../design/v1-tokens.css";
 
@@ -17,11 +18,17 @@ function pct(n: number, total: number) {
 
 function SLAReviewModeInner() {
   const { activeFilter } = useFavorites();
+  const { toParams, label: scopeLabel } = useTimeScope();
   const queues = activeFilter.length ? activeFilter : undefined;
+  const scopeParams = toParams();
 
   const q = useQuery({
-    queryKey: ["sla-review-overview", queues?.join(",") || ""],
-    queryFn: () => operationsReviewApi.reviewOverview(queues),
+    queryKey: [
+      "sla-review-overview",
+      queues?.join(",") || "",
+      JSON.stringify(scopeParams),
+    ],
+    queryFn: () => operationsReviewApi.reviewOverview(queues, scopeParams),
     refetchInterval: 60_000,
   });
 
@@ -56,6 +63,7 @@ function SLAReviewModeInner() {
       <Text style={{ color: "var(--v1-text-3)" }}>
         Единая панель для еженедельного review:&nbsp;
         где потеряли SLA, кто держал, что зациклилось, какие нарушения скрыты.
+        &nbsp;· scope: <b>{scopeLabel}</b>
         {queues ? ` · фильтр на ${queues.length} очередей` : ""}
       </Text>
 

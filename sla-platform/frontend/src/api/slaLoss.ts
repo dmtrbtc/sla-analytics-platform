@@ -33,11 +33,14 @@ export interface LossOverview {
   parking_lots: LossQueue[];
 }
 
+type ScopeParams = Record<string, string | undefined>;
+
 export const slaLossApi = {
-  overview: (queues?: string[]) =>
-    client.get<LossOverview>("/analytics/sla-loss/overview", {
-      params: queues && queues.length ? { queue: queues } : {},
-    }).then(r => r.data),
+  overview: (queues?: string[], scope?: ScopeParams) =>
+    client.get<LossOverview & { scope?: { label: string; since: string | null; until: string | null } }>(
+      "/analytics/sla-loss/overview",
+      { params: { ...(queues && queues.length ? { queue: queues } : {}), ...(scope || {}) } },
+    ).then(r => r.data),
 
   topQueues: (limit = 25, days?: number, queues?: string[]) =>
     client.get<{ queues: LossQueue[] }>("/analytics/sla-loss/top-queues", {

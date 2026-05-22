@@ -25,6 +25,7 @@ from app.services.forensics.inactivity_engine import InactivityEngine
 from app.services.forensics.owner_forensics import OwnerForensicsService
 from app.services.forensics.queue_forensics import QueueForensicsService
 from app.services.forensics.sla_loss_engine import SLALossEngine
+from app.services.forensics.time_scope import parse_time_scope
 
 logger = logging.getLogger(__name__)
 
@@ -39,19 +40,23 @@ router = APIRouter(dependencies=[Depends(get_current_user)])
 def review_overview(
     queue: list[str] = Query(default=[],
         description="Optional queue scope for review (favorites-aware)."),
+    period: str | None = Query(None, description="24h | 7d | 30d | 90d | …"),
+    since: str | None = Query(None),
+    until: str | None = Query(None),
 ):
     """Bundle everything an SLA review presenter needs:
     top loss queues, parking lots, dying tickets, silent breaches,
     bounce hotspots, no-owner queues, hidden-breach delta.
     """
     qs = queue or None
+    scope = parse_time_scope(period=period, since=since, until=until)
     with sync_session_factory() as db:
         # 1. Top SLA-loss queues — "where time was lost"
-        top_loss = SLALossEngine.top_loss_queues(db, limit=10, queues=qs)
+        top_loss = SLALossEngine.top_loss_queues(db, limit=10, queues=qs, scope=scope)
         # 2. No-owner parking lots
-        parking = SLALossEngine.parking_lots(db, limit=10, queues=qs)
+        parking = SLALossEngine.parking_lots(db, limit=10, queues=qs, scope=scope)
         # 3. Tickets dying in queue
-        dying = SLALossEngine.dying_in_queue(db, limit=15, queues=qs)
+        dying = SLALossEngine.dying_in_queue(db, limit=15, queues=qs, scope=scope)
         # 4. Silent breaches
         silent = InactivityEngine.detect_silent_breaches(
             db, min_inactivity_ratio=0.5, limit=15, queues=qs,
@@ -62,7 +67,9 @@ def review_overview(
         )
         # 6. Most overloaded engineers (top 10 by load_hours)
         engineers = OwnerForensicsService.compute_all(db, limit=10, queues=qs)
-        # 7. Hidden-breach delta — wall_resolution_time breaches - resolution_time breaches
+        # 7. Hidden-breach delta — scoped by computed_at if a window was supplied.
+        # SLA metrics are point-in-time events (no duration), so a simple
+        # BETWEEN works correctly here.
         delta_row = db.execute(
             text("""
                 SELECT
@@ -70,14 +77,18 @@ def review_overview(
                   COUNT(*) FILTER (WHERE metric_name='resolution_time' AND sla_breached) AS active_b
                 FROM sla_metrics
                 WHERE (:has_q IS FALSE OR queue_name = ANY(:qlist))
+                  AND (:since IS NULL OR computed_at >= :since)
+                  AND (:until IS NULL OR computed_at <= :until)
             """),
-            {"has_q": bool(qs), "qlist": qs or []},
+            {"has_q": bool(qs), "qlist": qs or [],
+             "since": scope.since, "until": scope.until},
         ).mappings().first() or {}
         wall_b = int(delta_row.get("wall_b") or 0)
         active_b = int(delta_row.get("active_b") or 0)
         hidden = max(0, wall_b - active_b)
 
     return {
+        "scope": scope.to_dict(),
         "scope_queues": qs or [],
         "top_loss_queues": top_loss,
         "parking_lots": parking,

@@ -9,6 +9,7 @@ import { useNavigate } from "react-router-dom";
 import { palette } from "../../design/colors";
 import { layout } from "../../design/spacing";
 import { shadows } from "../../design/shadows";
+import TimeScopeToolbar from "../safety/TimeScopeToolbar";
 
 const { Header: AntHeader } = Layout;
 
@@ -51,6 +52,7 @@ export default function Header() {
       </Space>
 
       <Space size="middle">
+        <TimeScopeToolbar />
         <Tooltip title={resolved === "dark" ? "Светлая тема" : "Тёмная тема"}>
           <Switch
             checkedChildren={<MoonOutlined />}

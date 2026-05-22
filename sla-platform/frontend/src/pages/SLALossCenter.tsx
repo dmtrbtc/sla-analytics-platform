@@ -3,6 +3,7 @@ import { Spin, Empty, Tag, Table, Tabs, Typography } from "antd";
 import { useQuery } from "@tanstack/react-query";
 import { slaLossApi, type LossOverview } from "../api/slaLoss";
 import { useFavorites } from "../contexts/FavoritesContext";
+import { useTimeScope } from "../contexts/TimeScopeContext";
 import "../design/v1-tokens.css";
 
 const { Title, Text } = Typography;
@@ -17,11 +18,17 @@ const { Title, Text } = Typography;
  */
 export default function SLALossCenter() {
   const { activeFilter } = useFavorites();
+  const { toParams, label: scopeLabel } = useTimeScope();
   const queues = activeFilter.length ? activeFilter : undefined;
+  const scopeParams = toParams();
 
   const overviewQ = useQuery({
-    queryKey: ["sla-loss-overview", queues?.join(",") || ""],
-    queryFn: () => slaLossApi.overview(queues),
+    queryKey: [
+      "sla-loss-overview",
+      queues?.join(",") || "",
+      JSON.stringify(scopeParams),
+    ],
+    queryFn: () => slaLossApi.overview(queues, scopeParams),
     refetchInterval: 60_000,
   });
 
@@ -58,7 +65,7 @@ export default function SLALossCenter() {
         Где теряется SLA
       </Title>
       <Text style={{ color: "var(--v1-text-3)" }}>
-        Атрибуция времени по очередям и владельцам
+        Атрибуция времени по очередям и владельцам · scope: <b>{scopeLabel}</b>
         {queues ? ` · фильтр на ${queues.length} очередей` : ""}
       </Text>
 

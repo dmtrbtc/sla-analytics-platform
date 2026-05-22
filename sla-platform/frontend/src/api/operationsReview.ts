@@ -66,11 +66,14 @@ export interface QueueComparisonResponse {
   delta: Record<string, { a: number; b: number; delta: number }>;
 }
 
+type ScopeParams = Record<string, string | undefined>;
+
 export const operationsReviewApi = {
-  reviewOverview: (queues?: string[]) =>
-    client.get<ReviewOverviewResponse>("/operations/review/overview", {
-      params: queues && queues.length ? { queue: queues } : {},
-    }).then(r => r.data),
+  reviewOverview: (queues?: string[], scope?: ScopeParams) =>
+    client.get<ReviewOverviewResponse & { scope?: { label: string; since: string | null; until: string | null } }>(
+      "/operations/review/overview",
+      { params: { ...(queues && queues.length ? { queue: queues } : {}), ...(scope || {}) } },
+    ).then(r => r.data),
 
   engineerLoad: (threshold = 2.0, queues?: string[]) =>
     client.get<EngineerLoadResponse>("/operations/engineer-load/overload-risk", {

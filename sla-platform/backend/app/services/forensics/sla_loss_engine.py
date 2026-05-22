@@ -26,6 +26,13 @@ from typing import Any, Optional
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
+from app.services.forensics.time_scope import (
+    TimeScope,
+    overlap_seconds_sql,
+    scope_filter_sql,
+    scope_params,
+)
+
 logger = logging.getLogger(__name__)
 
 
@@ -35,14 +42,20 @@ SYS_OWNER_SQL = (
 )
 
 
-def _params(queues: Optional[list[str]]) -> dict:
-    return {"has_queues": bool(queues), "queue_list": queues or []}
+def _params(queues: Optional[list[str]], scope: Optional[TimeScope] = None) -> dict:
+    """Merge queue-filter binds + time-scope binds in one dict for `.execute()`."""
+    p = {"has_queues": bool(queues), "queue_list": queues or []}
+    if scope is not None:
+        p.update(scope_params(scope))
+    else:
+        p.update({"since": None, "until": None})
+    return p
 
 
 class SLALossEngine:
 
     # ────────────────────────────────────────────────────────────────────
-    # TOP LOSS QUEUES — pure wall-clock contribution across all tickets
+    # TOP LOSS QUEUES — overlap-aware contribution inside scope window
     # ────────────────────────────────────────────────────────────────────
     @staticmethod
     def top_loss_queues(
@@ -50,12 +63,31 @@ class SLALossEngine:
         limit: int = 25,
         queues: Optional[list[str]] = None,
         days: Optional[int] = None,
+        scope: Optional[TimeScope] = None,
     ) -> list[dict[str, Any]]:
-        days_filter = ""
-        params = _params(queues)
-        if days:
-            days_filter = "AND qp.entered_at >= NOW() - (:days || ' days')::interval"
-            params["days"] = days
+        """Wall-clock contribution. When `scope` is non-all-time, every
+        segment is counted ONLY for the portion that overlaps the window.
+
+        `days` is preserved for backward-compat callers; if `scope` is
+        provided it wins.
+        """
+        # Backward-compat: if old `days` was supplied but no scope, build
+        # an implicit scope from it.
+        if scope is None and days:
+            from app.services.forensics.time_scope import parse_time_scope
+            scope = parse_time_scope(period=f"{days}d")
+        params = _params(queues, scope)
+        # Overlap expressions (active when :since/:until are non-null)
+        OV_QP = overlap_seconds_sql("qp.entered_at", "qp.exited_at")
+        OV_OP_X = (
+            "GREATEST(0, EXTRACT(EPOCH FROM ("
+            "LEAST(COALESCE(qp.exited_at, NOW()), COALESCE(op.end_time, NOW()), "
+            "COALESCE(:until, COALESCE(qp.exited_at, NOW())))"
+            " - "
+            "GREATEST(qp.entered_at, op.start_time, COALESCE(:since, qp.entered_at))"
+            ")))"
+        )
+        FILTER_QP = scope_filter_sql("qp.entered_at", "qp.exited_at")
         # owned share — overlap with non-system ownership
         # no-owner share — overlap with system ownership
         rows = db.execute(
@@ -65,25 +97,20 @@ class SLALossEngine:
                          qp.ticket_id,
                          qp.entered_at,
                          COALESCE(qp.exited_at, NOW()) AS exited_at,
-                         COALESCE(qp.duration_seconds,
-                            EXTRACT(EPOCH FROM (COALESCE(qp.exited_at, NOW()) - qp.entered_at))
-                         )::bigint AS wall_sec
+                         {OV_QP}::bigint AS wall_sec
                   FROM queue_periods qp
-                  WHERE TRUE {days_filter}
+                  WHERE {FILTER_QP}
                     AND ((:has_queues IS FALSE) OR qp.queue_name = ANY(:queue_list))
                 ),
                 noown AS (
-                  SELECT seg.queue_name,
-                         SUM(
-                           GREATEST(0, EXTRACT(EPOCH FROM
-                             (LEAST(seg.exited_at, COALESCE(op.end_time, NOW()))
-                              - GREATEST(seg.entered_at, op.start_time)))))::bigint
-                           AS no_owner_sec
-                  FROM seg
+                  SELECT qp.queue_name,
+                         SUM({OV_OP_X})::bigint AS no_owner_sec
+                  FROM queue_periods qp
                   JOIN ownership_periods op
-                    ON op.ticket_id = seg.ticket_id
+                    ON op.ticket_id = qp.ticket_id
                   WHERE {SYS_OWNER_SQL.replace('owner','op.owner')}
-                  GROUP BY seg.queue_name
+                    AND ((:has_queues IS FALSE) OR qp.queue_name = ANY(:queue_list))
+                  GROUP BY qp.queue_name
                 )
                 SELECT seg.queue_name,
                        COUNT(*) AS segments,
@@ -93,6 +120,7 @@ class SLALossEngine:
                        COALESCE(MAX(noown.no_owner_sec), 0) AS no_owner_sec
                 FROM seg
                 LEFT JOIN noown USING (queue_name)
+                WHERE seg.wall_sec > 0
                 GROUP BY seg.queue_name
                 ORDER BY total_wall_sec DESC NULLS LAST
                 LIMIT :lim
@@ -125,28 +153,26 @@ class SLALossEngine:
         limit: int = 25,
         queues: Optional[list[str]] = None,
         min_tickets: int = 5,
+        scope: Optional[TimeScope] = None,
     ) -> list[dict[str, Any]]:
+        OV = overlap_seconds_sql("entered_at", "exited_at")
+        FL = scope_filter_sql("entered_at", "exited_at")
         rows = db.execute(
-            text("""
+            text(f"""
                 SELECT queue_name,
                        COUNT(DISTINCT ticket_id) AS tickets,
-                       SUM(COALESCE(duration_seconds,
-                         EXTRACT(EPOCH FROM
-                           (COALESCE(exited_at, NOW()) - entered_at))))::bigint
-                         AS total_wall_sec
+                       SUM({OV})::bigint AS total_wall_sec
                 FROM queue_periods
-                WHERE ((:has_queues IS FALSE) OR queue_name = ANY(:queue_list))
+                WHERE {FL}
+                  AND ((:has_queues IS FALSE) OR queue_name = ANY(:queue_list))
                 GROUP BY queue_name
                 HAVING COUNT(DISTINCT ticket_id) >= :min_tickets
-                ORDER BY (
-                  SUM(COALESCE(duration_seconds,
-                    EXTRACT(EPOCH FROM
-                      (COALESCE(exited_at, NOW()) - entered_at))))::float
-                  / NULLIF(COUNT(DISTINCT ticket_id), 0)
-                ) DESC NULLS LAST
+                   AND SUM({OV}) > 0
+                ORDER BY (SUM({OV})::float
+                          / NULLIF(COUNT(DISTINCT ticket_id), 0)) DESC NULLS LAST
                 LIMIT :lim
             """),
-            {**_params(queues), "lim": limit, "min_tickets": min_tickets},
+            {**_params(queues, scope), "lim": limit, "min_tickets": min_tickets},
         ).mappings().all()
         return [
             {
@@ -168,32 +194,34 @@ class SLALossEngine:
         db: Session,
         limit: int = 25,
         queues: Optional[list[str]] = None,
+        scope: Optional[TimeScope] = None,
     ) -> list[dict[str, Any]]:
+        OV = overlap_seconds_sql("qp.entered_at", "qp.exited_at")
+        FL = scope_filter_sql("qp.entered_at", "qp.exited_at")
         rows = db.execute(
-            text("""
+            text(f"""
                 SELECT ts.ticket_id,
                        ts.ticket_number,
                        ts.title,
                        ts.current_queue,
                        ts.current_owner,
                        ts.current_state,
-                       SUM(COALESCE(qp.duration_seconds,
-                         EXTRACT(EPOCH FROM
-                           (COALESCE(qp.exited_at, NOW()) - qp.entered_at))))::bigint
-                         AS total_wall_sec,
+                       SUM({OV})::bigint AS total_wall_sec,
                        COUNT(DISTINCT qp.queue_name) AS queues_visited,
                        COUNT(*) AS segments
                 FROM ticket_snapshots ts
                 JOIN queue_periods qp ON qp.ticket_id = ts.ticket_id
                 WHERE ts.is_closed = FALSE
                   AND ts.is_merged = FALSE
+                  AND {FL}
                   AND ((:has_queues IS FALSE) OR ts.current_queue = ANY(:queue_list))
                 GROUP BY ts.ticket_id, ts.ticket_number, ts.title,
                          ts.current_queue, ts.current_owner, ts.current_state
+                HAVING SUM({OV}) > 0
                 ORDER BY total_wall_sec DESC NULLS LAST
                 LIMIT :lim
             """),
-            {**_params(queues), "lim": limit},
+            {**_params(queues, scope), "lim": limit},
         ).mappings().all()
         return [
             {
@@ -218,27 +246,25 @@ class SLALossEngine:
         db: Session,
         limit: int = 25,
         queues: Optional[list[str]] = None,
+        scope: Optional[TimeScope] = None,
     ) -> list[dict[str, Any]]:
+        OV = overlap_seconds_sql("start_time", "end_time")
+        FL = scope_filter_sql("start_time", "end_time")
         rows = db.execute(
             text(f"""
                 SELECT queue_name,
-                       SUM(CASE WHEN {SYS_OWNER_SQL}
-                            THEN EXTRACT(EPOCH FROM
-                                  (COALESCE(end_time, NOW()) - start_time))
-                            ELSE 0 END)::bigint AS no_owner_sec,
-                       SUM(EXTRACT(EPOCH FROM
-                          (COALESCE(end_time, NOW()) - start_time)))::bigint
-                          AS total_sec,
+                       SUM(CASE WHEN {SYS_OWNER_SQL} THEN {OV} ELSE 0 END)::bigint AS no_owner_sec,
+                       SUM({OV})::bigint AS total_sec,
                        COUNT(DISTINCT ticket_id) AS distinct_tickets
                 FROM ownership_periods
-                WHERE ((:has_queues IS FALSE) OR queue_name = ANY(:queue_list))
+                WHERE {FL}
+                  AND ((:has_queues IS FALSE) OR queue_name = ANY(:queue_list))
                 GROUP BY queue_name
-                HAVING SUM(EXTRACT(EPOCH FROM
-                    (COALESCE(end_time, NOW()) - start_time))) > 0
+                HAVING SUM({OV}) > 0
                 ORDER BY no_owner_sec DESC NULLS LAST
                 LIMIT :lim
             """),
-            {**_params(queues), "lim": limit},
+            {**_params(queues, scope), "lim": limit},
         ).mappings().all()
         return [
             {
