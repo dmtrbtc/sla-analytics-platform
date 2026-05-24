@@ -98,10 +98,10 @@ export default function DashboardTeam() {
 
       <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
         <Card title={t("teamDashboard.slaBreachComparison")} size="small" style={{ flex: 1, minWidth: 400 }}>
-          <ReactECharts option={breachChartOption} style={{ height: 300 }} />
+          <ReactECharts theme="sla" option={breachChartOption} style={{ height: 300 }} />
         </Card>
         <Card title={t("teamDashboard.reassignmentCount")} size="small" style={{ flex: 1, minWidth: 400 }}>
-          <ReactECharts option={reassignChartOption} style={{ height: 300 }} />
+          <ReactECharts theme="sla" option={reassignChartOption} style={{ height: 300 }} />
         </Card>
       </div>
     </div>

@@ -189,13 +189,13 @@ export default function SLAForensicCommandCenter() {
         <Col xs={24} lg={14}>
           <Card style={cardStyle} bordered={false}
                 title={<><AlertOutlined /> Топ очередей чёрных дыр (black-hole score)</>}>
-            <ReactEChartsCore option={bhBar} style={{ height: 360 }} />
+            <ReactEChartsCore theme="sla" option={bhBar} style={{ height: 360 }} />
           </Card>
         </Col>
         <Col xs={24} lg={10}>
           <Card style={cardStyle} bordered={false}
                 title={<><FireOutlined /> Где теряется время</>}>
-            <ReactEChartsCore option={lossPie} style={{ height: 360 }} />
+            <ReactEChartsCore theme="sla" option={lossPie} style={{ height: 360 }} />
           </Card>
         </Col>
       </Row>
@@ -203,7 +203,7 @@ export default function SLAForensicCommandCenter() {
       {/* ── Routing chaos sankey ─────────────────────────────────── */}
       <Card style={{ ...cardStyle, marginTop: spacing[4] }} bordered={false}
             title={<><NodeIndexOutlined /> Карта маршрутов (transition graph)</>}>
-        <ReactEChartsCore option={sankey} style={{ height: 460 }} />
+        <ReactEChartsCore theme="sla" option={sankey} style={{ height: 460 }} />
       </Card>
 
       {/* ── Detail tables ─────────────────────────────────────────── */}

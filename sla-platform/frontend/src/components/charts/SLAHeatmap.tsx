@@ -41,5 +41,5 @@ export default function SLAHeatmap({ data, height = 280 }: Props) {
     };
   }, [data, colors]);
 
-  return <ReactEChartsCore option={option} style={{ height }} notMerge />;
+  return <ReactEChartsCore theme="sla" option={option} style={{ height }} notMerge />;
 }

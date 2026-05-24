@@ -23,6 +23,9 @@ export default function Sidebar() {
 
   const mainItems = [
     { key: "/dashboard", icon: <DashboardOutlined />, label: t("nav.dashboard") },
+    // Canonical analytics entry — sits right after /dashboard per
+    // CLAUDE.md guidance. Becomes the default landing for SLA reviews.
+    { key: "/sla/portal", icon: <BarChartOutlined />, label: t("nav.slaPortal", "Портал SLA") },
     { key: "/favorites", icon: <StarFilled style={{ color: "#f5c518" }} />, label: "Избранное" },
     { key: "/dashboard/executive", icon: <FundOutlined />, label: t("nav.executive", "Executive") },
     { key: "/dashboard/ops", icon: <ThunderboltOutlined />, label: t("nav.analytics") },

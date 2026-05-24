@@ -197,12 +197,12 @@ export default function Dashboard() {
       <Row gutter={[12, 12]} style={{ marginTop: 16 }}>
         <Col xs={24} lg={16}>
           <Card title={t("dashboard.ticketTrends")} size="small">
-            <ReactECharts option={trendChartOption} style={{ height: 280 }} />
+            <ReactECharts theme="sla" option={trendChartOption} style={{ height: 280 }} />
           </Card>
         </Col>
         <Col xs={24} lg={8}>
           <Card title={t("dashboard.slaBreachTrend")} size="small">
-            <ReactECharts option={slaTrendOption} style={{ height: 280 }} />
+            <ReactECharts theme="sla" option={slaTrendOption} style={{ height: 280 }} />
           </Card>
         </Col>
       </Row>
@@ -210,17 +210,17 @@ export default function Dashboard() {
       <Row gutter={[12, 12]} style={{ marginTop: 12 }}>
         <Col xs={24} lg={8}>
           <Card title={t("dashboard.slaResponseTime")} size="small">
-            <ReactECharts option={responseTrendOption} style={{ height: 220 }} />
+            <ReactECharts theme="sla" option={responseTrendOption} style={{ height: 220 }} />
           </Card>
         </Col>
         <Col xs={24} lg={8}>
           <Card title={t("dashboard.slaResolutionTime")} size="small">
-            <ReactECharts option={resolutionTrendOption} style={{ height: 220 }} />
+            <ReactECharts theme="sla" option={resolutionTrendOption} style={{ height: 220 }} />
           </Card>
         </Col>
         <Col xs={24} lg={8}>
           <Card title={t("dashboard.ticketsByState")} size="small">
-            <ReactECharts option={stateOption} style={{ height: 220 }} />
+            <ReactECharts theme="sla" option={stateOption} style={{ height: 220 }} />
           </Card>
         </Col>
       </Row>
@@ -228,12 +228,12 @@ export default function Dashboard() {
       <Row gutter={[12, 12]} style={{ marginTop: 12 }}>
         <Col xs={24} lg={12}>
           <Card title={t("dashboard.ticketsByQueue")} size="small">
-            <ReactECharts option={queueOption} style={{ height: 250 }} />
+            <ReactECharts theme="sla" option={queueOption} style={{ height: 250 }} />
           </Card>
         </Col>
         <Col xs={24} lg={12}>
           <Card title={t("dashboard.ticketsByPriority")} size="small">
-            <ReactECharts option={priorityOption} style={{ height: 250 }} />
+            <ReactECharts theme="sla" option={priorityOption} style={{ height: 250 }} />
           </Card>
         </Col>
       </Row>
@@ -243,7 +243,7 @@ export default function Dashboard() {
           <Card title={t("slaQueue.title")} size="small">
             {queueBreaches && queueBreaches.length > 0 ? (
               <>
-                <ReactECharts
+                <ReactECharts theme="sla"
                   option={{
                     tooltip: { trigger: "axis", axisPointer: { type: "shadow" } },
                     legend: { data: [t("slaQueue.breachedResponse"), t("slaQueue.breachedResolution")] },

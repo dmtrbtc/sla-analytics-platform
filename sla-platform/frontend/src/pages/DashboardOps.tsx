@@ -303,11 +303,11 @@ export default function DashboardOps() {
             <div style={{ padding: "4px 8px" }}>
               {chartTab === "sla" ? (
                 <SafeChart name="slaTrend">
-                  <ReactECharts option={slaTrendOption} style={{ height: 200 }} />
+                  <ReactECharts theme="sla" option={slaTrendOption} style={{ height: 200 }} />
                 </SafeChart>
               ) : (
                 qHealth.length > 0
-                  ? <SafeChart name="queueHealth"><ReactECharts option={queueHealthOption} style={{ height: 220 }} /></SafeChart>
+                  ? <SafeChart name="queueHealth"><ReactECharts theme="sla" option={queueHealthOption} style={{ height: 220 }} /></SafeChart>
                   : <div style={{ padding: 40, textAlign: "center", color: palette.text.tertiary, fontSize: 13 }}>{t("common.noData")}</div>
               )}
             </div>
@@ -366,7 +366,7 @@ export default function DashboardOps() {
             <div style={{ padding: "4px 4px 8px" }}>
               {riskHeatmapOption ? (
                 <SafeChart name="riskHeatmap">
-                  <ReactECharts option={riskHeatmapOption} style={{ height: 200 }} />
+                  <ReactECharts theme="sla" option={riskHeatmapOption} style={{ height: 200 }} />
                 </SafeChart>
               ) : (
                 <div style={{ padding: 30, textAlign: "center", color: palette.text.tertiary, fontSize: 13 }}>{t("common.noData")}</div>

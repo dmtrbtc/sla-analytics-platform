@@ -109,12 +109,12 @@ export default function ServiceDeskIntelligence() {
       <Row gutter={[12, 12]} style={{ marginBottom: spacing[3] }}>
         <Col span={12}>
           <Card size="small" title="Downstream Distribution — Распределение по очередям назначения">
-            <ReactEChartsCore option={downstreamChartOption} style={{ height: 300 }} notMerge />
+            <ReactEChartsCore theme="sla" option={downstreamChartOption} style={{ height: 300 }} notMerge />
           </Card>
         </Col>
         <Col span={12}>
           <Card size="small" title="Transfer Delay by Queue — Задержка передачи по очередям">
-            <ReactEChartsCore option={transferDelayOption} style={{ height: 300 }} notMerge />
+            <ReactEChartsCore theme="sla" option={transferDelayOption} style={{ height: 300 }} notMerge />
           </Card>
         </Col>
       </Row>

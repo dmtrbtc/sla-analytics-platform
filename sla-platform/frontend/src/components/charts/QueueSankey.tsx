@@ -39,5 +39,5 @@ export default function QueueSankey({ links, height = 300 }: Props) {
     }],
   }), [nodes, links, colors]);
 
-  return <ReactEChartsCore option={option} style={{ height }} notMerge />;
+  return <ReactEChartsCore theme="sla" option={option} style={{ height }} notMerge />;
 }

@@ -22,5 +22,5 @@ export default function SLABurnDown({ data, height = 200 }: Props) {
     ],
   }), [data, colors]);
 
-  return <ReactEChartsCore option={option} style={{ height }} notMerge />;
+  return <ReactEChartsCore theme="sla" option={option} style={{ height }} notMerge />;
 }

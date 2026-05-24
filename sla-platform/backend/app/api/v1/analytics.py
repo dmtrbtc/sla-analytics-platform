@@ -1,6 +1,10 @@
 """Operational Intelligence analytics endpoints — trends, forecasting, correlations, cost analytics."""
 
+from datetime import datetime, timedelta
+from typing import Optional
+
 from fastapi import APIRouter, Depends, Query
+from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
@@ -51,6 +55,93 @@ async def analytics_sla_risks(
 async def analytics_trends(days: int = Query(90, ge=7, le=365)):
     data = analyze_trends(days=days)
     return {"trends": data}
+
+
+# --- SLA Portal: daily breach trend ----------------------------------------
+#
+# Powers the "Тренд нарушений SLA" stacked-area chart on /sla/portal.
+# Returns one row per day with separate `reaction` (response-time breaches)
+# and `resolution` (resolution-time breaches) counts so the UI can render
+# the canonical two-series chart (orange + violet).
+#
+# Filters:
+#   scope: "all" | "support" | "infra" | "biz"  — matches queue name patterns
+#          ("Support*", "Infrastructure*", everything-else respectively).
+#   calendar: "all" | "24x7" | "bh"             — currently informational (SLA
+#          definitions don't carry a calendar identifier yet); accepted so the
+#          URL contract is stable for the frontend.
+@router.get("/trend")
+async def analytics_daily_trend(
+    days: int = Query(30, ge=1, le=365),
+    scope: Optional[str] = Query(None, description="all | support | infra | biz"),
+    calendar: Optional[str] = Query(None, description="all | 24x7 | bh"),
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    """
+    Daily breach-trend series for the SLA Portal main chart.
+
+    Response shape:
+        {
+          "scope": {"days": 30, "scope": "all", "calendar": "all"},
+          "daily": [
+            { "date": "2026-05-01", "total": 120, "reaction": 14, "resolution": 9 },
+            ...
+          ]
+        }
+    """
+    since = datetime.utcnow().date() - timedelta(days=days - 1)
+
+    # Bucket sla_metrics by day + metric kind, count breaches. Scope filter
+    # restricts queue_name via a LIKE pattern so the response matches the
+    # scope-chip the analyst clicked.
+    where_scope = ""
+    if scope == "support":
+        where_scope = "AND queue_name ILIKE 'Support%'"
+    elif scope == "infra":
+        where_scope = "AND queue_name ILIKE 'Infrastructure%'"
+    elif scope == "biz":
+        where_scope = "AND queue_name NOT ILIKE 'Support%' AND queue_name NOT ILIKE 'Infrastructure%'"
+
+    sql = text(
+        f"""
+        SELECT
+          DATE(computed_at) AS day,
+          COUNT(*) AS total,
+          COUNT(*) FILTER (
+            WHERE sla_breached IS TRUE
+              AND metric_name IN ('first_response_time','response_time','wall_response_time')
+          ) AS reaction,
+          COUNT(*) FILTER (
+            WHERE sla_breached IS TRUE
+              AND metric_name IN ('resolution_time','wall_resolution_time')
+          ) AS resolution
+        FROM sla_metrics
+        WHERE computed_at >= :since
+          {where_scope}
+        GROUP BY day
+        ORDER BY day ASC
+        """
+    )
+    rows = (await db.execute(sql, {"since": since})).mappings().all()
+
+    # Fill missing days with zeros so the chart always renders a contiguous
+    # x-axis matching `days`.
+    by_day = {r["day"].isoformat(): r for r in rows}
+    daily = []
+    for i in range(days):
+        d = since + timedelta(days=i)
+        key = d.isoformat()
+        r = by_day.get(key)
+        daily.append({
+            "date": key,
+            "total": int(r["total"]) if r else 0,
+            "reaction": int(r["reaction"]) if r else 0,
+            "resolution": int(r["resolution"]) if r else 0,
+        })
+    return {
+        "scope": {"days": days, "scope": scope or "all", "calendar": calendar or "all"},
+        "daily": daily,
+    }
 
 
 @router.get("/forecast")

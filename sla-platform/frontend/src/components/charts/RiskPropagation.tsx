@@ -48,5 +48,5 @@ export default function RiskPropagation({ nodes, edges, height = 300 }: Props) {
     }],
   }), [nodes, edges, categories, colors]);
 
-  return <ReactEChartsCore option={option} style={{ height }} notMerge />;
+  return <ReactEChartsCore theme="sla" option={option} style={{ height }} notMerge />;
 }

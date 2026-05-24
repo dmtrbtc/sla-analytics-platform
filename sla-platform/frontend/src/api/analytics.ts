@@ -11,6 +11,13 @@ export const analyticsApi = {
     client.get("/analytics/sla-risks", { params }),
   trends: (params?: Record<string, unknown>) =>
     client.get("/analytics/trends", { params }),
+  /**
+   * Daily breach trend for the SLA Portal main chart. Returns one row per
+   * day with `total`, `reaction`, `resolution` so the stacked-area chart
+   * can render the canonical orange+violet pair directly.
+   */
+  dailyTrend: (params?: Record<string, unknown>) =>
+    client.get("/analytics/trend", { params }),
   forecast: (params?: Record<string, unknown>) =>
     client.get("/analytics/forecast", { params }),
   correlations: () =>

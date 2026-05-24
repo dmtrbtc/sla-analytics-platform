@@ -1,0 +1,278 @@
+/* ============================================================
+   SLA Platform — design tokens
+   Source of truth: DESIGN_SYSTEM.md (section 1) + SLA Portal/portal.css
+   Imported once in main.tsx. NEVER hardcode hex in components.
+   ============================================================ */
+
+:root {
+  /* Surfaces */
+  --bg:           #f6f7f9;
+  --surface:      #ffffff;
+  --surface-2:    #f9fafb;
+  --surface-3:    #f3f4f6;
+
+  /* Lines */
+  --line:         #e4e7ec;
+  --line-2:       #eef0f3;
+  --line-strong:  #d0d5dd;
+
+  /* Ink (text) */
+  --ink:          #101828;
+  --ink-2:        #344054;
+  --ink-3:        #667085;
+  --ink-4:        #98a2b3;
+  --ink-5:        #d0d5dd;
+
+  /* Brand — only for active state, links, primary CTA */
+  --brand:        #4f46e5;
+  --brand-hover:  #4338ca;
+  --brand-soft:   #eef2ff;
+  --brand-border: #c7d2fe;
+
+  /* Identity colors — Реакция = orange, Решение = violet. NEVER change this pair. */
+  --reaction:        #f59e0b;
+  --reaction-soft:   #fef3c7;
+  --resolution:      #8b5cf6;
+  --resolution-soft: #ede9fe;
+
+  /* Severity — used ONLY for breach / risk signals */
+  --ok:           #10b981;
+  --ok-soft:      #d1fae5;
+  --warn:         #f59e0b;
+  --warn-soft:    #fef3c7;
+  --high:         #f97316;
+  --high-soft:    #ffedd5;
+  --crit:         #ef4444;
+  --crit-soft:    #fee2e2;
+
+  /* Radii */
+  --radius-sm: 4px;
+  --radius:    6px;
+  --radius-lg: 10px;
+  --radius-xl: 14px;
+
+  /* Shadows */
+  --shadow-card: 0 1px 2px rgba(16,24,40,0.04), 0 0 0 1px var(--line);
+  --shadow-pop:  0 12px 24px rgba(16,24,40,0.08), 0 4px 8px rgba(16,24,40,0.04);
+
+  /* Fonts */
+  --font:      "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-mono: "JetBrains Mono", "SF Mono", Menlo, monospace;
+}
+
+/* ---------- Utility classes ---------- */
+
+.mono { font-family: var(--font-mono); font-feature-settings: "tnum"; }
+.tnum { font-variant-numeric: tabular-nums; }
+
+/* ---------- Live pill (header) ---------- */
+
+.sla-live-pill {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 3px 9px 3px 8px;
+  background: var(--ok-soft);
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--ok);
+}
+.sla-live-pill::before {
+  content: "";
+  width: 6px; height: 6px; border-radius: 50%;
+  background: var(--ok);
+  box-shadow: 0 0 0 0 rgba(16,185,129,0.6);
+  animation: sla-pulse 1.6s infinite;
+}
+@keyframes sla-pulse {
+  0%   { box-shadow: 0 0 0 0 rgba(16,185,129,0.6); }
+  70%  { box-shadow: 0 0 0 6px rgba(16,185,129,0); }
+  100% { box-shadow: 0 0 0 0 rgba(16,185,129,0); }
+}
+
+/* ---------- KPI card ---------- */
+
+.sla-kpi {
+  background: var(--surface);
+  border-radius: var(--radius-lg);
+  padding: 18px 20px;
+  box-shadow: var(--shadow-card);
+  display: flex; flex-direction: column; gap: 4px;
+  transition: box-shadow 0.15s;
+}
+.sla-kpi:hover { box-shadow: var(--shadow-pop); }
+.sla-kpi .head { display: flex; align-items: center; justify-content: space-between; }
+.sla-kpi .lab {
+  font-size: 12px;
+  color: var(--ink-3);
+  font-weight: 500;
+  letter-spacing: -0.05px;
+}
+.sla-kpi .ic {
+  width: 28px; height: 28px;
+  border-radius: 7px;
+  display: grid; place-items: center;
+  background: var(--surface-3);
+  color: var(--ink-3);
+}
+.sla-kpi.brand .ic   { background: var(--brand-soft);     color: var(--brand); }
+.sla-kpi.react .ic   { background: var(--reaction-soft);  color: var(--reaction); }
+.sla-kpi.resolve .ic { background: var(--resolution-soft);color: var(--resolution); }
+.sla-kpi.crit .ic    { background: var(--crit-soft);      color: var(--crit); }
+.sla-kpi .val {
+  margin-top: 6px;
+  font-size: 30px; font-weight: 700;
+  letter-spacing: -0.8px; line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+.sla-kpi .val .unit { font-size: 16px; color: var(--ink-3); font-weight: 500; margin-left: 2px; }
+.sla-kpi .foot {
+  margin-top: 6px;
+  display: flex; align-items: center; gap: 8px;
+  font-size: 12px;
+  color: var(--ink-3);
+}
+.sla-kpi .delta {
+  display: inline-flex; align-items: center; gap: 2px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  font-size: 12px;
+  padding: 1px 5px;
+  border-radius: 4px;
+}
+.sla-kpi .delta.good { color: var(--ok);   background: var(--ok-soft); }
+.sla-kpi .delta.bad  { color: var(--crit); background: var(--crit-soft); }
+.sla-kpi .delta.flat { color: var(--ink-3); }
+.sla-kpi.crit .val { color: var(--crit); }
+
+/* ---------- Health pip (40px circle) ---------- */
+
+.sla-hp {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 40px; height: 40px;
+  border-radius: 50%;
+  font-family: var(--font-mono);
+  font-size: 13px; font-weight: 700;
+  letter-spacing: -0.5px;
+  background: var(--surface-3);
+  color: var(--ink-2);
+}
+.sla-hp.ok    { background: var(--ok-soft);   color: var(--ok); }
+.sla-hp.warn  { background: var(--warn-soft); color: var(--warn); }
+.sla-hp.high  { background: var(--high-soft); color: var(--high); }
+.sla-hp.crit  { background: var(--crit-soft); color: var(--crit); }
+
+/* ---------- Metric bar (R/S two-segment) ---------- */
+
+.sla-bar-cell {
+  display: flex; flex-direction: column; gap: 5px;
+  min-width: 96px;
+}
+.sla-bar-cell .v {
+  font-size: 13px; font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  color: var(--ink);
+}
+.sla-bar-cell .v.crit { color: var(--crit); }
+.sla-bar-cell .v.warn { color: var(--warn); }
+.sla-bar-cell .v.high { color: var(--high); }
+.sla-bar-cell .bar {
+  height: 4px; background: var(--surface-3);
+  border-radius: 2px;
+  position: relative; overflow: hidden;
+}
+.sla-bar-cell .bar > i {
+  position: absolute; left: 0; top: 0; bottom: 0;
+  border-radius: 2px;
+  display: block;
+}
+.sla-bar-cell.reaction .bar > i   { background: var(--reaction); }
+.sla-bar-cell.resolution .bar > i { background: var(--resolution); }
+.sla-bar-cell.reaction.crit .bar > i,
+.sla-bar-cell.resolution.crit .bar > i { background: var(--crit); }
+
+/* ---------- Scope chips (topbar segmented filter) ---------- */
+
+.sla-chips { display: inline-flex; gap: 4px; flex-wrap: wrap; align-items: center; }
+.sla-chip {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 5px 10px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  font-size: 12.5px;
+  color: var(--ink-2);
+  cursor: pointer;
+  font-weight: 500;
+  transition: all 0.12s;
+  font-family: var(--font);
+}
+.sla-chip:hover { border-color: var(--ink-5); color: var(--ink); }
+.sla-chip.active {
+  background: var(--ink);
+  color: #fff;
+  border-color: var(--ink);
+}
+.sla-chip .count {
+  font-size: 11px;
+  background: var(--surface-3);
+  padding: 0 6px;
+  border-radius: 8px;
+  font-weight: 600;
+}
+.sla-chip.active .count { background: rgba(255,255,255,0.18); color: rgba(255,255,255,0.85); }
+
+/* ---------- DetailDrawer custom styling ---------- */
+
+.sla-drawer-h .crumb {
+  font-size: 11px; color: var(--ink-3);
+  text-transform: uppercase; letter-spacing: 0.4px;
+  font-weight: 500;
+}
+.sla-drawer-h h3 {
+  margin: 4px 0 0; font-size: 18px; font-weight: 700; letter-spacing: -0.3px;
+  color: var(--ink);
+}
+.sla-metric-row {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+}
+.sla-metric-tile {
+  background: var(--surface);
+  border-radius: 8px;
+  padding: 14px;
+  box-shadow: var(--shadow-card);
+}
+.sla-metric-tile .lab {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  color: var(--ink-3);
+  font-weight: 600;
+}
+.sla-metric-tile .val {
+  margin-top: 6px;
+  font-size: 24px; font-weight: 700; letter-spacing: -0.5px;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink);
+}
+.sla-metric-tile .sub {
+  margin-top: 2px;
+  font-size: 11.5px;
+  color: var(--ink-3);
+}
+.sla-metric-tile.crit .val { color: var(--crit); }
+.sla-metric-tile.warn .val { color: var(--warn); }
+.sla-metric-tile.ok .val   { color: var(--ok); }
+
+/* ---------- Sortable header arrow ---------- */
+
+.sla-sort-arr {
+  margin-left: 5px;
+  font-size: 9px;
+  color: var(--ink-4);
+  vertical-align: 1px;
+  display: inline-block;
+}
+.sla-sort-arr.active { color: var(--brand); }

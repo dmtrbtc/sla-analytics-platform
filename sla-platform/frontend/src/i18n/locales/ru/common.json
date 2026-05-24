@@ -5,6 +5,7 @@
   },
   "nav": {
     "dashboard": "Дашборд",
+    "slaPortal": "Портал SLA",
     "analytics": "Аналитика",
     "teamDashboard": "Дашборд команды",
     "tickets": "Тикеты",
@@ -17,6 +18,107 @@
     "admin": "Администрирование",
     "incidents": "Инциденты",
     "diagnostics": "Диагностика"
+  },
+  "slaPortal": {
+    "title": "Обзор SLA",
+    "subtitle": "Соблюдение реакции и решения по очередям",
+    "crumb": "Аналитика · SLA",
+    "live": "live · обновлено только что",
+    "export": "Выгрузка",
+    "createRule": "Создать правило",
+    "reset": "Сбросить",
+    "days": "дней",
+    "scopeLabel": "сегмент",
+    "filters": {
+      "period": "Период",
+      "scope": "Сегмент",
+      "calendar": "Календарь",
+      "search": "Поиск очереди или тикета..."
+    },
+    "period": {
+      "last7": "Последние 7 дней",
+      "last14": "14 дней",
+      "last30": "30 дней",
+      "last60": "60 дней",
+      "last90": "90 дней"
+    },
+    "scope": {
+      "all": "Все",
+      "business": "Бизнес"
+    },
+    "calendar": {
+      "all": "Все",
+      "bh": "Рабочие часы"
+    },
+    "kpi": {
+      "reaction": "SLA по реакции",
+      "resolution": "SLA по решению",
+      "atRisk": "Тикеты в зоне риска",
+      "avgWait": "Среднее время ожидания",
+      "breaches": "нарушений",
+      "closeToBreach": "близко к пробитию SLA",
+      "queuesInScope": "очередей в выборке"
+    },
+    "tabs": {
+      "queues": "Очереди",
+      "tickets": "Тикеты в риске",
+      "heat": "Тепловая карта",
+      "team": "Команда"
+    },
+    "charts": {
+      "trend": "Тренд нарушений SLA",
+      "topQueues": "Топ очередей по нарушениям",
+      "hourly": "Распределение по часам суток",
+      "modeStack": "Стек",
+      "modeSplit": "Раздельно",
+      "daysReactResolve": "дней · реакция и решение",
+      "forPeriod": "за выбранный период"
+    },
+    "columns": {
+      "queue": "Очередь",
+      "priority": "Приоритет",
+      "tickets": "Тикетов",
+      "slaReact": "SLA реакц.",
+      "slaResolve": "SLA реш.",
+      "breachReact": "Наруш. реакц.",
+      "breachResolve": "Наруш. реш.",
+      "atRisk": "В риске",
+      "avgWait": "⌀ Ожидание",
+      "trend": "Тренд",
+      "health": "Health",
+      "title": "Тема",
+      "queueOwner": "Очередь · владелец",
+      "eta": "До пробития",
+      "agent": "Агент",
+      "open": "Открыто",
+      "handled": "Обработано",
+      "slaPct": "SLA %",
+      "avgTime": "⌀ время"
+    },
+    "status": {
+      "top": "топ-исполнитель",
+      "over": "перегружен",
+      "norm": "в норме"
+    },
+    "empty": {
+      "queues": "Очереди не найдены — уточните фильтры",
+      "heat": "Нет данных за выбранный период"
+    },
+    "drawer": {
+      "queue": "Очередь",
+      "ticket": "Тикет",
+      "avgWait": "⌀ ожидание",
+      "outOf100": "из 100",
+      "forPeriod": "за период",
+      "slaCompliance": "Соблюдение SLA",
+      "overdue": "просрочка",
+      "remaining": "осталось",
+      "openTickets": "Открыть тикеты",
+      "editRule": "Правило SLA",
+      "openInOtrs": "Открыть в OTRS",
+      "reassign": "Переназначить",
+      "escalate": "Эскалация"
+    }
   },
   "auth": {
     "signIn": "Войти",

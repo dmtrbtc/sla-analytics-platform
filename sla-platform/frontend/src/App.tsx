@@ -38,6 +38,7 @@ const AssetCommandCenter = lazy(() => import("./pages/AssetCommandCenter"));
 const SLAReviewMode = lazy(() => import("./pages/SLAReviewMode"));
 const WallboardOps = lazy(() => import("./pages/WallboardOps"));
 const TicketTimelinePage = lazy(() => import("./pages/TicketTimelinePage"));
+const SLAPortal = lazy(() => import("./pages/SLAPortal"));
 
 /**
  * Wraps a route element in:
@@ -82,6 +83,7 @@ export default function App() {
           <Route path="/reports" element={<SuspenseWrapper><Reports /></SuspenseWrapper>} />
           <Route path="/teams" element={<SuspenseWrapper><TeamsPage /></SuspenseWrapper>} />
           <Route path="/sla" element={<SuspenseWrapper><SLAConfig /></SuspenseWrapper>} />
+          <Route path="/sla/portal" element={<SuspenseWrapper><SLAPortal /></SuspenseWrapper>} />
           <Route path="/sla/config" element={<SuspenseWrapper><SLAConfig /></SuspenseWrapper>} />
           <Route path="/sla/monitor" element={<SuspenseWrapper><SLAMonitor /></SuspenseWrapper>} />
           <Route path="/ops/incidents" element={<SuspenseWrapper><OperationsIncidents /></SuspenseWrapper>} />

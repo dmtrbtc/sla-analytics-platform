@@ -141,12 +141,12 @@ export default function QueueForensics() {
       <Row gutter={[12, 12]} style={{ marginBottom: spacing[3] }}>
         <Col span={12}>
           <Card size="small" title="Breach % by Queue — Пробития SLA по очередям">
-            <ReactEChartsCore option={breachChartOption} style={{ height: 400 }} notMerge />
+            <ReactEChartsCore theme="sla" option={breachChartOption} style={{ height: 400 }} notMerge />
           </Card>
         </Col>
         <Col span={12}>
           <Card size="small" title="Overload Score by Queue — Перегрузка очередей">
-            <ReactEChartsCore option={overloadOption} style={{ height: 400 }} notMerge />
+            <ReactEChartsCore theme="sla" option={overloadOption} style={{ height: 400 }} notMerge />
           </Card>
         </Col>
       </Row>

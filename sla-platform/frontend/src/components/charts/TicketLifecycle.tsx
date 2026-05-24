@@ -32,5 +32,5 @@ export default function TicketLifecycle({ phases, height = 60 }: Props) {
     })),
   }), [phases, colors]);
 
-  return <ReactEChartsCore option={option} style={{ height }} notMerge />;
+  return <ReactEChartsCore theme="sla" option={option} style={{ height }} notMerge />;
 }

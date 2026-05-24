@@ -207,7 +207,7 @@ export default function SLACommandCenter() {
         <Col span={24}>
           <Card size="small" title={<><ApartmentOutlined style={{ marginRight: 6 }} />Queue Flow Map — Поток тикетов между очередями</>}
             extra={<Text style={{ fontSize: 11, color: colors.text.tertiary }}>Красный = деградированный поток</Text>}>
-            <ReactEChartsCore option={flowOption} style={{ height: 360 }} notMerge />
+            <ReactEChartsCore theme="sla" option={flowOption} style={{ height: 360 }} notMerge />
           </Card>
         </Col>
       </Row>
@@ -216,7 +216,7 @@ export default function SLACommandCenter() {
       <Row gutter={[12, 12]} style={{ marginBottom: spacing[4] }}>
         <Col span={14}>
           <Card size="small" title={<><HeatMapOutlined style={{ marginRight: 6 }} />Breach Heatmap — Тепловая карта пробитий</>}>
-            <ReactEChartsCore option={heatmapOption} style={{ height: 360 }} notMerge />
+            <ReactEChartsCore theme="sla" option={heatmapOption} style={{ height: 360 }} notMerge />
           </Card>
         </Col>
         <Col span={10}>
