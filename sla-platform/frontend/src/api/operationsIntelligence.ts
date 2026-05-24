@@ -2,8 +2,13 @@ import client from "./client";
 
 export type DomainKey = "servicedesk" | "assetmanagement" | "workplace" | "multimedia";
 
+type ScopeParams = Record<string, string | undefined>;
+
 export const operationsIntelligenceApi = {
-  domain: (d: DomainKey) =>
-    client.get(`/operations/intelligence/${d}`).then(r => r.data),
-  overview: () => client.get("/operations/intelligence").then(r => r.data),
+  domain: (d: DomainKey, scope?: ScopeParams) =>
+    client.get(`/operations/intelligence/${d}`, { params: { ...(scope || {}) } })
+      .then(r => r.data),
+  overview: (scope?: ScopeParams) =>
+    client.get("/operations/intelligence", { params: { ...(scope || {}) } })
+      .then(r => r.data),
 };

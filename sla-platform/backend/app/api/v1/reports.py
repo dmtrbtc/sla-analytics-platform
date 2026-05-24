@@ -28,10 +28,13 @@ def _sync_audit(action: str, resource_type: str, resource_id: str, details: Opti
 
 @router.post("/generate", response_model=dict)
 async def generate(
-    report_type: str = Query(..., description="sla_breaches|team_performance|ticket_lifecycle|imports_summary"),
+    report_type: str = Query(..., description="sla_breaches|team_performance|ticket_lifecycle|imports_summary|executive"),
     fmt: str = Query("xlsx", description="xlsx|csv"),
     import_id: Optional[str] = Query(None),
     team_prefix: Optional[str] = Query(None),
+    period: Optional[str] = Query(None, description="24h | 1d | 7d | 30d | 90d | 365d"),
+    since: Optional[str] = Query(None, description="ISO datetime (custom range start)"),
+    until: Optional[str] = Query(None, description="ISO datetime (custom range end)"),
     _: User = Depends(require_admin),
 ):
     params = {}
@@ -39,14 +42,28 @@ async def generate(
         params["import_id"] = import_id
     if team_prefix:
         params["team_prefix"] = team_prefix
+    # Forward scope params verbatim — Celery worker resolves to TimeScope.
+    if period:
+        params["period"] = period
+    if since:
+        params["since"] = since
+    if until:
+        params["until"] = until
 
     task = generate_report.delay(report_type, fmt, params)
-    _sync_audit("report_generated", "report", task.id, details={"report_type": report_type, "format": fmt})
+    _sync_audit(
+        "report_generated", "report", task.id,
+        details={
+            "report_type": report_type, "format": fmt,
+            "period": period, "since": since, "until": until,
+        },
+    )
     return {
         "status": "started",
         "task_id": task.id,
         "report_type": report_type,
         "format": fmt,
+        "scope": {"period": period, "since": since, "until": until},
         "message": "Report generation started. Poll /reports/status/{task_id} for completion.",
     }
 

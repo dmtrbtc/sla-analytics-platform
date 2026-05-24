@@ -9,6 +9,7 @@ from uuid import uuid4
 from app.core.celery_app import celery_app, exponential_backoff
 from app.core.config import settings
 from app.core.database import sync_session_factory
+from app.services.forensics.time_scope import parse_time_scope
 from app.services.report_service import ReportService
 
 logger = logging.getLogger(__name__)
@@ -24,18 +25,31 @@ def generate_report(self, report_type: str, fmt: str = "xlsx", params: dict | No
     _REPORT_STATUSES[report_id] = {"status": "generating", "progress": 0}
     params = params or {}
     db = sync_session_factory()
+    # Resolve TimeScope from the params dict (passed through from API).
+    scope = parse_time_scope(
+        period=params.get("period"),
+        since=params.get("since"),
+        until=params.get("until"),
+    )
     try:
-        logger.info("Generating report", extra={"report_id": report_id, "type": report_type, "fmt": fmt})
+        logger.info(
+            "Generating report",
+            extra={"report_id": report_id, "type": report_type, "fmt": fmt, "scope": scope.label},
+        )
         if report_type == "sla_breaches":
-            result = ReportService.sla_breaches_report(db, import_id=params.get("import_id"), fmt=fmt)
+            result = ReportService.sla_breaches_report(
+                db, import_id=params.get("import_id"), fmt=fmt, scope=scope,
+            )
         elif report_type == "team_performance":
-            result = ReportService.team_performance_report(db, team_prefix=params.get("team_prefix"), fmt=fmt)
+            result = ReportService.team_performance_report(
+                db, team_prefix=params.get("team_prefix"), fmt=fmt, scope=scope,
+            )
         elif report_type == "ticket_lifecycle":
-            result = ReportService.ticket_lifecycle_report(db, fmt=fmt)
+            result = ReportService.ticket_lifecycle_report(db, fmt=fmt, scope=scope)
         elif report_type == "imports_summary":
             result = ReportService.imports_summary_report(db, fmt=fmt)
         elif report_type == "executive":
-            result = ReportService.executive_report(db, fmt=fmt)
+            result = ReportService.executive_report(db, fmt=fmt, scope=scope)
         else:
             raise ValueError(f"Unknown report type: {report_type}")
         _REPORT_STATUSES[report_id] = {
@@ -43,7 +57,18 @@ def generate_report(self, report_type: str, fmt: str = "xlsx", params: dict | No
             "filename": result["filename"], "filepath": result["filepath"],
             "rows": result["rows"], "format": result["format"],
         }
-        logger.info("Report generated", extra={"report_id": report_id, **result})
+        # NB: do NOT spread `result` into logger `extra` — `filename` is a
+        # reserved attribute on Python's LogRecord and the dict-update raises
+        # "Attempt to overwrite 'filename' in LogRecord". Use safe keys only.
+        logger.info(
+            "Report generated",
+            extra={
+                "report_id": report_id,
+                "report_filename": result.get("filename"),
+                "report_rows": result.get("rows"),
+                "report_format": result.get("format"),
+            },
+        )
         return {"report_id": report_id, **result}
     except Exception as exc:
         logger.exception("Report generation failed")

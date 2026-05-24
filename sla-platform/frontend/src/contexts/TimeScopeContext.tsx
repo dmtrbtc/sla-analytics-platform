@@ -17,7 +17,7 @@ import { useLocation, useNavigate } from "react-router-dom";
  * does the same precedence (period > since/until > all-time).
  */
 
-export type ScopePreset = "all" | "24h" | "7d" | "30d" | "90d" | "custom";
+export type ScopePreset = "all" | "1d" | "24h" | "7d" | "30d" | "90d" | "custom";
 
 export interface TimeScopeState {
   preset: ScopePreset;
@@ -44,6 +44,7 @@ const URL_UNTIL = "until";
 
 const PRESET_LABELS: Record<ScopePreset, string> = {
   all:    "Всё время",
+  "1d":   "Последние 24 ч",
   "24h":  "Последние 24 ч",
   "7d":   "7 дней",
   "30d":  "30 дней",
@@ -56,7 +57,7 @@ function readUrl(search: string): TimeScopeState | null {
   const period = p.get(URL_PERIOD);
   const since = p.get(URL_SINCE) || undefined;
   const until = p.get(URL_UNTIL) || undefined;
-  if (period && ["all", "24h", "7d", "30d", "90d"].includes(period)) {
+  if (period && ["all", "1d", "24h", "7d", "30d", "90d"].includes(period)) {
     return { preset: period as ScopePreset };
   }
   if (since && until) {

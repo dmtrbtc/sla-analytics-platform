@@ -4,7 +4,7 @@ from __future__ import annotations
 import json
 import os
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from io import BytesIO
 from typing import Any
 
@@ -16,8 +16,29 @@ from app.core.config import settings
 from app.core.database import sync_session_factory
 from app.core.dependencies import get_current_user, require_admin
 from app.domain.models import User
+from app.services.forensics.time_scope import parse_time_scope
 
 router = APIRouter(dependencies=[Depends(get_current_user)])
+
+
+def _resolve_window(payload: dict[str, Any]) -> tuple[datetime, datetime, str]:
+    """Resolve the report time window from a payload dict.
+
+    Reads `period` / `since` / `until` from `payload` (or its nested `scope`
+    object). Falls back to the legacy 30-day window for back-compat.
+
+    Returns (since_dt, until_dt, label).
+    """
+    scope_dict = payload.get("scope") or {}
+    period = payload.get("period") or scope_dict.get("period")
+    since_iso = payload.get("since") or scope_dict.get("since")
+    until_iso = payload.get("until") or scope_dict.get("until")
+    sc = parse_time_scope(period=period, since=since_iso, until=until_iso)
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
+    if not sc.is_all_time and sc.since is not None:
+        return sc.since, sc.until or now, sc.label
+    # Legacy default
+    return now - timedelta(days=30), now, "30d"
 
 REPORT_DIR = os.path.join(settings.DATA_DIR, "reports")
 os.makedirs(REPORT_DIR, exist_ok=True)
@@ -29,6 +50,7 @@ async def generate_branded_xlsx(data: dict[str, Any], _: User = Depends(require_
     report_type = data.get("type", "sla_breaches")
     title = data.get("title", "SLA Compliance Report")
     org = data.get("organization", "Enterprise")
+    since_dt, until_dt, scope_label = _resolve_window(data)
     report_id = str(uuid.uuid4())
     filename = f"{report_type}_{report_id}.xlsx"
     filepath = os.path.join(REPORT_DIR, filename)
@@ -47,6 +69,7 @@ async def generate_branded_xlsx(data: dict[str, Any], _: User = Depends(require_
         ws_cover["A4"] = f"Generated: {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M UTC')}"
         ws_cover["A5"] = f"Type: {report_type}"
         ws_cover["A6"] = f"Report ID: {report_id}"
+        ws_cover["A7"] = f"Period: {scope_label} ({since_dt.isoformat()} → {until_dt.isoformat()})"
 
         # Summary sheet
         ws = wb.create_sheet("Executive Summary")
@@ -62,7 +85,16 @@ async def generate_branded_xlsx(data: dict[str, Any], _: User = Depends(require_
 
         db = sync_session_factory()
         try:
-            row = db.execute(text("SELECT COUNT(*) as total, SUM(CASE WHEN sla_breached THEN 1 ELSE 0 END) as breached FROM sla_metrics WHERE created_at >= NOW() - INTERVAL '30 days'")).first()
+            # Use the real sla_metrics schema: computed_at + queue_name on the metric.
+            row = db.execute(
+                text("""
+                    SELECT COUNT(*) AS total,
+                           SUM(CASE WHEN sla_breached THEN 1 ELSE 0 END) AS breached
+                    FROM sla_metrics
+                    WHERE computed_at >= :since AND computed_at < :until
+                """),
+                {"since": since_dt, "until": until_dt},
+            ).first()
             total = row.total or 0
             breached = row.breached or 0
             rate = round((total - breached) / max(total, 1) * 100, 1)
@@ -75,6 +107,8 @@ async def generate_branded_xlsx(data: dict[str, Any], _: User = Depends(require_
             ws.cell(row=5, column=2, value=breached)
             ws.cell(row=6, column=1, value="Total Metrics")
             ws.cell(row=6, column=2, value=total)
+            ws.cell(row=7, column=1, value="Window")
+            ws.cell(row=7, column=2, value=scope_label)
         finally:
             db.close()
 
@@ -83,14 +117,22 @@ async def generate_branded_xlsx(data: dict[str, Any], _: User = Depends(require_
         ws_data.append(["Ticket ID", "Queue", "Metric", "Value (s)", "Breached", "Date"])
         db = sync_session_factory()
         try:
-            rows = db.execute(text("""
-                SELECT m.ticket_id, t.queue, m.metric_name, m.metric_value_seconds, m.sla_breached, m.created_at
-                FROM sla_metrics m JOIN tickets t ON t.id = m.ticket_id
-                WHERE m.created_at >= NOW() - INTERVAL '30 days'
-                ORDER BY m.created_at DESC LIMIT 1000
-            """)).all()
+            rows = db.execute(
+                text("""
+                    SELECT m.ticket_id, m.queue_name AS queue, m.metric_name,
+                           m.metric_seconds AS value_seconds,
+                           m.sla_breached, m.computed_at
+                    FROM sla_metrics m
+                    WHERE m.computed_at >= :since AND m.computed_at < :until
+                    ORDER BY m.computed_at DESC LIMIT 1000
+                """),
+                {"since": since_dt, "until": until_dt},
+            ).all()
             for r in rows:
-                ws_data.append([str(r.ticket_id), r.queue, r.metric_name, r.metric_value_seconds, "Yes" if r.sla_breached else "No", str(r.created_at)])
+                ws_data.append([
+                    str(r.ticket_id), r.queue, r.metric_name, r.value_seconds,
+                    "Yes" if r.sla_breached else "No", str(r.computed_at),
+                ])
         finally:
             db.close()
 
@@ -119,6 +161,7 @@ async def generate_pdf_report(data: dict[str, Any], _: User = Depends(require_ad
     """Generate PDF executive report."""
     report_type = data.get("type", "executive_summary")
     title = data.get("title", "Executive SLA Report")
+    since_dt, until_dt, scope_label = _resolve_window(data)
     report_id = str(uuid.uuid4())
     filename = f"{report_type}_{report_id}.pdf"
     filepath = os.path.join(REPORT_DIR, filename)
@@ -142,6 +185,7 @@ async def generate_pdf_report(data: dict[str, Any], _: User = Depends(require_ad
         c.drawString(40, height - 150, f"Generated: {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M UTC')}")
         c.drawString(40, height - 170, f"Type: {report_type}")
         c.drawString(40, height - 190, f"Report ID: {report_id}")
+        c.drawString(40, height - 210, f"Period: {scope_label}")
 
         # Summary
         c.setFillColor(HexColor("#1B1F23"))
@@ -151,7 +195,15 @@ async def generate_pdf_report(data: dict[str, Any], _: User = Depends(require_ad
 
         db = sync_session_factory()
         try:
-            row = db.execute(text("SELECT COUNT(*) as total, SUM(CASE WHEN sla_breached THEN 1 ELSE 0 END) as breached FROM sla_metrics WHERE created_at >= NOW() - INTERVAL '30 days'")).first()
+            row = db.execute(
+                text("""
+                    SELECT COUNT(*) AS total,
+                           SUM(CASE WHEN sla_breached THEN 1 ELSE 0 END) AS breached
+                    FROM sla_metrics
+                    WHERE computed_at >= :since AND computed_at < :until
+                """),
+                {"since": since_dt, "until": until_dt},
+            ).first()
             total = row.total or 0
             breached = row.breached or 0
             rate = round((total - breached) / max(total, 1) * 100, 1)

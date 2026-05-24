@@ -1,5 +1,7 @@
 import client from "./client";
 
+type ScopeParams = Record<string, string | undefined>;
+
 export interface QueueCCMetric {
   n: number;
   breaches: number;
@@ -61,8 +63,15 @@ export interface QueueCommandCenterResponse {
 }
 
 export const queueCommandCenterApi = {
-  get: (queueName: string) =>
+  /**
+   * Per-queue command center. Optional `scope` object comes from
+   * `useTimeScope().toParams()` and propagates the global toolbar window
+   * to every chart on the page. When `scope` is omitted, the backend
+   * falls back to all-time aggregation.
+   */
+  get: (queueName: string, scope?: ScopeParams) =>
     client.get<QueueCommandCenterResponse>(
       `/operations/queue-command-center/${encodeURIComponent(queueName)}`,
+      { params: { ...(scope || {}) } },
     ).then(r => r.data),
 };

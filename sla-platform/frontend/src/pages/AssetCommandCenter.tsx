@@ -1,7 +1,8 @@
-import { Typography, Tabs, Button, Space, message } from "antd";
-import { StarFilled, StarOutlined, PushpinOutlined } from "@ant-design/icons";
+import { Typography, Tabs, Button, Space, message, Tag } from "antd";
+import { ClockCircleOutlined, StarFilled, StarOutlined, PushpinOutlined } from "@ant-design/icons";
 import QueueCommandView from "../components/operations/QueueCommandView";
 import { useFavorites } from "../contexts/FavoritesContext";
+import { useTimeScope } from "../contexts/TimeScopeContext";
 import "../design/v1-tokens.css";
 
 const { Title, Text } = Typography;
@@ -13,6 +14,7 @@ const QUEUES = [
 
 export default function AssetCommandCenter() {
   const { favoriteSet, toggle, setActiveFilter } = useFavorites();
+  const { label: scopeLabel } = useTimeScope();
   const allStarred = QUEUES.every(q => favoriteSet.has(q));
 
   const onStarAll = () => {
@@ -32,6 +34,8 @@ export default function AssetCommandCenter() {
       <Text style={{ color: "var(--v1-text-3)" }}>
         Операционная панель по продакшен-очередям Asset Management · Veshki и Plaza.
         Aging-инвентарь, dead queues, ownership-gaps, длинные approval-chain'ы.
+        &nbsp;·&nbsp;
+        <Tag icon={<ClockCircleOutlined />} color="blue">{scopeLabel}</Tag>
       </Text>
 
       <Space style={{ marginTop: 12, marginBottom: 18 }}>

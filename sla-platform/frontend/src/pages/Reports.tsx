@@ -4,6 +4,7 @@ import { DownloadOutlined, FileExcelOutlined, ReloadOutlined, StarOutlined, Cloc
 import { useTranslation } from "react-i18next";
 import { useQuery } from "@tanstack/react-query";
 import { reportsApi } from "../api/reports";
+import { useTimeScope } from "../contexts/TimeScopeContext";
 import { palette } from "../design/colors";
 import { typography } from "../design/typography";
 import { cardStyle, sectionTitle } from "../design/tokens";
@@ -18,6 +19,7 @@ const REPORT_PRESETS = [
 
 export default function Reports() {
   const { t } = useTranslation();
+  const { toParams, label: scopeLabel } = useTimeScope();
   const [reportType, setReportType] = useState("sla_breaches");
   const [format, setFormat] = useState("xlsx");
   const [generating, setGenerating] = useState(false);
@@ -57,7 +59,13 @@ export default function Reports() {
   const handleGenerate = async () => {
     setGenerating(true);
     try {
-      const resp = await reportsApi.generate({ report_type: reportType, fmt: format });
+      // Pass the global TimeScope into the report job so the XLSX/CSV
+      // covers EXACTLY the window the analyst selected (1д/7д/30д/90д
+      // /custom). Without scope the worker generates an all-time report.
+      const resp = await reportsApi.generate(
+        { report_type: reportType, fmt: format },
+        toParams(),
+      );
       setActiveTaskId(resp.data.task_id);
       message.info(t("reports.reportStarted"));
       pollStatus(resp.data.task_id);
@@ -134,6 +142,9 @@ export default function Reports() {
               <Select.Option value="xlsx">XLSX</Select.Option>
               <Select.Option value="csv">CSV</Select.Option>
             </Select>
+            <Tag icon={<ClockCircleOutlined />} color="blue">
+              Период: {scopeLabel}
+            </Tag>
             <Button type="primary" icon={<FileExcelOutlined />} onClick={handleGenerate} loading={generating} style={{ fontSize: 12 }}>
               {t("reports.generate")}
             </Button>

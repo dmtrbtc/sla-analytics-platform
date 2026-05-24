@@ -18,6 +18,7 @@ from app.domain.models import (
     SLAMetric,
     TicketSnapshot,
 )
+from app.services.forensics.time_scope import TimeScope
 from app.utils.excel_writer import (
     fmt_time_columns,
     make_multi_sheet_xlsx,
@@ -92,7 +93,10 @@ class ReportService:
 
     @staticmethod
     def sla_breaches_report(
-        db: Session, import_id: Optional[str] = None, fmt: str = "xlsx"
+        db: Session,
+        import_id: Optional[str] = None,
+        fmt: str = "xlsx",
+        scope: Optional[TimeScope] = None,
     ) -> dict:
         q = (
             db.query(
@@ -109,6 +113,11 @@ class ReportService:
         )
         if import_id:
             q = q.filter(SLAMetric.import_id == import_id)
+        if scope is not None and not scope.is_all_time:
+            if scope.since is not None:
+                q = q.filter(SLAMetric.computed_at >= scope.since)
+            if scope.until is not None:
+                q = q.filter(SLAMetric.computed_at < scope.until)
         rows_raw = q.order_by(SLAMetric.computed_at.desc()).limit(10000).all()
 
         ticket_ids = list({r[0].ticket_id for r in rows_raw})
@@ -242,11 +251,24 @@ class ReportService:
 
     @staticmethod
     def team_performance_report(
-        db: Session, team_prefix: Optional[str] = None, fmt: str = "xlsx"
+        db: Session,
+        team_prefix: Optional[str] = None,
+        fmt: str = "xlsx",
+        scope: Optional[TimeScope] = None,
     ) -> dict:
         q = db.query(OwnershipPeriod)
         if team_prefix:
             q = q.filter(OwnershipPeriod.team_prefix == team_prefix)
+        # Overlap-aware: keep any segment that overlaps the window.
+        if scope is not None and not scope.is_all_time:
+            if scope.since is not None:
+                # End is null (open) treated as still-open → > since
+                q = q.filter(
+                    (OwnershipPeriod.end_time.is_(None))
+                    | (OwnershipPeriod.end_time > scope.since)
+                )
+            if scope.until is not None:
+                q = q.filter(OwnershipPeriod.start_time < scope.until)
         periods = (
             q.order_by(OwnershipPeriod.start_time.desc()).limit(10000).all()
         )
@@ -273,10 +295,19 @@ class ReportService:
     # ── Ticket lifecycle report ───────────────────────────────────
 
     @staticmethod
-    def ticket_lifecycle_report(db: Session, fmt: str = "xlsx") -> dict:
+    def ticket_lifecycle_report(
+        db: Session,
+        fmt: str = "xlsx",
+        scope: Optional[TimeScope] = None,
+    ) -> dict:
+        q = db.query(TicketSnapshot)
+        if scope is not None and not scope.is_all_time:
+            if scope.since is not None:
+                q = q.filter(TicketSnapshot.created_at >= scope.since)
+            if scope.until is not None:
+                q = q.filter(TicketSnapshot.created_at < scope.until)
         tickets = (
-            db.query(TicketSnapshot)
-            .order_by(TicketSnapshot.ticket_id)
+            q.order_by(TicketSnapshot.ticket_id)
             .limit(10000).all()
         )
         rows = [
@@ -335,43 +366,83 @@ class ReportService:
     # ── Executive report ──────────────────────────────────────────
 
     @staticmethod
-    def executive_report(db: Session, fmt: str = "xlsx") -> dict:
-        """Generate branded executive XLSX with charts and conditional formatting."""
-        now = datetime.utcnow()
-        since = now - timedelta(days=30)
+    def executive_report(
+        db: Session,
+        fmt: str = "xlsx",
+        scope: Optional[TimeScope] = None,
+    ) -> dict:
+        """Generate branded executive XLSX with charts and conditional formatting.
 
-        # KPI data
+        When `scope` is provided, KPIs / breaches / trend / queue analysis are
+        constrained to the window. Default behavior preserved: last 30 days.
+        """
+        now = datetime.utcnow()
+        # Scope precedence: explicit scope > legacy 30-day default
+        if scope is not None and not scope.is_all_time and scope.since is not None:
+            since = scope.since
+            until = scope.until or now
+        else:
+            since = now - timedelta(days=30)
+            until = now
+
+        # KPI data — scope-aware where it makes sense (open_tickets is always "now")
         open_tickets = (
             db.query(func.count(TicketSnapshot.ticket_id))
             .filter(TicketSnapshot.is_closed == False)
             .scalar() or 0
         )
         total_tickets = db.query(func.count(TicketSnapshot.ticket_id)).scalar() or 0
-        sla_total = db.query(func.count(SLAMetric.id)).scalar() or 0
+        sla_q = db.query(func.count(SLAMetric.id)).filter(
+            SLAMetric.computed_at >= since, SLAMetric.computed_at < until,
+        )
+        sla_total = sla_q.scalar() or 0
         sla_breached = (
             db.query(func.count(SLAMetric.id))
-            .filter(SLAMetric.sla_breached == True)
+            .filter(
+                SLAMetric.sla_breached == True,
+                SLAMetric.computed_at >= since,
+                SLAMetric.computed_at < until,
+            )
             .scalar() or 0
         )
         breach_pct = round(sla_breached / sla_total * 100, 1) if sla_total else 0.0
         avg_response = (
             db.query(func.avg(SLAMetric.metric_seconds))
-            .filter(SLAMetric.metric_name.in_(["first_response_time", "response_time"]), SLAMetric.metric_seconds.isnot(None))
+            .filter(
+                SLAMetric.metric_name.in_(["first_response_time", "response_time"]),
+                SLAMetric.metric_seconds.isnot(None),
+                SLAMetric.computed_at >= since,
+                SLAMetric.computed_at < until,
+            )
             .scalar() or 0
         )
         avg_resolution = (
             db.query(func.avg(SLAMetric.metric_seconds))
-            .filter(SLAMetric.metric_name == "resolution_time", SLAMetric.metric_seconds.isnot(None))
+            .filter(
+                SLAMetric.metric_name == "resolution_time",
+                SLAMetric.metric_seconds.isnot(None),
+                SLAMetric.computed_at >= since,
+                SLAMetric.computed_at < until,
+            )
             .scalar() or 0
         )
         tickets_at_risk = (
             db.query(func.count(SLAMetric.id))
-            .filter(SLAMetric.risk_level.in_(["high", "critical"]))
+            .filter(
+                SLAMetric.risk_level.in_(["high", "critical"]),
+                SLAMetric.computed_at >= since,
+                SLAMetric.computed_at < until,
+            )
             .scalar() or 0
         )
         overloaded_queues = (
             db.query(func.count(func.distinct(SLAMetric.queue_name)))
-            .filter(SLAMetric.sla_breached == True, SLAMetric.queue_name.isnot(None))
+            .filter(
+                SLAMetric.sla_breached == True,
+                SLAMetric.queue_name.isnot(None),
+                SLAMetric.computed_at >= since,
+                SLAMetric.computed_at < until,
+            )
             .scalar() or 0
         )
 
@@ -390,7 +461,12 @@ class ReportService:
                 SLAMetric.queue_name,
                 func.count(SLAMetric.id).label("breaches"),
             )
-            .filter(SLAMetric.sla_breached == True, SLAMetric.queue_name.isnot(None))
+            .filter(
+                SLAMetric.sla_breached == True,
+                SLAMetric.queue_name.isnot(None),
+                SLAMetric.computed_at >= since,
+                SLAMetric.computed_at < until,
+            )
             .group_by(SLAMetric.queue_name)
             .order_by(func.count(SLAMetric.id).desc())
             .limit(10)
@@ -404,7 +480,11 @@ class ReportService:
                 func.date_trunc("day", SLAMetric.computed_at).label("day"),
                 func.count(SLAMetric.id).label("count"),
             )
-            .filter(SLAMetric.sla_breached == True, SLAMetric.computed_at >= since)
+            .filter(
+                SLAMetric.sla_breached == True,
+                SLAMetric.computed_at >= since,
+                SLAMetric.computed_at < until,
+            )
             .group_by(text("day"))
             .order_by(text("day"))
             .all()
@@ -422,6 +502,10 @@ class ReportService:
                 SLAMetric.owner,
                 SLAMetric.risk_level,
                 SLAMetric.confidence,
+            )
+            .filter(
+                SLAMetric.computed_at >= since,
+                SLAMetric.computed_at < until,
             )
             .order_by(SLAMetric.computed_at.desc())
             .limit(5000)
@@ -448,7 +532,11 @@ class ReportService:
                 func.sum(SLAMetric.sla_breached.cast(type(1))).label("breached"),
                 func.avg(SLAMetric.metric_seconds).label("avg_secs"),
             )
-            .filter(SLAMetric.queue_name.isnot(None), SLAMetric.computed_at >= since)
+            .filter(
+                SLAMetric.queue_name.isnot(None),
+                SLAMetric.computed_at >= since,
+                SLAMetric.computed_at < until,
+            )
             .group_by(SLAMetric.queue_name)
             .order_by(func.count(SLAMetric.id).desc())
             .all()

@@ -12,12 +12,40 @@ N+1 traversals.
 from __future__ import annotations
 
 import logging
-from typing import Any
+from typing import Any, Optional
 
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
+from app.services.forensics.time_scope import (
+    TimeScope,
+    scope_filter_sql,
+    scope_params,
+)
+
 logger = logging.getLogger(__name__)
+
+
+def _sp(scope: Optional[TimeScope]) -> dict:
+    """{since, until} bind dict — None values when scope is missing/all-time."""
+    if scope is None:
+        return {"since": None, "until": None}
+    return scope_params(scope)
+
+
+# Pre-built scope WHERE fragments for the timestamp columns we use most often.
+EV_SCOPE = (
+    "(:since IS NULL OR event_time >= :since) "
+    "AND (:until IS NULL OR event_time < :until)"
+)
+SNAP_SCOPE = (
+    "(:since IS NULL OR created_at >= :since) "
+    "AND (:until IS NULL OR created_at < :until)"
+)
+SLA_M_SCOPE = (
+    "(:since IS NULL OR computed_at >= :since) "
+    "AND (:until IS NULL OR computed_at < :until)"
+)
 
 
 # ─── Domain glob patterns ────────────────────────────────────────────────
@@ -50,21 +78,25 @@ class DomainIntelligence:
         return list(rows)
 
     @staticmethod
-    def _ticket_counts(db: Session, queues: list[str]) -> dict[str, Any]:
+    def _ticket_counts(
+        db: Session, queues: list[str],
+        scope: Optional[TimeScope] = None,
+    ) -> dict[str, Any]:
         if not queues:
             return {"total": 0, "open": 0, "closed": 0, "by_queue": []}
         rows = db.execute(
-            text("""
+            text(f"""
                 SELECT current_queue,
                        COUNT(*) AS total,
                        COUNT(*) FILTER (WHERE is_closed = FALSE) AS open,
                        COUNT(*) FILTER (WHERE is_closed = TRUE)  AS closed
                 FROM ticket_snapshots
                 WHERE current_queue = ANY(:q)
+                  AND {SNAP_SCOPE}
                 GROUP BY current_queue
                 ORDER BY total DESC
             """),
-            {"q": queues},
+            {"q": queues, **_sp(scope)},
         ).mappings().all()
         total = sum(int(r["total"]) for r in rows)
         open_n = sum(int(r["open"]) for r in rows)
@@ -78,15 +110,17 @@ class DomainIntelligence:
     # ────────────────────────────────────────────────────────────────────
 
     @staticmethod
-    def servicedesk(db: Session) -> dict[str, Any]:
+    def servicedesk(db: Session, scope: Optional[TimeScope] = None) -> dict[str, Any]:
         """Routing map + transfer forensics + routing-quality scores."""
         queues = DomainIntelligence._queues_in_domain(db, DOMAIN_PATTERNS["servicedesk"])
 
-        counts = DomainIntelligence._ticket_counts(db, queues)
+        counts = DomainIntelligence._ticket_counts(db, queues, scope=scope)
+        sp = _sp(scope)
+        qp_scope = scope_filter_sql("entered_at", "exited_at")
 
         # Outbound transitions (where ServiceDesk sends tickets)
         outbound = db.execute(
-            text("""
+            text(f"""
                 SELECT src_queue, dest_queue,
                        COUNT(*) AS n,
                        COUNT(DISTINCT ticket_id) AS tickets,
@@ -100,45 +134,49 @@ class DomainIntelligence:
                 WHERE src_queue = ANY(:q)
                   AND dest_queue IS NOT NULL
                   AND dest_queue != src_queue
+                  AND {EV_SCOPE}
                 GROUP BY src_queue, dest_queue
                 ORDER BY n DESC
                 LIMIT 25
             """),
-            {"q": queues},
+            {"q": queues, **sp},
         ).mappings().all()
 
         # Inbound (where tickets come BACK to ServiceDesk — bounce signal)
         inbound = db.execute(
-            text("""
+            text(f"""
                 SELECT src_queue, dest_queue, COUNT(*) AS n,
                        COUNT(DISTINCT ticket_id) AS tickets
                 FROM ticket_events
                 WHERE dest_queue = ANY(:q)
                   AND src_queue IS NOT NULL
                   AND src_queue != dest_queue
+                  AND {EV_SCOPE}
                 GROUP BY src_queue, dest_queue
                 ORDER BY n DESC
                 LIMIT 15
             """),
-            {"q": queues},
+            {"q": queues, **sp},
         ).mappings().all()
 
         # Routing loops: tickets that returned to a ServiceDesk queue ≥2x
         loops = db.execute(
-            text("""
+            text(f"""
                 SELECT ticket_id, queue_name, COUNT(*) AS visits
                 FROM queue_periods
                 WHERE queue_name = ANY(:q)
+                  AND {qp_scope}
                 GROUP BY ticket_id, queue_name
                 HAVING COUNT(*) >= 2
                 ORDER BY visits DESC LIMIT 10
             """),
-            {"q": queues},
+            {"q": queues, **sp},
         ).mappings().all()
 
         # Ownership acquisition latency: creation → first non-system owner
+        op_scope = scope_filter_sql("op.start_time", "op.end_time")
         acq = db.execute(
-            text("""
+            text(f"""
                 WITH first_real_owner AS (
                   SELECT op.ticket_id, MIN(op.start_time) AS first_real_at
                   FROM ownership_periods op
@@ -146,6 +184,7 @@ class DomainIntelligence:
                         ('root@localhost','otrs admin (root@localhost)','')
                     AND op.owner IS NOT NULL
                     AND op.queue_name = ANY(:q)
+                    AND {op_scope}
                   GROUP BY op.ticket_id
                 )
                 SELECT COUNT(*) AS tickets_with_real_owner,
@@ -164,23 +203,27 @@ class DomainIntelligence:
                 JOIN ticket_snapshots ts ON ts.ticket_id = frbo.ticket_id
                 WHERE ts.created_at IS NOT NULL
             """),
-            {"q": queues},
+            {"q": queues, **sp},
         ).mappings().first() or {}
 
         # Tickets that NEVER got a real owner while in a ServiceDesk queue
+        op2_scope = scope_filter_sql("op.start_time", "op.end_time")
+        op2_inner = scope_filter_sql("op2.start_time", "op2.end_time")
         never_owned = db.execute(
-            text("""
+            text(f"""
                 SELECT COUNT(DISTINCT op.ticket_id) FROM ownership_periods op
                 WHERE op.queue_name = ANY(:q)
+                  AND {op2_scope}
                   AND op.ticket_id NOT IN (
                       SELECT op2.ticket_id FROM ownership_periods op2
                       WHERE op2.queue_name = ANY(:q)
                         AND LOWER(op2.owner) NOT IN
                             ('root@localhost','otrs admin (root@localhost)','')
                         AND op2.owner IS NOT NULL
+                        AND {op2_inner}
                   )
             """),
-            {"q": queues},
+            {"q": queues, **sp},
         ).scalar() or 0
 
         # Routing quality score: 100 = clean, 0 = chaos
@@ -189,18 +232,21 @@ class DomainIntelligence:
         #   loop ratio (tickets with >=2 visits)
         #   ownership-never-acquired %
         total_entries = db.execute(
-            text("SELECT COUNT(*) FROM queue_periods WHERE queue_name = ANY(:q)"),
-            {"q": queues},
+            text(f"""
+                SELECT COUNT(*) FROM queue_periods
+                WHERE queue_name = ANY(:q) AND {qp_scope}
+            """),
+            {"q": queues, **sp},
         ).scalar() or 0
         re_entries = db.execute(
-            text("""
+            text(f"""
                 SELECT COALESCE(SUM(GREATEST(visits - 1, 0)), 0) FROM (
                   SELECT COUNT(*) AS visits FROM queue_periods
-                  WHERE queue_name = ANY(:q)
+                  WHERE queue_name = ANY(:q) AND {qp_scope}
                   GROUP BY ticket_id
                 ) x
             """),
-            {"q": queues},
+            {"q": queues, **sp},
         ).scalar() or 0
         # Coerce Postgres Decimal/Numeric outputs to plain float so the
         # composite-score arithmetic stays in pure Python floats.
@@ -219,6 +265,7 @@ class DomainIntelligence:
 
         return {
             "domain": "servicedesk",
+            "scope": scope.to_dict() if scope else None,
             "queues": queues,
             "queue_count": len(queues),
             "ticket_counts": counts,
@@ -242,14 +289,17 @@ class DomainIntelligence:
     # ────────────────────────────────────────────────────────────────────
 
     @staticmethod
-    def assetmanagement(db: Session) -> dict[str, Any]:
+    def assetmanagement(db: Session, scope: Optional[TimeScope] = None) -> dict[str, Any]:
         """Logistics/warehouse aging + dormant tickets + approval bottlenecks."""
         queues = DomainIntelligence._queues_in_domain(db, DOMAIN_PATTERNS["assetmanagement"])
-        counts = DomainIntelligence._ticket_counts(db, queues)
+        counts = DomainIntelligence._ticket_counts(db, queues, scope=scope)
+        sp = _sp(scope)
+        qp_scope = scope_filter_sql("qp.entered_at", "qp.exited_at")
+        op_scope = scope_filter_sql("start_time", "end_time")
 
         # Per-queue lifecycle stats
         per_queue = db.execute(
-            text("""
+            text(f"""
                 WITH qp_agg AS (
                   SELECT qp.queue_name,
                          COUNT(DISTINCT qp.ticket_id) AS tickets_touching,
@@ -262,6 +312,7 @@ class DomainIntelligence:
                          )::numeric, 1) AS p90_stay_hours
                   FROM queue_periods qp
                   WHERE qp.queue_name = ANY(:q)
+                    AND {qp_scope}
                   GROUP BY qp.queue_name
                 ),
                 no_own AS (
@@ -275,6 +326,7 @@ class DomainIntelligence:
                          AS no_owner_pct
                   FROM ownership_periods
                   WHERE queue_name = ANY(:q)
+                    AND {op_scope}
                   GROUP BY queue_name
                 ),
                 breach AS (
@@ -283,6 +335,7 @@ class DomainIntelligence:
                          COUNT(*) FILTER (WHERE metric_name='resolution_time') AS resol_metrics
                   FROM sla_metrics
                   WHERE queue_name = ANY(:q)
+                    AND {SLA_M_SCOPE}
                   GROUP BY queue_name
                 )
                 SELECT qp_agg.queue_name,
@@ -297,12 +350,13 @@ class DomainIntelligence:
                 LEFT JOIN breach  USING (queue_name)
                 ORDER BY qp_agg.tickets_touching DESC
             """),
-            {"q": queues},
+            {"q": queues, **sp},
         ).mappings().all()
 
         # Dormant open tickets: no events in last 30 days but still open
+        # Scope filters on ticket creation; "dormant" definition is unchanged.
         dormant = db.execute(
-            text("""
+            text(f"""
                 WITH last_evt AS (
                   SELECT ticket_id, MAX(event_time) AS last_at
                   FROM ticket_events
@@ -317,40 +371,45 @@ class DomainIntelligence:
                 LEFT JOIN last_evt le ON le.ticket_id = ts.ticket_id
                 WHERE ts.current_queue = ANY(:q)
                   AND ts.is_closed = FALSE
+                  AND (:since IS NULL OR ts.created_at >= :since)
+                  AND (:until IS NULL OR ts.created_at < :until)
                   AND (le.last_at IS NULL
                        OR le.last_at < NOW() - INTERVAL '30 days')
                 ORDER BY dormant_days DESC
                 LIMIT 30
             """),
-            {"q": queues},
+            {"q": queues, **sp},
         ).mappings().all()
 
         # Reopen frequency
         reopens = db.execute(
-            text("""
+            text(f"""
                 SELECT COUNT(*) AS reopen_events,
                        COUNT(DISTINCT ticket_id) AS distinct_reopened
                 FROM ticket_events
                 WHERE queue_name = ANY(:q)
                   AND LOWER(event_type) LIKE '%reopen%'
+                  AND {EV_SCOPE}
             """),
-            {"q": queues},
+            {"q": queues, **sp},
         ).mappings().first() or {}
 
         # Pending-state proxy (tickets that hold a pending state in scope)
         pending_states = db.execute(
-            text("""
+            text(f"""
                 SELECT state_name, COUNT(*) AS hits
                 FROM ticket_events
                 WHERE queue_name = ANY(:q)
                   AND state_name ILIKE 'pending%'
+                  AND {EV_SCOPE}
                 GROUP BY state_name ORDER BY hits DESC LIMIT 6
             """),
-            {"q": queues},
+            {"q": queues, **sp},
         ).mappings().all()
 
         return {
             "domain": "assetmanagement",
+            "scope": scope.to_dict() if scope else None,
             "queues": queues,
             "queue_count": len(queues),
             "ticket_counts": counts,
@@ -369,33 +428,38 @@ class DomainIntelligence:
     # ────────────────────────────────────────────────────────────────────
 
     @staticmethod
-    def workplace(db: Session) -> dict[str, Any]:
+    def workplace(db: Session, scope: Optional[TimeScope] = None) -> dict[str, Any]:
         """Engineer overload + site hotspots + MTTA/MTTR per site."""
         queues = DomainIntelligence._queues_in_domain(db, DOMAIN_PATTERNS["workplace"])
-        counts = DomainIntelligence._ticket_counts(db, queues)
+        counts = DomainIntelligence._ticket_counts(db, queues, scope=scope)
+        sp = _sp(scope)
+        op_scope = scope_filter_sql("start_time", "end_time")
 
-        # Top engineers (by tickets & hours owned)
+        # Top engineers (by tickets & hours owned) — overlap math on durations
         engineers = db.execute(
-            text("""
+            text(f"""
                 SELECT owner,
                        COUNT(DISTINCT ticket_id) AS tickets_held,
-                       ROUND(SUM(EXTRACT(EPOCH FROM
-                         (COALESCE(end_time, NOW()) - start_time)))/3600, 1)
-                         AS hours_owned
+                       ROUND(SUM(GREATEST(0, EXTRACT(EPOCH FROM (
+                         LEAST(COALESCE(end_time, NOW()),
+                               COALESCE(:until, COALESCE(end_time, NOW())))
+                         - GREATEST(start_time, COALESCE(:since, start_time))
+                       ))))/3600, 1) AS hours_owned
                 FROM ownership_periods
                 WHERE queue_name = ANY(:q)
                   AND owner IS NOT NULL
                   AND LOWER(owner) NOT IN
                       ('root@localhost','otrs admin (root@localhost)','')
+                  AND {op_scope}
                 GROUP BY owner
                 ORDER BY tickets_held DESC LIMIT 15
             """),
-            {"q": queues},
+            {"q": queues, **sp},
         ).mappings().all()
 
         # Site = derive from queue suffix (e.g. -Veshki, -Plaza, -Esipovo)
         sites = db.execute(
-            text("""
+            text(f"""
                 SELECT
                   CASE
                     WHEN current_queue ILIKE '%veshki%'  THEN 'Veshki'
@@ -407,14 +471,15 @@ class DomainIntelligence:
                   COUNT(*) FILTER (WHERE is_closed=FALSE) AS open_now
                 FROM ticket_snapshots
                 WHERE current_queue = ANY(:q)
+                  AND {SNAP_SCOPE}
                 GROUP BY site ORDER BY tickets DESC
             """),
-            {"q": queues},
+            {"q": queues, **sp},
         ).mappings().all()
 
         # Per-site MTTA / MTTR via metric_seconds aggregation
         site_metrics = db.execute(
-            text("""
+            text(f"""
                 WITH t AS (
                   SELECT m.ticket_id, m.metric_name, m.metric_seconds, m.sla_breached,
                          CASE
@@ -425,6 +490,8 @@ class DomainIntelligence:
                          END AS site
                   FROM sla_metrics m
                   WHERE m.queue_name = ANY(:q)
+                    AND (:since IS NULL OR m.computed_at >= :since)
+                    AND (:until IS NULL OR m.computed_at < :until)
                 )
                 SELECT site,
                        ROUND(AVG(metric_seconds) FILTER (WHERE metric_name IN ('first_response_time','response_time'))) AS mtta_seconds,
@@ -433,21 +500,22 @@ class DomainIntelligence:
                 FROM t
                 GROUP BY site ORDER BY mttr_seconds DESC NULLS LAST
             """),
-            {"q": queues},
+            {"q": queues, **sp},
         ).mappings().all()
 
         # Repeat-customer detection
         repeat_customers = db.execute(
-            text("""
+            text(f"""
                 SELECT customer_id, COUNT(*) AS tickets
                 FROM ticket_snapshots
                 WHERE current_queue = ANY(:q)
                   AND customer_id IS NOT NULL
+                  AND {SNAP_SCOPE}
                 GROUP BY customer_id
                 HAVING COUNT(*) >= 3
                 ORDER BY tickets DESC LIMIT 15
             """),
-            {"q": queues},
+            {"q": queues, **sp},
         ).mappings().all()
 
         # Overload indicator: engineer hours_owned / 160 (one month FTE)
@@ -463,6 +531,7 @@ class DomainIntelligence:
 
         return {
             "domain": "workplace",
+            "scope": scope.to_dict() if scope else None,
             "queues": queues,
             "queue_count": len(queues),
             "ticket_counts": counts,
@@ -478,40 +547,43 @@ class DomainIntelligence:
     # ────────────────────────────────────────────────────────────────────
 
     @staticmethod
-    def multimedia(db: Session) -> dict[str, Any]:
+    def multimedia(db: Session, scope: Optional[TimeScope] = None) -> dict[str, Any]:
         """Event-window analytics + criticality detection."""
         queues = DomainIntelligence._queues_in_domain(db, DOMAIN_PATTERNS["multimedia"])
-        counts = DomainIntelligence._ticket_counts(db, queues)
+        counts = DomainIntelligence._ticket_counts(db, queues, scope=scope)
+        sp = _sp(scope)
 
         # Hour-of-day creation distribution — find the business-hours sensitivity
         hour_dist = db.execute(
-            text("""
+            text(f"""
                 SELECT EXTRACT(HOUR FROM created_at)::int AS hour,
                        COUNT(*) AS tickets
                 FROM ticket_snapshots
                 WHERE current_queue = ANY(:q)
                   AND created_at IS NOT NULL
+                  AND {SNAP_SCOPE}
                 GROUP BY hour ORDER BY hour
             """),
-            {"q": queues},
+            {"q": queues, **sp},
         ).mappings().all()
 
         # Day-of-week
         dow_dist = db.execute(
-            text("""
+            text(f"""
                 SELECT EXTRACT(ISODOW FROM created_at)::int AS dow,
                        COUNT(*) AS tickets
                 FROM ticket_snapshots
                 WHERE current_queue = ANY(:q)
                   AND created_at IS NOT NULL
+                  AND {SNAP_SCOPE}
                 GROUP BY dow ORDER BY dow
             """),
-            {"q": queues},
+            {"q": queues, **sp},
         ).mappings().all()
 
         # Per-queue volume + age
         per_queue = db.execute(
-            text("""
+            text(f"""
                 SELECT current_queue,
                        COUNT(*) AS tickets,
                        COUNT(*) FILTER (WHERE is_closed=FALSE) AS open_now,
@@ -520,18 +592,20 @@ class DomainIntelligence:
                          AS avg_lifetime_hours
                 FROM ticket_snapshots
                 WHERE current_queue = ANY(:q)
+                  AND {SNAP_SCOPE}
                 GROUP BY current_queue ORDER BY tickets DESC
             """),
-            {"q": queues},
+            {"q": queues, **sp},
         ).mappings().all()
 
         # Title text scan for criticality markers (VIP, executive, urgent, etc.)
         markers = db.execute(
-            text("""
+            text(f"""
                 SELECT ticket_number, current_queue, title,
                        is_closed, created_at
                 FROM ticket_snapshots
                 WHERE current_queue = ANY(:q)
+                  AND {SNAP_SCOPE}
                   AND (LOWER(title) LIKE '%vip%'
                        OR LOWER(title) LIKE '%executive%'
                        OR LOWER(title) LIKE '%директор%'
@@ -541,36 +615,40 @@ class DomainIntelligence:
                        OR LOWER(title) LIKE '%переговор%')
                 ORDER BY created_at DESC LIMIT 20
             """),
-            {"q": queues},
+            {"q": queues, **sp},
         ).mappings().all()
 
         # SLA breach counts (small dataset)
         breach_row = db.execute(
-            text("""
+            text(f"""
                 SELECT
                   COUNT(*) FILTER (WHERE sla_breached AND metric_name='resolution_time') AS resol_breaches,
                   COUNT(*) FILTER (WHERE metric_name='resolution_time') AS resol_metrics
-                FROM sla_metrics WHERE queue_name = ANY(:q)
+                FROM sla_metrics
+                WHERE queue_name = ANY(:q)
+                  AND {SLA_M_SCOPE}
             """),
-            {"q": queues},
+            {"q": queues, **sp},
         ).mappings().first() or {}
 
         # Repeat infrastructure failures (same customer, multiple Multimedia tickets)
         infra_instability = db.execute(
-            text("""
+            text(f"""
                 SELECT customer_id, COUNT(*) AS hits,
                        COUNT(DISTINCT current_queue) AS distinct_queues
                 FROM ticket_snapshots
                 WHERE current_queue = ANY(:q)
                   AND customer_id IS NOT NULL
+                  AND {SNAP_SCOPE}
                 GROUP BY customer_id HAVING COUNT(*) >= 2
                 ORDER BY hits DESC LIMIT 10
             """),
-            {"q": queues},
+            {"q": queues, **sp},
         ).mappings().all()
 
         return {
             "domain": "multimedia",
+            "scope": scope.to_dict() if scope else None,
             "queues": queues,
             "queue_count": len(queues),
             "ticket_counts": counts,

@@ -10,6 +10,7 @@ import { useQuery } from "@tanstack/react-query";
 import ReactEChartsCore from "echarts-for-react";
 import { forensicsApi, formatDuration } from "../api/forensics";
 import { useFavorites } from "../contexts/FavoritesContext";
+import { useTimeScope } from "../contexts/TimeScopeContext";
 import { useTheme } from "../design/ThemeContext";
 import { cardStyle } from "../design/tokens";
 import { spacing } from "../design/spacing";
@@ -19,9 +20,15 @@ const { Title, Text } = Typography;
 export default function SLAForensicCommandCenter() {
   const { colors } = useTheme();
   const { activeFilter } = useFavorites();
+  const { toParams } = useTimeScope();
+  const scopeParams = toParams();
+  const scopeKey = JSON.stringify(scopeParams);
   const summaryQ = useQuery({
-    queryKey: ["forensic-summary", activeFilter.join(",")],
-    queryFn: () => forensicsApi.summary(activeFilter.length ? activeFilter : undefined),
+    queryKey: ["forensic-summary", activeFilter.join(","), scopeKey],
+    queryFn: () => forensicsApi.summary(
+      activeFilter.length ? activeFilter : undefined,
+      scopeParams,
+    ),
     refetchInterval: 60_000,
   });
 

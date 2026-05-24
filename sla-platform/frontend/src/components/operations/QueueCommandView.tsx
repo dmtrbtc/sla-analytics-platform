@@ -6,6 +6,7 @@ import {
   type QueueCommandCenterResponse,
   type QueueCCMetric,
 } from "../../api/queueCommandCenter";
+import { useTimeScope } from "../../contexts/TimeScopeContext";
 import RuntimeErrorBoundary from "../safety/RuntimeErrorBoundary";
 import "../../design/v1-tokens.css";
 
@@ -66,9 +67,12 @@ function MetricCard({ label, m, suffix = "" }: {
  */
 function QueueCommandViewInner({ queueName }: Props) {
   // ── ALL HOOKS FIRST ─────────────────────────────────────────────
+  const { toParams } = useTimeScope();
+  const scopeParams = toParams();
+  const scopeKey = JSON.stringify(scopeParams);
   const q = useQuery({
-    queryKey: ["queue-command-center", queueName],
-    queryFn: () => queueCommandCenterApi.get(queueName),
+    queryKey: ["queue-command-center", queueName, scopeKey],
+    queryFn: () => queueCommandCenterApi.get(queueName, scopeParams),
     refetchInterval: 60_000,
   });
 

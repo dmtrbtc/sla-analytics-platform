@@ -8,7 +8,7 @@ const { RangePicker } = DatePicker;
 
 const OPTIONS = [
   { label: "Всё время", value: "all" as const },
-  { label: "24ч",       value: "24h" as const },
+  { label: "1д",        value: "1d"  as const },
   { label: "7д",        value: "7d"  as const },
   { label: "30д",       value: "30d" as const },
   { label: "90д",       value: "90d" as const },
@@ -39,7 +39,9 @@ export default function TimeScopeToolbar() {
       </Tooltip>
       <Segmented
         size="small"
-        value={preset}
+        // Treat the legacy "24h" preset (from old shared URLs / localStorage)
+        // as "1d" so the segment lights up correctly on the new label.
+        value={preset === "24h" ? "1d" : preset}
         options={OPTIONS}
         onChange={(v) => setPreset(v as ScopePreset)}
       />

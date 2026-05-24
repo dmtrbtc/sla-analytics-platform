@@ -1,5 +1,7 @@
 import client from './client';
 
+type ScopeParams = Record<string, string | undefined>;
+
 export interface ForensicQueueRow {
   queue: string;
   total_tickets: number;
@@ -85,44 +87,52 @@ export interface ForensicSummary {
   queue_silence: QueueSilenceRow[];
 }
 
+/**
+ * Every list/aggregate endpoint accepts an optional `scope` object built by
+ * `useTimeScope().toParams()`. The per-ticket attribution endpoint is
+ * scope-agnostic (whole lifecycle).
+ */
 export const forensicsApi = {
-  summary: (queues?: string[]) =>
+  summary: (queues?: string[], scope?: ScopeParams) =>
     client.get<ForensicSummary>('/analytics/forensics/summary', {
-      params: queues && queues.length ? { queue: queues } : {},
+      params: {
+        ...(queues && queues.length ? { queue: queues } : {}),
+        ...(scope || {}),
+      },
     }).then(r => r.data),
 
-  queues: (sortBy = 'black_hole_score', limit = 100) =>
-    client.get('/analytics/forensics/queues', { params: { sort_by: sortBy, limit } })
+  queues: (sortBy = 'black_hole_score', limit = 100, scope?: ScopeParams) =>
+    client.get('/analytics/forensics/queues', { params: { sort_by: sortBy, limit, ...(scope || {}) } })
       .then(r => r.data as { count: number; queues: ForensicQueueRow[] }),
 
-  owners: (limit = 100) =>
-    client.get('/analytics/forensics/owners', { params: { limit } }).then(r => r.data),
+  owners: (limit = 100, scope?: ScopeParams) =>
+    client.get('/analytics/forensics/owners', { params: { limit, ...(scope || {}) } }).then(r => r.data),
 
-  transitions: (limit = 200) =>
-    client.get('/analytics/forensics/transitions', { params: { limit } })
+  transitions: (limit = 200, scope?: ScopeParams) =>
+    client.get('/analytics/forensics/transitions', { params: { limit, ...(scope || {}) } })
       .then(r => r.data as { count: number; transitions: ForensicTransition[] }),
 
-  hotPotato: (minMoves = 3, limit = 50) =>
-    client.get('/analytics/forensics/hot-potato', { params: { min_moves: minMoves, limit } })
+  hotPotato: (minMoves = 3, limit = 50, scope?: ScopeParams) =>
+    client.get('/analytics/forensics/hot-potato', { params: { min_moves: minMoves, limit, ...(scope || {}) } })
       .then(r => r.data as { count: number; tickets: HotPotatoTicket[] }),
 
-  blackholes: (minScore = 0.3) =>
-    client.get('/analytics/forensics/blackholes', { params: { min_score: minScore } })
+  blackholes: (minScore = 0.3, scope?: ScopeParams) =>
+    client.get('/analytics/forensics/blackholes', { params: { min_score: minScore, ...(scope || {}) } })
       .then(r => r.data as { count: number; queues: ForensicQueueRow[] }),
 
-  stagnation: () =>
-    client.get('/analytics/forensics/stagnation').then(r => r.data),
+  stagnation: (scope?: ScopeParams) =>
+    client.get('/analytics/forensics/stagnation', { params: { ...(scope || {}) } }).then(r => r.data),
 
-  silentBreaches: (minRatio = 0.5, limit = 200) =>
-    client.get('/analytics/forensics/silent-breaches', { params: { min_ratio: minRatio, limit } })
+  silentBreaches: (minRatio = 0.5, limit = 200, scope?: ScopeParams) =>
+    client.get('/analytics/forensics/silent-breaches', { params: { min_ratio: minRatio, limit, ...(scope || {}) } })
       .then(r => r.data as { count: number; tickets: SilentBreachTicket[]; queue_silence: QueueSilenceRow[] }),
 
   ticketAttribution: (ticketId: number, metric: 'resolution_time' | 'first_response_time' = 'resolution_time') =>
     client.get(`/analytics/forensics/tickets/${ticketId}/attribution`, { params: { metric } })
       .then(r => r.data),
 
-  breaches: (metric: 'resolution_time' | 'first_response_time' = 'resolution_time', limit = 100) =>
-    client.get('/analytics/forensics/breaches', { params: { metric, limit } }).then(r => r.data),
+  breaches: (metric: 'resolution_time' | 'first_response_time' = 'resolution_time', limit = 100, scope?: ScopeParams) =>
+    client.get('/analytics/forensics/breaches', { params: { metric, limit, ...(scope || {}) } }).then(r => r.data),
 };
 
 export function formatDuration(seconds: number): string {

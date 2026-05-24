@@ -1,6 +1,10 @@
-# Forensic Time-Scope System — v2.1.0
+# Forensic Time-Scope System — v2.2.0
 
-Every analytics endpoint now accepts a temporal scope (`24h / 7d / 30d / 90d / custom`) and computes **overlap-aware** contributions on durational records — not naive `created_at` filtering.
+Every analytics endpoint now accepts a temporal scope (`1d / 24h / 7d / 30d / 90d / custom`) and computes **overlap-aware** contributions on durational records — not naive `created_at` filtering.
+
+**v2.2 addition** — full coverage. The list under "Endpoints that now honor scope"
+below grew from 6 endpoints to ~25, covering every list/aggregate route the UI
+calls plus the XLSX/CSV report generation pipeline.
 
 ---
 
@@ -64,10 +68,14 @@ WHERE qp.queue_name = 'MBR-137-Workplace-Veshki'
 All accept the same four query params:
 
 ```
-?period=24h | 7d | 30d | 90d | 365d
+?period=1d | 24h | 7d | 30d | 90d | 365d
 ?since=<ISO datetime>
 ?until=<ISO datetime>
 ```
+
+Note: `1d` and `24h` are aliases (both map to `timedelta(days=1)`).
+The UI label is "1д" (v2.2.0); the legacy `24h` value is still accepted
+in URL params and parsed identically.
 
 | endpoint | overlap math? |
 |---|---|
@@ -77,6 +85,30 @@ All accept the same four query params:
 | `GET /analytics/sla-loss/parking-lots` | ✓ on `ownership_periods` |
 | `GET /analytics/sla-loss/overview` | ✓ — bundles all 4 above |
 | `GET /operations/review/overview` | ✓ — delegates to SLALossEngine; hidden-breach delta filters `computed_at` |
+| `GET /queue-intelligence/overview` | ✓ — bridged via `_scope_to_days` helper |
+| `GET /queue-intelligence/queue-flow-map` | ✓ |
+| `GET /queue-intelligence/queue-forensics` | ✓ |
+| `GET /queue-intelligence/transfer-analytics` | ✓ |
+| `GET /queue-intelligence/servicedesk-intelligence` | ✓ |
+| `GET /operations/queue-command-center/{q}` | ✓ on `queue_periods` + `ownership_periods`; events/snapshots filter `event_time`/`created_at` |
+| `GET /analytics/forensics/queues` | ✓ — all 4 inner CTEs scope-aware |
+| `GET /analytics/forensics/owners` | ✓ — `ownership_periods` overlap + event scoping |
+| `GET /analytics/forensics/transitions` | ✓ — `event_time` filter |
+| `GET /analytics/forensics/hot-potato` | ✓ — `event_time` filter |
+| `GET /analytics/forensics/blackholes` | ✓ — wraps queues |
+| `GET /analytics/forensics/stagnation` | ✓ — wraps queues |
+| `GET /analytics/forensics/silent-breaches` | ✓ — restricts candidate tickets to creation window |
+| `GET /analytics/forensics/breaches` | ✓ — `computed_at` filter on `sla_metrics` |
+| `GET /analytics/forensics/summary` | ✓ — bundles all of the above + KPI sums |
+| `GET /operations/intelligence/{domain}` | ✓ — per-domain overlap math (servicedesk, assetmanagement, workplace, multimedia) |
+| `GET /operations/intelligence` | ✓ — overview rollup of 4 domains |
+| `POST /reports/generate` | ✓ — `period`/`since`/`until` forwarded to Celery; sla_breaches, team_performance, ticket_lifecycle, executive all scope-aware |
+| `POST /enterprise-reports/xlsx/generate` | ✓ — `scope` in payload body |
+| `POST /enterprise-reports/pdf/generate` | ✓ — `scope` in payload body |
+
+Per-ticket attribution (`GET /analytics/forensics/tickets/{id}/attribution`) is
+**scope-agnostic by design** — when an analyst opens a specific ticket they want
+the whole lifecycle, not a window.
 
 Response includes a `scope` field so the client can echo back what was applied:
 
@@ -165,7 +197,42 @@ sits inside it — both contexts compose cleanly without prop drilling.
 - Browser DOM rendering of the toolbar segment + RangePicker
 - Visual confirmation that scope changes trigger query refetch (TanStack queryKey is keyed on `JSON.stringify(scopeParams)` so it MUST, but visual confirmation requires browser)
 - Compare-to-previous-period toggle — context has `TimeScope.previous()` ready, but UI not built this release
-- Plumbing into `/dashboards/overview`, `/operations/queue-command-center/{q}`, `/analytics/forensics/*`, `/operations/engineer-load`, `/operations/comparison` — those endpoints still use the old all-time aggregation. The pattern is now established; each endpoint is a 3-line change (add `parse_time_scope` + `scope=` arg). Deferred to a focused follow-up to keep this commit reviewable.
+
+## v2.2 verification (live curl)
+
+Real Workplace-Veshki data spans 2026-05-04 → 2026-05-10. Today is 2026-05-24.
+
+```
+/operations/queue-command-center/MBR-137-Workplace-Veshki:
+  all-time  total=60 open=7 engineers=5 bounces=12
+  1d        total=0  open=0 engineers=0 bounces=0   (correctly empty — data is 17+ days old)
+  7d        total=0  open=0 engineers=0 bounces=0
+  30d       total=23 open=7 engineers=5 bounces=12  (captures full data window)
+
+/analytics/forensics/queues?limit=3&sort_by=total_wall_hours:
+  all-time  count=3 top=MBR-137-ServiceDesk  15394.36h
+  1d        count=0
+  7d        count=0
+  30d       count=3 top=MBR-137-ServiceDesk  15394.36h
+
+/operations/intelligence/workplace:
+  all-time  total=134 engineers=11 sites=4 overloaded=3
+  1d        total=0   engineers=0  sites=0
+  7d        total=0   engineers=0  sites=0
+  30d       total=62  engineers=11 sites=3 overloaded=3
+
+/operations/intelligence (overview):
+  all-time  sd_tickets=255 wp_tickets=134
+  30d       sd_tickets=244 wp_tickets=62
+
+POST /reports/generate (sla_breaches xlsx):
+  period=7d → completed in 22s, 12,103 rows
+  period=1d → completed,         5 rows
+```
+
+The all-time vs 30d divergence on snapshot totals (60 vs 23, 134 vs 62) confirms
+the scope filters are applied to `ticket_snapshots.created_at` — tickets created
+before the window are correctly excluded from per-period reports.
 
 ---
 

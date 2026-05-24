@@ -18,12 +18,24 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, Optional
 
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
+from app.services.forensics.time_scope import (
+    TimeScope,
+    scope_filter_sql,
+    scope_params,
+)
+
 logger = logging.getLogger(__name__)
+
+
+def _scope_binds(scope: Optional[TimeScope]) -> dict:
+    if scope is None:
+        return {"since": None, "until": None}
+    return scope_params(scope)
 
 
 SYSTEM_OWNERS_SQL = (
@@ -51,9 +63,20 @@ class OwnerForensicsService:
         db: Session,
         limit: int = 100,
         queues: list[str] | None = None,
+        scope: Optional[TimeScope] = None,
     ) -> list[OwnerForensicRow]:
         """Aggregate owner forensic scores. If `queues` is provided, only
-        ownership periods inside those queues count toward the totals."""
+        ownership periods inside those queues count toward the totals.
+
+        When `scope` is provided:
+          * ownership_periods are restricted to segments overlapping window
+          * ticket_events touch/reassignment counts filter by event_time
+        """
+        op_scope = scope_filter_sql("op.start_time", "op.end_time")
+        ev_scope = (
+            "(:since IS NULL OR te.event_time >= :since) "
+            "AND (:until IS NULL OR te.event_time < :until)"
+        )
         rows = db.execute(
             text(f"""
                 WITH own AS (
@@ -65,6 +88,7 @@ class OwnerForensicsService:
                   WHERE op.owner IS NOT NULL
                     AND NOT ({SYSTEM_OWNERS_SQL})
                     AND ((:has_queues IS FALSE) OR op.queue_name = ANY(:queue_list))
+                    AND {op_scope}
                   GROUP BY op.owner, op.ticket_id
                 ),
                 per_owner AS (
@@ -82,6 +106,7 @@ class OwnerForensicsService:
                   WHERE te.owner_name IS NOT NULL
                     AND LOWER(te.owner_name) NOT IN
                         ('root@localhost','otrs admin (root@localhost)','')
+                    AND {ev_scope}
                   GROUP BY te.owner_name
                 ),
                 parked AS (
@@ -94,7 +119,8 @@ class OwnerForensicsService:
                     SELECT ticket_id, owner_name AS owner,
                            COUNT(*) FILTER (WHERE is_system_action IS NOT TRUE)
                              AS non_sys
-                    FROM ticket_events
+                    FROM ticket_events te
+                    WHERE {ev_scope}
                     GROUP BY ticket_id, owner_name
                   ) t ON t.ticket_id = own.ticket_id AND t.owner = own.owner
                   GROUP BY own.owner
@@ -108,6 +134,7 @@ class OwnerForensicsService:
                     AND te.new_owner != te.old_owner
                     AND LOWER(te.new_owner) NOT IN
                         ('root@localhost','otrs admin (root@localhost)','')
+                    AND {ev_scope}
                   GROUP BY te.new_owner
                 )
                 SELECT
@@ -128,6 +155,7 @@ class OwnerForensicsService:
                 "lim": limit,
                 "has_queues": bool(queues),
                 "queue_list": queues or [],
+                **_scope_binds(scope),
             },
         ).mappings().all()
 

@@ -25,6 +25,8 @@ from typing import Any, Optional
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
+from app.services.forensics.time_scope import TimeScope, scope_params
+
 logger = logging.getLogger(__name__)
 
 
@@ -51,12 +53,18 @@ class InactivityEngine:
         min_inactivity_ratio: float = 0.5,
         limit: int = 200,
         queues: list[str] | None = None,
+        scope: Optional[TimeScope] = None,
     ) -> list[SilentBreachRow]:
         """Find open tickets whose age-since-last-activity exceeds
         min_inactivity_ratio * SLA target.
 
         Pure SQL — no per-ticket Python loop.
         """
+        # When a scope is given, restrict the candidate ticket set to those
+        # CREATED inside the window — operationally "tickets that arrived in
+        # the last N days and are still open silent." All-time scope keeps
+        # the original behavior.
+        sp = scope_params(scope) if scope is not None else {"since": None, "until": None}
         rows = db.execute(
             text("""
                 WITH last_evt AS (
@@ -86,6 +94,8 @@ class InactivityEngine:
                 WHERE s.is_closed IS NOT TRUE
                   AND s.is_merged IS NOT TRUE
                   AND ((:has_queues IS FALSE) OR s.current_queue = ANY(:queue_list))
+                  AND (:since IS NULL OR s.created_at >= :since)
+                  AND (:until IS NULL OR s.created_at < :until)
                 GROUP BY s.ticket_id, le.last_event_time, d.resolution_target_seconds
                 ORDER BY last_activity_age_seconds DESC
                 LIMIT :lim
@@ -94,6 +104,7 @@ class InactivityEngine:
                 "lim": limit * 4,
                 "has_queues": bool(queues),
                 "queue_list": queues or [],
+                **sp,
             },  # over-fetch then filter in Python (small set)
         ).mappings().all()
 
@@ -133,9 +144,13 @@ class InactivityEngine:
         return out
 
     @staticmethod
-    def compute_queue_silence(db: Session) -> list[dict[str, Any]]:
+    def compute_queue_silence(
+        db: Session,
+        scope: Optional[TimeScope] = None,
+    ) -> list[dict[str, Any]]:
         """Per-queue silence score: median time since last activity for open
         tickets in that queue, normalized by the queue's typical SLA target."""
+        sp = scope_params(scope) if scope is not None else {"since": None, "until": None}
         rows = db.execute(
             text("""
                 WITH last_evt AS (
@@ -163,6 +178,8 @@ class InactivityEngine:
                   WHERE s.is_closed IS NOT TRUE
                     AND s.is_merged IS NOT TRUE
                     AND s.current_queue IS NOT NULL
+                    AND (:since IS NULL OR s.created_at >= :since)
+                    AND (:until IS NULL OR s.created_at < :until)
                   GROUP BY s.current_queue
                 )
                 SELECT queue, open_tickets, median_age_seconds, p90_age_seconds
@@ -170,6 +187,7 @@ class InactivityEngine:
                 ORDER BY median_age_seconds DESC NULLS LAST
                 LIMIT 50
             """),
+            sp,
         ).mappings().all()
 
         out = []
